@@ -1,0 +1,193 @@
+import { createClient } from 'npm:@insforge/sdk';
+
+interface ProvisionTowerRequest {
+  tower_name: string;
+  tower_code: string;
+  floors_count: number;
+  departments_per_floor: number;
+  naming_pattern?: 'SEQUENTIAL' | 'FLOOR_DEPT';
+}
+
+interface ProvisionTowerResponse {
+  success: boolean;
+  data: {
+    tower_id: string;
+    tower_name: string;
+    tower_code: string;
+    floors_created: number;
+    departments_created: number;
+  } | null;
+  error: {
+    code: string;
+    message: string;
+  } | null;
+}
+
+export default async function(req: Request): Promise<Response> {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ success: false, data: null, error: { code: 'METHOD_NOT_ALLOWED', message: 'Solo se permite POST' } }),
+      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  try {
+    const authHeader = req.headers.get('Authorization');
+    const userToken = authHeader ? authHeader.replace('Bearer ', '') : null;
+
+    const client = createClient({
+      baseUrl: Deno.env.get('INSFORGE_BASE_URL'),
+      accessToken: userToken
+    });
+
+    const { data: userData } = await client.auth.getCurrentUser();
+    if (!userData?.user?.id) {
+      return new Response(
+        JSON.stringify({ success: false, data: null, error: { code: 'UNAUTHORIZED', message: 'Usuario no autenticado' } }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { data: roleData } = await client.database
+      .from('tenant_users')
+      .select('role')
+      .eq('user_id', userData.user.id)
+      .single();
+
+    if (!roleData || !['SUPER_ADMIN', 'ADMIN'].includes(roleData.role)) {
+      return new Response(
+        JSON.stringify({ success: false, data: null, error: { code: 'FORBIDDEN', message: 'Se requieren permisos de administrador' } }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const body: ProvisionTowerRequest = await req.json();
+
+    if (!body.tower_name || !body.tower_code || !body.floors_count || !body.departments_per_floor) {
+      return new Response(
+        JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Campos requeridos: tower_name, tower_code, floors_count, departments_per_floor' } }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (body.floors_count <= 0 || body.departments_per_floor <= 0) {
+      return new Response(
+        JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'floors_count y departments_per_floor deben ser mayores a 0' } }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { data: existingTower } = await client.database
+      .from('towers')
+      .select('id')
+      .eq('code', body.tower_code)
+      .single();
+
+    if (existingTower) {
+      return new Response(
+        JSON.stringify({ success: false, data: null, error: { code: 'TOWER_EXISTS', message: 'Ya existe una torre con ese código' } }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { data: tower, error: towerError } = await client.database
+      .from('towers')
+      .insert([{
+        name: body.tower_name,
+        code: body.tower_code,
+        floors_count: body.floors_count,
+        departments_per_floor: body.departments_per_floor
+      }])
+      .select()
+      .single();
+
+    if (towerError) {
+      throw towerError;
+    }
+
+    const floors = [];
+    for (let i = 1; i <= body.floors_count; i++) {
+      floors.push({
+        tower_id: tower.id,
+        floor_number: i
+      });
+    }
+
+    const { data: createdFloors, error: floorsError } = await client.database
+      .from('floors')
+      .insert(floors)
+      .select();
+
+    if (floorsError) {
+      throw floorsError;
+    }
+
+    const departments = [];
+    for (const floor of createdFloors) {
+      for (let j = 1; j <= body.departments_per_floor; j++) {
+        let deptNumber: string;
+        if (body.naming_pattern === 'FLOOR_DEPT') {
+          deptNumber = `${floor.floor_number.toString().padStart(2, '0')}${j.toString().padStart(2, '0')}`;
+        } else {
+          deptNumber = `${floor.floor_number}${j.toString().padStart(2, '0')}`;
+        }
+
+        departments.push({
+          floor_id: floor.id,
+          tower_id: tower.id,
+          department_number: deptNumber,
+          status: 'HABITADO'
+        });
+      }
+    }
+
+    const { error: deptsError } = await client.database
+      .from('departments')
+      .insert(departments);
+
+    if (deptsError) {
+      throw deptsError;
+    }
+
+    const response: ProvisionTowerResponse = {
+      success: true,
+      data: {
+        tower_id: tower.id,
+        tower_name: tower.name,
+        tower_code: tower.code,
+        floors_created: createdFloors.length,
+        departments_created: departments.length
+      },
+      error: null
+    };
+
+    return new Response(
+      JSON.stringify(response),
+      { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('Error in provisionTowerStructure:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        data: null,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Error interno del servidor al provisionar la torre'
+        }
+      }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
