@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { insforge } from '../../../lib/insforge';
+import { invokeFunction } from '../../../lib/insforge';
 import type { Tower, ApiResponse, ProvisionTowerRequest } from '../types';
 
 export function useTowers() {
@@ -10,17 +10,14 @@ export function useTowers() {
   const fetchTowers = async () => {
     try {
       setLoading(true);
-      const { data, error: fnError } = await insforge.functions.invoke('towers', {
-        method: 'GET'
-      });
+      const { data, error: fnError } = await invokeFunction<ApiResponse<Tower[]>>('towers');
 
       if (fnError) throw fnError;
 
-      const response: ApiResponse<Tower[]> = await data.json();
-      if (response.success && response.data) {
-        setTowers(response.data);
+      if (data?.success && data.data) {
+        setTowers(data.data);
       } else {
-        setError(response.error?.message || 'Error al cargar torres');
+        setError(data?.error?.message || 'Error al cargar torres');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error de conexión');
@@ -34,51 +31,48 @@ export function useTowers() {
   }, []);
 
   const createTower = async (tower: ProvisionTowerRequest) => {
-    const { data, error: fnError } = await insforge.functions.invoke('provision-tower', {
+    const { data, error: fnError } = await invokeFunction<ApiResponse<Tower>>('provision-tower', {
       method: 'POST',
       body: tower
     });
 
     if (fnError) throw fnError;
 
-    const response: ApiResponse<Tower> = await data.json();
-    if (response.success) {
+    if (data?.success) {
       await fetchTowers();
-      return response.data;
+      return data.data;
     }
-    throw new Error(response.error?.message || 'Error al crear torre');
+    throw new Error(data?.error?.message || 'Error al crear torre');
   };
 
   const updateTower = async (id: string, updates: Partial<Tower>) => {
-    const { data, error: fnError } = await insforge.functions.invoke('towers', {
+    const { data, error: fnError } = await invokeFunction<ApiResponse<Tower>>('towers', {
       method: 'PUT',
       body: { id, ...updates }
     });
 
     if (fnError) throw fnError;
 
-    const response: ApiResponse<Tower> = await data.json();
-    if (response.success) {
+    if (data?.success) {
       await fetchTowers();
-      return response.data;
+      return data.data;
     }
-    throw new Error(response.error?.message || 'Error al actualizar torre');
+    throw new Error(data?.error?.message || 'Error al actualizar torre');
   };
 
   const deleteTower = async (id: string) => {
-    const { data, error: fnError } = await insforge.functions.invoke('towers', {
+    const { data, error: fnError } = await invokeFunction<ApiResponse<null>>('towers', {
       method: 'DELETE',
       body: { id }
     });
 
     if (fnError) throw fnError;
 
-    const response: ApiResponse<null> = await data.json();
-    if (response.success) {
+    if (data?.success) {
       await fetchTowers();
       return true;
     }
-    throw new Error(response.error?.message || 'Error al eliminar torre');
+    throw new Error(data?.error?.message || 'Error al eliminar torre');
   };
 
   return {

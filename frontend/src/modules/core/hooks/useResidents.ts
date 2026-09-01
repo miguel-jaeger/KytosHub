@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { insforge } from '../../../lib/insforge';
+import { invokeFunction } from '../../../lib/insforge';
 import type { Resident, ApiResponse } from '../types';
 
 export function useResidents(departmentId?: string) {
@@ -11,17 +11,14 @@ export function useResidents(departmentId?: string) {
     try {
       setLoading(true);
       const params = departmentId ? `?department_id=${departmentId}` : '';
-      const { data, error: fnError } = await insforge.functions.invoke(`residents${params}`, {
-        method: 'GET'
-      });
+      const { data, error: fnError } = await invokeFunction<ApiResponse<Resident[]>>(`residents${params}`);
 
       if (fnError) throw fnError;
 
-      const response: ApiResponse<Resident[]> = await data.json();
-      if (response.success && response.data) {
-        setResidents(response.data);
+      if (data?.success && data.data) {
+        setResidents(data.data);
       } else {
-        setError(response.error?.message || 'Error al cargar residentes');
+        setError(data?.error?.message || 'Error al cargar residentes');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error de conexión');
@@ -35,51 +32,48 @@ export function useResidents(departmentId?: string) {
   }, [departmentId]);
 
   const createResident = async (resident: Omit<Resident, 'id' | 'created_at'>) => {
-    const { data, error: fnError } = await insforge.functions.invoke('residents', {
+    const { data, error: fnError } = await invokeFunction<ApiResponse<Resident>>('residents', {
       method: 'POST',
       body: resident
     });
 
     if (fnError) throw fnError;
 
-    const response: ApiResponse<Resident> = await data.json();
-    if (response.success) {
+    if (data?.success) {
       await fetchResidents();
-      return response.data;
+      return data.data;
     }
-    throw new Error(response.error?.message || 'Error al crear residente');
+    throw new Error(data?.error?.message || 'Error al crear residente');
   };
 
   const updateResident = async (id: string, updates: Partial<Resident>) => {
-    const { data, error: fnError } = await insforge.functions.invoke('residents', {
+    const { data, error: fnError } = await invokeFunction<ApiResponse<Resident>>('residents', {
       method: 'PUT',
       body: { id, ...updates }
     });
 
     if (fnError) throw fnError;
 
-    const response: ApiResponse<Resident> = await data.json();
-    if (response.success) {
+    if (data?.success) {
       await fetchResidents();
-      return response.data;
+      return data.data;
     }
-    throw new Error(response.error?.message || 'Error al actualizar residente');
+    throw new Error(data?.error?.message || 'Error al actualizar residente');
   };
 
   const deleteResident = async (id: string) => {
-    const { data, error: fnError } = await insforge.functions.invoke('residents', {
+    const { data, error: fnError } = await invokeFunction<ApiResponse<null>>('residents', {
       method: 'DELETE',
       body: { id }
     });
 
     if (fnError) throw fnError;
 
-    const response: ApiResponse<null> = await data.json();
-    if (response.success) {
+    if (data?.success) {
       await fetchResidents();
       return true;
     }
-    throw new Error(response.error?.message || 'Error al eliminar residente');
+    throw new Error(data?.error?.message || 'Error al eliminar residente');
   };
 
   return {
