@@ -6,8 +6,15 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "/api/proxy"
+    },
+    {
       "source": "/((?!assets/).*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "env": {
+    "INSFORGE_FUNCTIONS_URL": "https://5vvsyy6z.function2.insforge.app/functions/v1"
+  }
 }

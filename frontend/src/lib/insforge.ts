@@ -1,5 +1,4 @@
-const INSFORGE_URL = import.meta.env.VITE_INSFORGE_URL || '';
-const FUNCTIONS_URL = import.meta.env.VITE_INSFORGE_FUNCTIONS_URL || `${INSFORGE_URL.replace('.us-east.', '.function2.')}/functions/v1`;
+const PROXY_URL = '/api/proxy';
 
 interface InvokeOptions {
   method?: string;
@@ -14,7 +13,8 @@ export async function invokeFunction<T>(
   const { method = 'GET', body, headers = {} } = options;
 
   try {
-    const response = await fetch(`${FUNCTIONS_URL}/${slug}`, {
+    const url = `${PROXY_URL}?slug=${slug}`;
+    const response = await fetch(url, {
       method,
       headers: {
         'Content-Type': 'application/json',
