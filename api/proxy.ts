@@ -1,4 +1,4 @@
-const INSFORGE_FUNCTIONS_URL = process.env.INSFORGE_FUNCTIONS_URL || 'https://5vvsyy6z.function2.insforge.app/functions/v1';
+const INSFORGE_FUNCTIONS_URL = 'https://5vvsyy6z.function2.insforge.app/functions/v1';
 
 export const config = { runtime: 'edge' };
 
@@ -26,10 +26,7 @@ export default async function handler(req: Request): Promise<Response> {
 
     const targetUrl = `${INSFORGE_FUNCTIONS_URL}/${slug}`;
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
-    };
-
+    const headers: Record<string, string> = {};
     const authHeader = req.headers.get('Authorization');
     if (authHeader) {
       headers['Authorization'] = authHeader;
@@ -41,10 +38,7 @@ export default async function handler(req: Request): Promise<Response> {
     };
 
     if (req.method !== 'GET' && req.method !== 'HEAD') {
-      const body = await req.text();
-      if (body) {
-        init.body = body;
-      }
+      init.body = await req.arrayBuffer();
     }
 
     const response = await fetch(targetUrl, init);
@@ -60,7 +54,7 @@ export default async function handler(req: Request): Promise<Response> {
   } catch (error) {
     console.error('Proxy error:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal proxy error' }),
+      JSON.stringify({ error: String(error) }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
