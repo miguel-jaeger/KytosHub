@@ -1,5 +1,5 @@
 const INSFORGE_URL = import.meta.env.VITE_INSFORGE_URL || '';
-const FUNCTIONS_URL = `${INSFORGE_URL}/functions/v1`;
+const FUNCTIONS_URL = import.meta.env.VITE_INSFORGE_FUNCTIONS_URL || `${INSFORGE_URL.replace('.us-east.', '.function2.')}/functions/v1`;
 
 interface InvokeOptions {
   method?: string;
@@ -24,12 +24,15 @@ export async function invokeFunction<T>(
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Function ${slug} error:`, response.status, errorText);
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
     const data = await response.json();
     return { data, error: null };
   } catch (error) {
+    console.error(`Function ${slug} failed:`, error);
     return {
       data: null,
       error: error instanceof Error ? error : new Error('Error de conexión')
