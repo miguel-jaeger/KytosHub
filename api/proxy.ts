@@ -1,7 +1,9 @@
 const INSFORGE_FUNCTIONS_URL = process.env.INSFORGE_FUNCTIONS_URL || 'https://5vvsyy6z.function2.insforge.app/functions/v1';
 
+export const config = { runtime: 'edge' };
+
 export default async function handler(req: Request): Promise<Response> {
-  const corsHeaders = {
+  const corsHeaders: Record<string, string> = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization'
@@ -14,7 +16,6 @@ export default async function handler(req: Request): Promise<Response> {
   try {
     const url = new URL(req.url);
     const slug = url.searchParams.get('slug');
-    const params = url.searchParams.toString();
 
     if (!slug) {
       return new Response(
@@ -23,10 +24,7 @@ export default async function handler(req: Request): Promise<Response> {
       );
     }
 
-    const insforgeUrl = `${INSFORGE_FUNCTIONS_URL}/${slug}`;
-    const forwardParams = params.replace(`slug=${slug}&`, '').replace(`slug=${slug}`, '');
-
-    const targetUrl = forwardParams ? `${insforgeUrl}?${forwardParams}` : insforgeUrl;
+    const targetUrl = `${INSFORGE_FUNCTIONS_URL}/${slug}`;
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json'
@@ -43,18 +41,20 @@ export default async function handler(req: Request): Promise<Response> {
     };
 
     if (req.method !== 'GET' && req.method !== 'HEAD') {
-      init.body = await req.text();
+      const body = await req.text();
+      if (body) {
+        init.body = body;
+      }
     }
 
     const response = await fetch(targetUrl, init);
-
     const data = await response.text();
 
     return new Response(data, {
       status: response.status,
       headers: {
         ...corsHeaders,
-        'Content-Type': response.headers.get('Content-Type') || 'application/json'
+        'Content-Type': 'application/json'
       }
     });
   } catch (error) {
