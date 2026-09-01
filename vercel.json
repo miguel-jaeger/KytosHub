@@ -6,10 +6,6 @@
   "framework": "vite",
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/proxy"
-    },
-    {
       "source": "/((?!assets/).*)",
       "destination": "/index.html"
     }

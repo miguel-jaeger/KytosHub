@@ -1,7 +1,15 @@
-const PROXY_URL = '/api/proxy';
+import { createClient } from '@insforge/sdk';
+
+const INSFORGE_URL = import.meta.env.VITE_INSFORGE_URL || 'https://5vvsyy6z.us-east.insforge.app';
+const ANON_KEY = import.meta.env.VITE_INSFORGE_ANON_KEY || 'anon_5f9299a95b22ec28e9448096df4bf583846acc6706e489d739c8b0a6c8b0bc14';
+
+export const insforge = createClient({
+  baseUrl: INSFORGE_URL,
+  anonKey: ANON_KEY
+});
 
 interface InvokeOptions {
-  method?: string;
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   headers?: Record<string, string>;
 }
@@ -13,24 +21,17 @@ export async function invokeFunction<T>(
   const { method = 'GET', body, headers = {} } = options;
 
   try {
-    const url = `${PROXY_URL}?slug=${slug}`;
-    const response = await fetch(url, {
+    const { data, error } = await insforge.functions.invoke(slug, {
       method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...headers
-      },
-      body: body ? JSON.stringify(body) : undefined
+      body,
+      headers
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Function ${slug} error:`, response.status, errorText);
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
+    if (error) throw error;
 
-    const data = await response.json();
-    return { data, error: null };
+    const response = data as unknown as Response;
+    const json = await response.json();
+    return { data: json as T, error: null };
   } catch (error) {
     console.error(`Function ${slug} failed:`, error);
     return {
