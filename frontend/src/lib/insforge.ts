@@ -29,9 +29,7 @@ export async function invokeFunction<T>(
 
     if (error) throw error;
 
-    const response = data as unknown as Response;
-    const json = await response.json();
-    return { data: json as T, error: null };
+    return { data: data as T, error: null };
   } catch (error) {
     console.error(`Function ${slug} failed:`, error);
     return {
