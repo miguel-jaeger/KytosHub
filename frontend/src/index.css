@@ -160,6 +160,14 @@ button:disabled {
   margin-top: 1rem;
 }
 
+.success-message {
+  color: #51cf66;
+  padding: 1rem;
+  background: rgba(81, 207, 102, 0.1);
+  border-radius: 4px;
+  margin-top: 1rem;
+}
+
 .residents-manager {
   background: #1a1a1a;
   border-radius: 8px;

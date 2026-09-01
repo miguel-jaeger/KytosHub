@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
-import type { Tower, ApiResponse, ProvisionTowerRequest } from '../types';
+import type { Tower, ApiResponse, ProvisionTowerRequest, ProvisionTowerResult } from '../types';
 
 export function useTowers() {
   const [towers, setTowers] = useState<Tower[]>([]);
@@ -32,7 +32,7 @@ export function useTowers() {
   }, []);
 
   const createTower = async (tower: ProvisionTowerRequest) => {
-    const { data, error: fnError } = await invokeFunction<{ success: boolean; data: Tower | null; error: { code: string; message: string } | null }>('provision-tower', {
+    const { data, error: fnError } = await invokeFunction<{ success: boolean; data: ProvisionTowerResult | null; error: { code: string; message: string } | null }>('provision-tower', {
       method: 'POST',
       body: tower
     });
@@ -40,7 +40,7 @@ export function useTowers() {
     if (fnError) throw fnError;
 
     if (data?.success && data.data) {
-      setTowers(prev => [...prev, data.data!]);
+      await fetchTowers();
       return data.data;
     }
     throw new Error(data?.error?.message || 'Error al crear torre');

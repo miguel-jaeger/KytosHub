@@ -47,6 +47,14 @@ export interface ProvisionTowerRequest {
   naming_pattern?: 'SEQUENTIAL' | 'FLOOR_DEPT';
 }
 
+export interface ProvisionTowerResult {
+  tower_id: string;
+  tower_name: string;
+  tower_code: string;
+  floors_created: number;
+  departments_created: number;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data: T | null;
