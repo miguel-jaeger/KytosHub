@@ -36,12 +36,22 @@ export default async function(req: Request): Promise<Response> {
     });
 
     const url = new URL(req.url);
+    const schemaName = url.searchParams.get('schema_name') || url.searchParams.get('tenant_schema');
     const towerId = url.searchParams.get('id');
+
+    if (!schemaName) {
+      return new Response(
+        JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere el esquema del condominio (schema_name)' } }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const db = client.database.schema(schemaName);
 
     switch (req.method) {
       case 'GET': {
         if (towerId) {
-          const { data: tower, error } = await client.database
+          const { data: tower, error } = await db
             .from('towers')
             .select('*')
             .eq('id', towerId)
@@ -55,12 +65,12 @@ export default async function(req: Request): Promise<Response> {
           }
 
           return new Response(
-            JSON.stringify({ success: true, data: tower, error: null }),
+            JSON.stringify({ success: true, data: tower as Tower, error: null }),
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
 
-        const { data: towers, error } = await client.database
+        const { data: towers, error } = await db
           .from('towers')
           .select('*')
           .order('name');
@@ -68,7 +78,7 @@ export default async function(req: Request): Promise<Response> {
         if (error) throw error;
 
         return new Response(
-          JSON.stringify({ success: true, data: towers, error: null }),
+          JSON.stringify({ success: true, data: towers as Tower[], error: null }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -82,7 +92,7 @@ export default async function(req: Request): Promise<Response> {
           );
         }
 
-        const { data: existing } = await client.database
+        const { data: existing } = await db
           .from('towers')
           .select('id')
           .eq('code', body.code)
@@ -95,7 +105,7 @@ export default async function(req: Request): Promise<Response> {
           );
         }
 
-        const { data: tower, error } = await client.database
+        const { data: tower, error } = await db
           .from('towers')
           .insert([{
             name: body.name,
@@ -109,7 +119,7 @@ export default async function(req: Request): Promise<Response> {
         if (error) throw error;
 
         return new Response(
-          JSON.stringify({ success: true, data: tower, error: null }),
+          JSON.stringify({ success: true, data: tower as Tower, error: null }),
           { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -123,7 +133,7 @@ export default async function(req: Request): Promise<Response> {
         }
 
         const body = await req.json();
-        const { data: tower, error } = await client.database
+        const { data: tower, error } = await db
           .from('towers')
           .update(body)
           .eq('id', towerId)
@@ -133,7 +143,7 @@ export default async function(req: Request): Promise<Response> {
         if (error) throw error;
 
         return new Response(
-          JSON.stringify({ success: true, data: tower, error: null }),
+          JSON.stringify({ success: true, data: tower as Tower, error: null }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -146,7 +156,7 @@ export default async function(req: Request): Promise<Response> {
           );
         }
 
-        const { error } = await client.database
+        const { error } = await db
           .from('towers')
           .delete()
           .eq('id', towerId);

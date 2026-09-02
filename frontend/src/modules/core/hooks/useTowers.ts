@@ -1,17 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
+import { useCondominium } from '../../../contexts/CondominiumContext';
 import type { Tower, ApiResponse, ProvisionTowerRequest, ProvisionTowerResult } from '../types';
 
 export function useTowers() {
+  const { condominium } = useCondominium();
+  const schemaName = condominium?.schema_name;
   const [towers, setTowers] = useState<Tower[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchTowers = async () => {
+  const fetchTowers = useCallback(async () => {
+    if (!schemaName) {
+      setError('No hay un condominio activo');
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       setError(null);
-      const { data, error: fnError } = await invokeFunction<ApiResponse<Tower[]>>('towers');
+      const { data, error: fnError } = await invokeFunction<ApiResponse<Tower[]>>(`towers?schema_name=${encodeURIComponent(schemaName)}`);
 
       if (fnError) throw fnError;
 
@@ -25,16 +33,18 @@ export function useTowers() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [schemaName]);
 
   useEffect(() => {
     fetchTowers();
-  }, []);
+  }, [fetchTowers]);
 
   const createTower = async (tower: ProvisionTowerRequest) => {
+    if (!schemaName) throw new Error('No hay un condominio activo');
+
     const { data, error: fnError } = await invokeFunction<{ success: boolean; data: ProvisionTowerResult | null; error: { code: string; message: string } | null }>('provision-tower', {
       method: 'POST',
-      body: tower
+      body: { ...tower, schema_name: schemaName }
     });
 
     if (fnError) throw fnError;
@@ -47,9 +57,11 @@ export function useTowers() {
   };
 
   const updateTower = async (id: string, updates: Partial<Tower>) => {
-    const { data, error: fnError } = await invokeFunction<ApiResponse<Tower>>('towers', {
+    if (!schemaName) throw new Error('No hay un condominio activo');
+
+    const { data, error: fnError } = await invokeFunction<ApiResponse<Tower>>(`towers?schema_name=${encodeURIComponent(schemaName)}`, {
       method: 'PUT',
-      body: { id, ...updates }
+      body: { id, ...updates, schema_name: schemaName }
     });
 
     if (fnError) throw fnError;
@@ -62,9 +74,11 @@ export function useTowers() {
   };
 
   const deleteTower = async (id: string) => {
-    const { data, error: fnError } = await invokeFunction<ApiResponse<null>>('towers', {
+    if (!schemaName) throw new Error('No hay un condominio activo');
+
+    const { data, error: fnError } = await invokeFunction<ApiResponse<null>>(`towers?schema_name=${encodeURIComponent(schemaName)}`, {
       method: 'DELETE',
-      body: { id }
+      body: { id, schema_name: schemaName }
     });
 
     if (fnError) throw fnError;

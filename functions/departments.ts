@@ -20,11 +20,21 @@ export default async function(req: Request): Promise<Response> {
     const url = new URL(req.url);
     const deptId = url.searchParams.get('id');
     const towerId = url.searchParams.get('tower_id');
+    const schemaName = url.searchParams.get('schema_name') || url.searchParams.get('tenant_schema');
+
+    if (!schemaName) {
+      return new Response(
+        JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere el esquema del condominio (schema_name)' } }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const db = client.database.schema(schemaName);
 
     switch (req.method) {
       case 'GET': {
         if (deptId) {
-          const { data: dept, error } = await client.database
+          const { data: dept, error } = await db
             .from('departments')
             .select('*, towers(name, code), floors(floor_number)')
             .eq('id', deptId)
@@ -43,7 +53,7 @@ export default async function(req: Request): Promise<Response> {
           );
         }
 
-        let query = client.database
+        let query = db
           .from('departments')
           .select('*, towers(name, code), floors(floor_number)');
 
