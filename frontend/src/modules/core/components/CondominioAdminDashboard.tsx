@@ -31,7 +31,12 @@ export function CondominioAdminDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [filterRole, setFilterRole] = useState<string>('');
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newUser, setNewUser] = useState({ email: '', name: '', role: 'RESIDENT' });
+  const [newUser, setNewUser] = useState({ email: '', name: '', role: 'RESIDENT', tenant_id: '' });
+
+  const openAddForm = () => {
+    setNewUser({ email: '', name: '', role: 'RESIDENT', tenant_id: condominium?.tenant_id || '' });
+    setShowAddForm(true);
+  };
   const [submitting, setSubmitting] = useState(false);
 
   const fetchUsers = async () => {
@@ -69,7 +74,7 @@ export function CondominioAdminDashboard() {
       const { data, error: fnError } = await invokeFunction<{ success: boolean; data: { user_id: string; email: string; role: string } | null; error: { message: string } | null }>('list-condominium-users', {
         method: 'POST',
         body: {
-          tenant_id: condominium.tenant_id,
+          tenant_id: newUser.tenant_id || condominium.tenant_id,
           email: newUser.email,
           name: newUser.name,
           role: newUser.role
@@ -80,7 +85,7 @@ export function CondominioAdminDashboard() {
 
       if (data?.success) {
         setShowAddForm(false);
-        setNewUser({ email: '', name: '', role: 'RESIDENT' });
+        setNewUser({ email: '', name: '', role: 'RESIDENT', tenant_id: '' });
         fetchUsers();
       } else {
         setError(data?.error?.message || 'Error al agregar usuario');
@@ -98,7 +103,7 @@ export function CondominioAdminDashboard() {
     <div className="dashboard">
       <div className="header">
         <h2>Usuarios - {condominium.name}</h2>
-        <button onClick={() => setShowAddForm(true)}><span className="material-symbols-outlined">person_add</span> Adicionar</button>
+        <button onClick={openAddForm}><span className="material-symbols-outlined">person_add</span> Adicionar</button>
       </div>
       <div className="condo-search-panel">
         {isSuperAdmin && condominiums.length > 0 && (
@@ -126,6 +131,14 @@ export function CondominioAdminDashboard() {
       {showAddForm && (
         <div className="form-modal">
           <h3>Agregar Usuario</h3>
+          {isSuperAdmin && (
+            <div className="form-group">
+              <label>Condominio</label>
+              <select value={newUser.tenant_id} onChange={(e) => setNewUser({ ...newUser, tenant_id: e.target.value })}>
+                {condominiums.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          )}
           <div className="form-group">
             <label>Nombre</label>
             <input type="text" value={newUser.name} onChange={(e) => setNewUser({ ...newUser, name: e.target.value })} placeholder="Nombre completo" required />

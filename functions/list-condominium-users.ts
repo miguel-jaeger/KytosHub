@@ -90,25 +90,37 @@ export default async function(req: Request): Promise<Response> {
           );
         }
 
+        const email = String(reqBody.email).trim().toLowerCase();
+        const defaultPassword = `${email.split('@')[0]}Kytos`;
+
+        let userId: string | null = null;
+
         const { data: signUpData, error: signUpError } = await client.auth.signUp({
-          email: reqBody.email,
-          password: `${reqBody.email.split('@')[0]}Kytos`,
+          email,
+          password: defaultPassword,
           name: reqBody.name,
-          redirectTo: 'https://kytos-hub.vercel.app'
+          redirectTo: 'https://kytos-hub.vercel.app',
+          autoConfirm: true
         });
 
-        let userId: string | null = signUpData?.user?.id || null;
-        if (!userId && !signUpError) {
-          try {
-            const { data: found } = await client.database.from('auth.users' as never).select('id').eq('email', reqBody.email).single() as { data: { id?: string } | null };
-            if (found?.id) {
-              userId = found.id;
-              await client.database.from('auth.users' as never).update({ email_verified: true } as never).eq('id', userId);
-            }
-          } catch {}
+        userId = signUpData?.user?.id || null;
+
+        if (!userId) {
+          userId = await resolveUserIdByEmail(email);
         }
+
+        if (signUpError && !userId) {
+          throw signUpError;
+        }
+
         if (userId) {
-          try { await client.database.from('users_global').insert([{ id: userId, email: reqBody.email, password_hash: 'oauth', is_superadmin: false }]); } catch {}
+          const { error: ugError } = await client.database
+            .from('users_global')
+            .insert([{ id: userId, email, password_hash: defaultPassword, is_superadmin: false }]);
+
+          if (ugError) {
+            console.error('users_global insert error:', ugError);
+          }
         }
 
         if (userId) {
@@ -119,14 +131,12 @@ export default async function(req: Request): Promise<Response> {
               user_id: userId,
               role: reqBody.role,
               status: 'ACTIVE'
-            }])
-            .select()
-            .single();
+            }]);
 
           if (tuError) throw tuError;
 
           return new Response(
-            JSON.stringify({ success: true, data: { tenant_user_id: tu.id, user_id: userId, email: reqBody.email, role: reqBody.role }, error: null }),
+            JSON.stringify({ success: true, data: { tenant_user_id: tu?.id ?? null, user_id: userId, email, role: reqBody.role }, error: null }),
             { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -138,7 +148,6 @@ export default async function(req: Request): Promise<Response> {
       }
 
       case 'PUT': {
-        const body = await req.json();
         const userId = url.searchParams.get('user_id');
 
         if (!userId) {
@@ -198,5 +207,23 @@ export default async function(req: Request): Promise<Response> {
       JSON.stringify({ success: false, data: null, error: { code: 'INTERNAL_ERROR', message: 'Error interno' } }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+  }
+}
+
+async function resolveUserIdByEmail(email: string): Promise<string | null> {
+  const baseUrl = Deno.env.get('INSFORGE_BASE_URL');
+  const apiKey = Deno.env.get('INSFORGE_API_KEY');
+  if (!baseUrl || !apiKey) return null;
+
+  try {
+    const res = await fetch(`${baseUrl}/api/auth/users?search=${encodeURIComponent(email)}`, {
+      headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' }
+    });
+    if (!res.ok) return null;
+    const json = await res.json() as { data?: { id: string; email: string }[] };
+    const match = (json.data || []).find(u => String(u.email).toLowerCase() === email);
+    return match?.id || null;
+  } catch {
+    return null;
   }
 }
