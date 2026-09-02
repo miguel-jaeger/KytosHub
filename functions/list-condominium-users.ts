@@ -131,7 +131,7 @@ export default async function(req: Request): Promise<Response> {
         }
 
         const email = String(reqBody.email).trim().toLowerCase();
-        const defaultPassword = `${email.split('@')[0]}Kytos`;
+        const defaultPassword = '12345678';
 
         let userId: string | null = null;
 

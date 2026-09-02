@@ -353,7 +353,7 @@ export function CondominioAdminDashboard() {
               ))}
             </select>
           </div>
-          <small>Se creará una cuenta con contraseña: <code>{newUser.email.split('@')[0]}Kytos</code></small>
+          <small>Se creará una cuenta con contraseña: <code>12345678</code></small>
           <div className="form-actions">
             <button className="btn-cancel" onClick={() => setShowAddForm(false)}><span className="material-symbols-outlined">close</span> Cancelar</button>
             <button onClick={handleAddUser} disabled={submitting}>
