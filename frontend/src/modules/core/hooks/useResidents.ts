@@ -11,81 +11,50 @@ export function useResidents(departmentId?: string) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchResidents = useCallback(async () => {
-    if (!schemaName) {
-      setError('No hay un condominio activo');
-      setLoading(false);
-      return;
-    }
+    if (!schemaName) { setResidents([]); setLoading(false); return; }
     try {
       setLoading(true);
       setError(null);
-      const params = new URLSearchParams({ schema_name: schemaName });
-      if (departmentId) params.set('department_id', departmentId);
-      const { data, error: fnError } = await invokeFunction<ApiResponse<Resident[]>>(`residents?${params.toString()}`);
-
+      const { data, error: fnError } = await invokeFunction<ApiResponse<Resident[]>>('residents', {
+        method: 'POST',
+        body: { action: 'list', schema_name: schemaName, department_id: departmentId }
+      });
       if (fnError) throw fnError;
-
       if (data?.success && data.data) {
         setResidents(data.data);
       } else {
+        setResidents([]);
         setError(data?.error?.message || 'Error al cargar residentes');
       }
     } catch (err) {
+      setResidents([]);
       setError(err instanceof Error ? err.message : 'Error de conexión');
     } finally {
       setLoading(false);
     }
   }, [schemaName, departmentId]);
 
-  useEffect(() => {
-    fetchResidents();
-  }, [fetchResidents]);
+  useEffect(() => { fetchResidents(); }, [fetchResidents]);
 
   const createResident = async (resident: Omit<Resident, 'id' | 'created_at'>) => {
     if (!schemaName) throw new Error('No hay un condominio activo');
-    const { data, error: fnError } = await invokeFunction<ApiResponse<Resident>>(`residents?schema_name=${encodeURIComponent(schemaName)}`, {
+    const { data, error: fnError } = await invokeFunction<ApiResponse<Resident>>('residents', {
       method: 'POST',
-      body: resident
+      body: { action: 'create', schema_name: schemaName, ...resident }
     });
-
     if (fnError) throw fnError;
-
-    if (data?.success) {
-      await fetchResidents();
-      return data.data;
-    }
+    if (data?.success) { await fetchResidents(); return data.data; }
     throw new Error(data?.error?.message || 'Error al crear residente');
-  };
-
-  const updateResident = async (id: string, updates: Partial<Resident>) => {
-    if (!schemaName) throw new Error('No hay un condominio activo');
-    const { data, error: fnError } = await invokeFunction<ApiResponse<Resident>>(`residents?schema_name=${encodeURIComponent(schemaName)}`, {
-      method: 'PUT',
-      body: { id, ...updates }
-    });
-
-    if (fnError) throw fnError;
-
-    if (data?.success) {
-      await fetchResidents();
-      return data.data;
-    }
-    throw new Error(data?.error?.message || 'Error al actualizar residente');
   };
 
   const deleteResident = async (id: string) => {
     if (!schemaName) throw new Error('No hay un condominio activo');
-    const { data, error: fnError } = await invokeFunction<ApiResponse<null>>(`residents?schema_name=${encodeURIComponent(schemaName)}`, {
-      method: 'DELETE',
-      body: { id }
+    const { data, error: fnError } = await invokeFunction<ApiResponse<null>>('residents', {
+      method: 'POST',
+      body: { action: 'delete', id, schema_name: schemaName }
     });
-
     if (fnError) throw fnError;
-
-    if (data?.success) {
-      await fetchResidents();
-      return true;
-    }
+    if (data?.success) { await fetchResidents(); return true; }
     throw new Error(data?.error?.message || 'Error al eliminar residente');
   };
 
@@ -95,7 +64,6 @@ export function useResidents(departmentId?: string) {
     error,
     fetchResidents,
     createResident,
-    updateResident,
     deleteResident
   };
 }

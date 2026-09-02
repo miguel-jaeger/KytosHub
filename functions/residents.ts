@@ -17,61 +17,47 @@ export default async function(req: Request): Promise<Response> {
       apiKey: Deno.env.get('INSFORGE_API_KEY')
     });
 
-    const url = new URL(req.url);
-    const residentId = url.searchParams.get('id');
-    const departmentId = url.searchParams.get('department_id');
-    const schemaName = url.searchParams.get('schema_name');
+    let body: Record<string, unknown> = {};
+    try { body = await req.json(); } catch {}
+
+    const schemaName = body.schema_name as string;
+    const action = (body.action as string) || 'list';
 
     if (!schemaName) {
       return new Response(
-        JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere el esquema del condominio (schema_name)' } }),
+        JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'schema_name es requerido' } }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const db = client.database.schema(schemaName);
 
-    switch (req.method) {
-      case 'GET': {
+    switch (action) {
+      case 'list': {
         let query = db.from('residents').select('*');
-
-        if (residentId) {
-          query = query.eq('id', residentId);
-        }
-
-        if (departmentId) {
-          query = query.eq('department_id', departmentId);
-        }
-
+        if (body.department_id) query = query.eq('department_id', body.department_id);
         const { data: residents, error } = await query.order('created_at', { ascending: false });
-
         if (error) throw error;
-
         return new Response(
           JSON.stringify({ success: true, data: residents || [], error: null }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      case 'POST': {
-        const body = await req.json();
-
-        if (!body.schema_name || !body.department_id || !body.full_name || !body.document_type || !body.document_number || !body.relationship_type) {
+      case 'create': {
+        if (!body.department_id || !body.full_name || !body.document_type || !body.document_number || !body.relationship_type) {
           return new Response(
-            JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Campos requeridos: schema_name, department_id, full_name, document_type, document_number, relationship_type' } }),
+            JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'department_id, full_name, document_type, document_number, relationship_type son requeridos' } }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-
-        const residentDb = client.database.schema(body.schema_name);
-
-        const { data: resident, error } = await residentDb
+        const { data: resident, error } = await db
           .from('residents')
           .insert([{
             department_id: body.department_id,
-            full_name: body.full_name.trim(),
+            full_name: String(body.full_name).trim(),
             document_type: body.document_type,
-            document_number: body.document_number.trim(),
+            document_number: String(body.document_number).trim(),
             relationship_type: body.relationship_type,
             is_primary_contact: body.is_primary_contact || false,
             email: body.email || null,
@@ -79,28 +65,22 @@ export default async function(req: Request): Promise<Response> {
           }])
           .select()
           .single();
-
         if (error) throw error;
-
         return new Response(
           JSON.stringify({ success: true, data: resident, error: null }),
           { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      case 'DELETE': {
-        const body = await req.json();
-        if (!body.id || !body.schema_name) {
+      case 'delete': {
+        if (!body.id) {
           return new Response(
-            JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere id y schema_name' } }),
+            JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'id es requerido' } }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-
-        const residentDb = client.database.schema(body.schema_name);
-        const { error } = await residentDb.from('residents').delete().eq('id', body.id);
+        const { error } = await db.from('residents').delete().eq('id', body.id);
         if (error) throw error;
-
         return new Response(
           JSON.stringify({ success: true, data: null, error: null }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -109,8 +89,8 @@ export default async function(req: Request): Promise<Response> {
 
       default:
         return new Response(
-          JSON.stringify({ success: false, data: null, error: { code: 'METHOD_NOT_ALLOWED', message: 'Método no permitido' } }),
-          { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ success: false, data: null, error: { code: 'BAD_REQUEST', message: `Acción desconocida: ${action}` } }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
     }
   } catch (error) {
