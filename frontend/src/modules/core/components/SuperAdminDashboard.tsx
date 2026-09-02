@@ -81,7 +81,7 @@ export function SuperAdminDashboard() {
       <div className="header">
         <h2>Administrar Condominios</h2>
         <button onClick={() => navigate('/setup')} className="btn-add-condo">
-          <span className="material-symbols-outlined">add_business</span> Adicionar Condominio
+          <span className="material-symbols-outlined">add_business</span> Adicionar
         </button>
       </div>
 
@@ -100,7 +100,7 @@ export function SuperAdminDashboard() {
       {condominiums.length === 0 ? (
         <div className="empty-state">
           <p>{search ? 'No se encontraron condominios.' : 'No hay condominios registrados.'}</p>
-          {!search && <p>Use el botón "Adicionar Condominio" para registrar uno.</p>}
+          {!search && <p>Use el botón "Adicionar" para registrar uno.</p>}
         </div>
       ) : (
         <div className="condominiums-grid">
@@ -135,24 +135,23 @@ export function SuperAdminDashboard() {
                     <div className="form-group">
                       <label>Imagen del condominio</label>
                       <div className="image-uploader">
-                        {editImageFile ? (
-                          <div className="image-preview">
-                            <img src={URL.createObjectURL(editImageFile)} alt="Nueva imagen" />
-                          </div>
-                        ) : c.image_url ? (
-                          <div className="image-preview">
-                            <img src={c.image_url} alt={c.name} />
-                          </div>
-                        ) : (
-                          <div className="image-placeholder">
-                            <span className="material-symbols-outlined">add_a_photo</span>
-                            <p>Selecciona una imagen</p>
-                          </div>
-                        )}
+                        <div className="image-click-area" onClick={() => fileInputRef.current?.click()} title="Haz clic para seleccionar una imagen">
+                          {editImageFile ? (
+                            <div className="image-preview">
+                              <img src={URL.createObjectURL(editImageFile)} alt="Nueva imagen" />
+                            </div>
+                          ) : c.image_url ? (
+                            <div className="image-preview">
+                              <img src={c.image_url} alt={c.name} />
+                            </div>
+                          ) : (
+                            <div className="image-placeholder">
+                              <span className="material-symbols-outlined">add_a_photo</span>
+                              <p>Selecciona una imagen</p>
+                            </div>
+                          )}
+                        </div>
                         <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={e => setEditImageFile(e.target.files?.[0] || null)} />
-                        <button type="button" onClick={() => fileInputRef.current?.click()}>
-                          <span className="material-symbols-outlined">photo_camera</span> {c.image_url || editImageFile ? 'Cambiar' : 'Subir'} imagen
-                        </button>
                       </div>
                     </div>
                     <div className="form-actions">
