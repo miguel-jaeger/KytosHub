@@ -17,7 +17,7 @@ export function Sidebar() {
   const role = useUserRole();
   const displayRole = role === 'super' ? 'Super Admin' : useRoleLabel(role);
   const canManageUsers = role === 'super' || role === 'admin';
-  const canManageCondo = role === 'admin' || role === 'super';
+  const canManageCondo = role === 'admin';
 
   const openMyCondominium = async () => {
     if (!user) return;
