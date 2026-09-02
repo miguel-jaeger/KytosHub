@@ -48,19 +48,68 @@
   --color-surface-container: #e5eeff;
   --color-surface-tint: #565e74;
   --color-on-secondary-container: #00714d;
+
+  --spacing-base: 4px;
+  --spacing-stack-gap: 12px;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-container-margin: 20px;
+
+  --font-headline-md: "Inter";
+  --font-numeric-data: "Inter";
+  --font-headline-lg-mobile: "Inter";
+  --font-body-sm: "Inter";
+  --font-label-caps: "Inter";
+  --font-body-lg: "Inter";
+  --font-headline-lg: "Inter";
+
+  --text-headline-md: 20px;
+  --text-headline-md--line-height: 28px;
+  --text-headline-md--font-weight: 600;
+  --text-numeric-data: 14px;
+  --text-numeric-data--line-height: 20px;
+  --text-numeric-data--font-weight: 500;
+  --text-headline-lg-mobile: 24px;
+  --text-headline-lg-mobile--line-height: 32px;
+  --text-headline-lg-mobile--letter-spacing: -0.01em;
+  --text-headline-lg-mobile--font-weight: 700;
+  --text-body-sm: 14px;
+  --text-body-sm--line-height: 20px;
+  --text-body-sm--font-weight: 400;
+  --text-label-caps: 12px;
+  --text-label-caps--line-height: 16px;
+  --text-label-caps--letter-spacing: 0.05em;
+  --text-label-caps--font-weight: 600;
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 24px;
+  --text-body-lg--font-weight: 400;
+  --text-headline-lg: 32px;
+  --text-headline-lg--line-height: 40px;
+  --text-headline-lg--letter-spacing: -0.02em;
+  --text-headline-lg--font-weight: 700;
 }
 
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: light;
+  color: #0b1c30;
+  background-color: #f8f9ff;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: Inter, sans-serif;
+  background-color: #f8f9ff;
+  color: #0b1c30;
+  min-height: max(884px, 100dvh);
 }
 
 .material-symbols-outlined {
