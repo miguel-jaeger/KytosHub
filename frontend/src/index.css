@@ -1012,3 +1012,37 @@ html.dark .profile-card h3, html.dark .password-card h3, html.dark .theme-card h
 html.dark .condominium-card { background: #1e1e1e; border-color: #333; }
 html.dark .condominium-card .condo-info h3 { color: #e5e7eb; }
 html.dark .condominium-card .condo-info p { color: #aaa; }
+
+/* Condominium card thumbnail */
+.condo-thumb {
+  width: 100%;
+  height: 120px;
+  overflow: hidden;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.condo-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.condo-thumb-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #e8f5ec 0%, #d3e4fe 100%);
+}
+
+.condo-thumb-placeholder .material-symbols-outlined {
+  font-size: 48px;
+  color: #006c49;
+  opacity: 0.6;
+}
+
+html.dark .condo-thumb { background: #2a2a2a; }
