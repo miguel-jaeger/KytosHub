@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useCondominium } from '../contexts/CondominiumContext';
+import { useUserRole, useRoleLabel, SUPER_ADMIN_EMAIL } from '../hooks/useUserRole';
 
 interface NavItem {
   path: string;
@@ -23,8 +24,9 @@ export function Sidebar() {
   const { user, signOut } = useAuth();
   const { condominium } = useCondominium();
 
-  const isSuperAdmin = user?.email === 'miguel.jaeger@gmail.com';
-  const displayRole = isSuperAdmin ? 'Super Admin' : (user as { role?: string } | null)?.role || 'Residente';
+  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
+  const role = useUserRole();
+  const displayRole = role === 'super' ? 'Super Admin' : useRoleLabel(role);
 
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>

@@ -1,8 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { useTheme } from './hooks/useTheme';
 import { useCondominium } from './contexts/CondominiumContext';
+import { useUserRole } from './hooks/useUserRole';
 import { Sidebar } from './components/Sidebar';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
@@ -10,37 +10,6 @@ import { SetupWizard } from './modules/core/components/SetupWizard';
 import { SuperAdminDashboard } from './modules/core/components/SuperAdminDashboard';
 import { CondominioAdminDashboard } from './modules/core/components/CondominioAdminDashboard';
 import { invokeFunction } from './lib/insforge';
-
-const SUPER_ADMIN_EMAIL = 'miguel.jaeger@gmail.com';
-
-function useUserRole() {
-  const { user, loading } = useAuth();
-  const [role, setRole] = useState<'loading' | 'super' | 'admin' | 'resident' | 'none'>('loading');
-
-  useEffect(() => {
-    if (loading || !user) { setRole('loading'); return; }
-    if (user.email === SUPER_ADMIN_EMAIL) { setRole('super'); return; }
-
-    let cancelled = false;
-    invokeFunction<{ success: boolean; data: { role: string; status: string }[] | null }>('list-condominium-users', {
-      method: 'POST',
-      body: { action: 'list-by-user', user_id: user.id }
-    }).then(({ data }) => {
-      if (cancelled) return;
-      if (data?.success && data.data) {
-        const active = data.data.filter(x => x.status === 'ACTIVE');
-        const highest = active.some(x => x.role === 'SUPER_ADMIN' || x.role === 'ADMIN');
-        setRole(highest ? 'admin' : 'resident');
-      } else {
-        setRole('resident');
-      }
-    }).catch(() => { if (!cancelled) setRole('resident'); });
-
-    return () => { cancelled = true; };
-  }, [user, loading]);
-
-  return role;
-}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
