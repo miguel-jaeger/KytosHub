@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { useCondominium } from './contexts/CondominiumContext';
 import { LoginPage } from './pages/LoginPage';
@@ -41,10 +41,10 @@ function AppShell() {
           </div>
         )}
         <nav className="main-nav">
-          <a href="/">Inicio</a>
-          <a href="/structure">Estructura</a>
-          <a href="/setup">Configurar Condominio</a>
-          <a href="/residents">Residentes</a>
+          <Link to="/">Inicio</Link>
+          <Link to="/structure">Estructura</Link>
+          <Link to="/setup">Configurar Condominio</Link>
+          <Link to="/residents">Residentes</Link>
         </nav>
         {user && (
           <button
@@ -75,18 +75,18 @@ function Dashboard() {
     <div className="dashboard">
       <h2>Panel de Control</h2>
       <div className="quick-actions">
-        <a href="/structure" className="action-card">
+        <Link to="/structure" className="action-card">
           <h3>Ver Estructura</h3>
           <p>Torres, pisos y departamentos del condominio</p>
-        </a>
-        <a href="/setup" className="action-card">
+        </Link>
+        <Link to="/setup" className="action-card">
           <h3>Configurar Condominio</h3>
           <p>Registrar condominio y crear su estructura inicial</p>
-        </a>
-        <a href="/residents" className="action-card">
+        </Link>
+        <Link to="/residents" className="action-card">
           <h3>Gestionar Residentes</h3>
           <p>Administrar padrones de residentes</p>
-        </a>
+        </Link>
       </div>
     </div>
   );
