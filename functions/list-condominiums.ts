@@ -17,79 +17,74 @@ export default async function(req: Request): Promise<Response> {
       apiKey: Deno.env.get('INSFORGE_API_KEY')
     });
 
-    const url = new URL(req.url);
-    const tenantId = url.searchParams.get('id');
+    let body: Record<string, unknown> = {};
+    try { body = await req.json(); } catch {}
+    const action = (body.action as string) || 'list';
+    const search = body.search as string | undefined;
 
-    switch (req.method) {
-      case 'GET': {
-        if (tenantId) {
-          const { data: tenant, error } = await client.database
-            .from('tenants')
-            .select('id, name, slug, short_name, schema_name, address, admin_phone, image_url, status, created_at')
-            .eq('id', tenantId)
-            .single();
+    switch (action) {
+      case 'list': {
+        let query = client.database
+          .from('tenants')
+          .select('id, name, slug, short_name, schema_name, address, admin_phone, image_url, status, created_at, towers_count, floors_count, departments_count, residents_count');
 
-          if (error || !tenant) {
-            return new Response(
-              JSON.stringify({ success: false, data: null, error: { code: 'NOT_FOUND', message: 'Condominio no encontrado' } }),
-              { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
-
-          return new Response(
-            JSON.stringify({ success: true, data: tenant, error: null }),
-            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+        if (body.id) {
+          query = query.eq('id', body.id);
+        } else if (search) {
+          query = query.ilike('name', `%${search}%`);
         }
 
-        const { data: tenants, error } = await client.database
-          .from('tenants')
-          .select('id, name, slug, short_name, schema_name, address, admin_phone, image_url, status, created_at')
-          .order('name');
-
+        const { data, error } = await query.order('name');
         if (error) throw error;
 
-        return new Response(
-          JSON.stringify({ success: true, data: tenants, error: null }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        // If a single id was requested, return single object
+        const result = body.id ? (data && data.length ? data[0] : null) : (data || []);
+        return ok(corsHeaders, result);
       }
 
-      case 'PUT': {
-        if (!tenantId) {
-          return new Response(
-            JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere el ID del condominio' } }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
+      case 'update': {
+        const id = body.id as string;
+        if (!id) return bad(corsHeaders, 'id es requerido');
 
-        const body = await req.json();
-        const { data: tenant, error } = await client.database
+        const updates = { ...body } as Record<string, unknown>;
+        delete updates.id; delete updates.action; delete updates.schema_name;
+
+        const { data, error } = await client.database
           .from('tenants')
-          .update(body)
-          .eq('id', tenantId)
-          .select('id, name, slug, short_name, schema_name, address, admin_phone, image_url, status, created_at')
+          .update(updates)
+          .eq('id', id)
+          .select('id, name, slug, short_name, schema_name, address, admin_phone, image_url, status, created_at, towers_count, floors_count, departments_count, residents_count')
           .single();
 
         if (error) throw error;
+        return ok(corsHeaders, data);
+      }
 
-        return new Response(
-          JSON.stringify({ success: true, data: tenant, error: null }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      case 'delete': {
+        const id = body.id as string;
+        if (!id) return bad(corsHeaders, 'id es requerido');
+
+        await client.database.from('tenant_users').delete().eq('tenant_id', id);
+        const { error } = await client.database.from('tenants').delete().eq('id', id);
+        if (error) throw error;
+        return ok(corsHeaders, null);
       }
 
       default:
-        return new Response(
-          JSON.stringify({ success: false, data: null, error: { code: 'METHOD_NOT_ALLOWED', message: 'Método no permitido' } }),
-          { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return bad(corsHeaders, `Acción desconocida: ${action}`);
     }
   } catch (error) {
     console.error('Error in list-condominiums:', error);
     return new Response(
-      JSON.stringify({ success: false, data: null, error: { code: 'INTERNAL_ERROR', message: 'Error interno' } }),
+      JSON.stringify({ success: false, data: null, error: { code: 'INTERNAL_ERROR', message: String(error) } }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
+}
+
+function ok(cors: Record<string, string>, data: unknown): Response {
+  return new Response(JSON.stringify({ success: true, data, error: null }), { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+}
+function bad(cors: Record<string, string>, msg: string): Response {
+  return new Response(JSON.stringify({ success: false, data: null, error: { code: 'BAD_REQUEST', message: msg } }), { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } });
 }
