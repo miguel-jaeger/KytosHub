@@ -891,3 +891,69 @@ tr:hover {
 .resident-form .form-group.checkbox { display: flex; align-items: center; }
 .resident-form .form-group.checkbox input { width: auto; margin-right: 0.5rem; }
 .resident-form .form-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.5rem; }
+
+.condo-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.count-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: #45464d;
+}
+
+.count-item .material-symbols-outlined {
+  font-size: 16px;
+  color: #646cff;
+}
+
+.condo-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.count-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: #45464d;
+}
+
+.count-item .material-symbols-outlined {
+  font-size: 16px;
+  color: #646cff;
+}
+
+.condo-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.count-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: #45464d;
+}
+
+.count-item .material-symbols-outlined {
+  font-size: 16px;
+  color: #646cff;
+}

@@ -12,6 +12,10 @@ interface Condominium {
   image_url: string | null;
   status: string;
   created_at: string;
+  towers_count: number;
+  floors_count: number;
+  departments_count: number;
+  residents_count: number;
 }
 
 export function useCondominiums() {

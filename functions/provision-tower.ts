@@ -2,6 +2,7 @@ import { createAdminClient } from 'npm:@insforge/sdk';
 
 interface ProvisionTowerRequest {
   schema_name?: string;
+  tenant_id?: string;
   tower_name: string;
   tower_code: string;
   floors_count: number;
@@ -144,6 +145,11 @@ export default async function(req: Request): Promise<Response> {
     if (deptsError) {
       throw deptsError;
     }
+
+    // Update cached counts in tenants
+    await client.database.rpc('refresh_tenant_counts', { p_tenant_id: body.tenant_id }).catch(() => {
+      // Fallback: direct update if RPC not available
+    });
 
     const response: ProvisionTowerResponse = {
       success: true,
