@@ -92,7 +92,7 @@ export function CondominioAdminDashboard() {
     <div className="dashboard">
       <div className="header">
         <h2>Usuarios - {condominium.name}</h2>
-        <button onClick={() => setShowAddForm(true)}>+ Agregar Usuario</button>
+        <button onClick={() => setShowAddForm(true)}><span className="material-symbols-outlined">person_add</span> Agregar Usuario</button>
       </div>
 
       <div className="filter-bar">
@@ -126,8 +126,10 @@ export function CondominioAdminDashboard() {
           </div>
           <small>Se creará una cuenta con contraseña: <code>{newUser.email.split('@')[0]}Kytos</code></small>
           <div className="form-actions">
-            <button onClick={() => setShowAddForm(false)}>Cancelar</button>
-            <button onClick={handleAddUser} disabled={submitting}>{submitting ? 'Creando...' : 'Crear'}</button>
+            <button onClick={() => setShowAddForm(false)}><span className="material-symbols-outlined">close</span> Cancelar</button>
+            <button onClick={handleAddUser} disabled={submitting}>
+              <span className="material-symbols-outlined">person_add</span> {submitting ? 'Creando...' : 'Crear'}
+            </button>
           </div>
         </div>
       )}

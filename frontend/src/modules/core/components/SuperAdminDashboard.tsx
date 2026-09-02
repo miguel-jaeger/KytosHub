@@ -28,7 +28,7 @@ export function SuperAdminDashboard() {
     <div className="dashboard">
       <div className="header">
         <h2>Administrar Condominios</h2>
-        <button onClick={() => fetchCondominiums()}>Actualizar</button>
+        <button onClick={() => fetchCondominiums()}><span className="material-symbols-outlined">refresh</span> Actualizar</button>
       </div>
 
       {condominiums.length === 0 ? (
@@ -48,8 +48,8 @@ export function SuperAdminDashboard() {
                     <input value={editData.address} onChange={e => setEditData({ ...editData, address: e.target.value })} placeholder="Dirección" />
                     <input value={editData.admin_phone} onChange={e => setEditData({ ...editData, admin_phone: e.target.value })} placeholder="Teléfono" />
                     <div className="form-actions">
-                      <button onClick={saveEdit}>Guardar</button>
-                      <button onClick={() => setEditing(null)}>Cancelar</button>
+                      <button onClick={saveEdit}><span className="material-symbols-outlined">save</span> Guardar</button>
+                      <button onClick={() => setEditing(null)}><span className="material-symbols-outlined">close</span> Cancelar</button>
                     </div>
                   </>
                 ) : (
@@ -58,7 +58,7 @@ export function SuperAdminDashboard() {
                     <p>{c.address || 'Sin dirección'}</p>
                     <p>{c.admin_phone || 'Sin teléfono'}</p>
                     <span className={`status-badge ${c.status === 'ACTIVE' ? 'status-occupied' : 'status-vacant'}`}>{c.status}</span>
-                    <button onClick={() => startEdit(c)}>Editar</button>
+                    <button onClick={() => startEdit(c)}><span className="material-symbols-outlined">edit</span> Editar</button>
                   </>
                 )}
               </div>

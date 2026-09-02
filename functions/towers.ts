@@ -1,23 +1,5 @@
 import { createAdminClient } from 'npm:@insforge/sdk';
 
-interface Tower {
-  id: string;
-  name: string;
-  code: string;
-  floors_count: number;
-  departments_per_floor: number;
-  created_at: string;
-}
-
-interface ApiResponse<T> {
-  success: boolean;
-  data: T | null;
-  error: {
-    code: string;
-    message: string;
-  } | null;
-}
-
 export default async function(req: Request): Promise<Response> {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -35,134 +17,72 @@ export default async function(req: Request): Promise<Response> {
       apiKey: Deno.env.get('INSFORGE_API_KEY')
     });
 
-    const url = new URL(req.url);
-    const schemaName = url.searchParams.get('schema_name') || url.searchParams.get('tenant_schema');
-    const towerId = url.searchParams.get('id');
+    let body: Record<string, unknown> = {};
+    try { body = await req.json(); } catch {}
+
+    const schemaName = body.schema_name as string;
+    const action = (body.action as string) || 'list';
 
     if (!schemaName) {
       return new Response(
-        JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere el esquema del condominio (schema_name)' } }),
+        JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'schema_name es requerido' } }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const db = client.database.schema(schemaName);
 
-    switch (req.method) {
-      case 'GET': {
-        if (towerId) {
-          const { data: tower, error } = await db
-            .from('towers')
-            .select('*')
-            .eq('id', towerId)
-            .single();
-
-          if (error || !tower) {
-            return new Response(
-              JSON.stringify({ success: false, data: null, error: { code: 'NOT_FOUND', message: 'Torre no encontrada' } }),
-              { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
-
-          return new Response(
-            JSON.stringify({ success: true, data: tower as Tower, error: null }),
-            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        const { data: towers, error } = await db
-          .from('towers')
-          .select('*')
-          .order('name');
-
+    switch (action) {
+      case 'list': {
+        const { data, error } = await db.from('towers').select('*').order('name');
         if (error) throw error;
-
         return new Response(
-          JSON.stringify({ success: true, data: towers as Tower[], error: null }),
+          JSON.stringify({ success: true, data: data || [], error: null }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      case 'POST': {
-        const body = await req.json();
+      case 'create': {
         if (!body.name || !body.code || !body.floors_count || !body.departments_per_floor) {
           return new Response(
-            JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Campos requeridos: name, code, floors_count, departments_per_floor' } }),
+            JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'name, code, floors_count, departments_per_floor son requeridos' } }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-
-        const { data: existing } = await db
-          .from('towers')
-          .select('id')
-          .eq('code', body.code)
-          .single();
-
+        const { data: existing } = await db.from('towers').select('id').eq('code', body.code).single().catch(() => ({ data: null }));
         if (existing) {
           return new Response(
             JSON.stringify({ success: false, data: null, error: { code: 'DUPLICATE', message: 'Ya existe una torre con ese código' } }),
             { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-
-        const { data: tower, error } = await db
-          .from('towers')
-          .insert([{
-            name: body.name,
-            code: body.code,
-            floors_count: body.floors_count,
-            departments_per_floor: body.departments_per_floor
-          }])
-          .select()
-          .single();
-
+        const { data, error } = await db.from('towers').insert([{
+          name: body.name,
+          code: body.code,
+          floors_count: body.floors_count,
+          departments_per_floor: body.departments_per_floor
+        }]).select().single();
         if (error) throw error;
-
         return new Response(
-          JSON.stringify({ success: true, data: tower as Tower, error: null }),
+          JSON.stringify({ success: true, data, error: null }),
           { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      case 'PUT': {
-        if (!towerId) {
-          return new Response(
-            JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere el ID de la torre' } }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        const body = await req.json();
-        const { data: tower, error } = await db
-          .from('towers')
-          .update(body)
-          .eq('id', towerId)
-          .select()
-          .single();
-
+      case 'update': {
+        if (!body.id) return bad(corsHeaders, 'id es requerido');
+        const { data, error } = await db.from('towers').update({ name: body.name, code: body.code }).eq('id', body.id).select().single();
         if (error) throw error;
-
         return new Response(
-          JSON.stringify({ success: true, data: tower as Tower, error: null }),
+          JSON.stringify({ success: true, data, error: null }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      case 'DELETE': {
-        if (!towerId) {
-          return new Response(
-            JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere el ID de la torre' } }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        const { error } = await db
-          .from('towers')
-          .delete()
-          .eq('id', towerId);
-
+      case 'delete': {
+        if (!body.id) return bad(corsHeaders, 'id es requerido');
+        const { error } = await db.from('towers').delete().eq('id', body.id);
         if (error) throw error;
-
         return new Response(
           JSON.stringify({ success: true, data: null, error: null }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -170,16 +90,20 @@ export default async function(req: Request): Promise<Response> {
       }
 
       default:
-        return new Response(
-          JSON.stringify({ success: false, data: null, error: { code: 'METHOD_NOT_ALLOWED', message: 'Método no permitido' } }),
-          { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return bad(corsHeaders, `Acción desconocida: ${action}`);
     }
   } catch (error) {
-    console.error('Error in towers handler:', error);
+    console.error('Error in towers:', error);
     return new Response(
-      JSON.stringify({ success: false, data: null, error: { code: 'INTERNAL_ERROR', message: 'Error interno del servidor' } }),
+      JSON.stringify({ success: false, data: null, error: { code: 'INTERNAL_ERROR', message: String(error) } }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
+}
+
+function bad(cors: Record<string, string>, msg: string): Response {
+  return new Response(
+    JSON.stringify({ success: false, data: null, error: { code: 'BAD_REQUEST', message: msg } }),
+    { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }
+  );
 }
