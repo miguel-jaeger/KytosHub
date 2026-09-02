@@ -961,13 +961,18 @@ html.dark .sidebar-link.active { background: #2a2a2a; color: #90caf9; }
   border: none;
   color: #ba1a1a;
   cursor: pointer;
-  padding: 0.5rem 0;
+  padding: 0.5rem 0.5rem;
   font-size: 0.85rem;
   border-radius: 4px;
 }
 
 .sidebar-logout:hover {
-  background: rgba(186, 26, 26, 0.05);
+  background: #ba1a1a;
+  color: #fff;
+}
+
+.sidebar-logout:hover .material-symbols-outlined {
+  color: #fff;
 }
 
 .app-layout {
