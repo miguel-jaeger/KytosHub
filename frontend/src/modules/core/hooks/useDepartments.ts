@@ -1,17 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
+import { useCondominium } from '../../../contexts/CondominiumContext';
 import type { Department, ApiResponse } from '../types';
 
 export function useDepartments(towerId?: string) {
+  const { condominium } = useCondominium();
+  const schemaName = condominium?.schema_name;
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchDepartments = async () => {
+  const fetchDepartments = useCallback(async () => {
+    if (!schemaName) {
+      setError('No hay un condominio activo');
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
-      const params = towerId ? `?tower_id=${towerId}` : '';
-      const { data, error: fnError } = await invokeFunction<ApiResponse<Department[]>>(`departments${params}`);
+      setError(null);
+      const params = new URLSearchParams({ schema_name: schemaName });
+      if (towerId) params.set('tower_id', towerId);
+      const { data, error: fnError } = await invokeFunction<ApiResponse<Department[]>>(`departments?${params.toString()}`);
 
       if (fnError) throw fnError;
 
@@ -25,14 +35,15 @@ export function useDepartments(towerId?: string) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [schemaName, towerId]);
 
   useEffect(() => {
     fetchDepartments();
-  }, [towerId]);
+  }, [fetchDepartments]);
 
   const createDepartment = async (dept: Omit<Department, 'id' | 'created_at'>) => {
-    const { data, error: fnError } = await invokeFunction<ApiResponse<Department>>('departments', {
+    if (!schemaName) throw new Error('No hay un condominio activo');
+    const { data, error: fnError } = await invokeFunction<ApiResponse<Department>>(`departments?schema_name=${encodeURIComponent(schemaName)}`, {
       method: 'POST',
       body: dept
     });
@@ -47,7 +58,8 @@ export function useDepartments(towerId?: string) {
   };
 
   const updateDepartment = async (id: string, updates: Partial<Department>) => {
-    const { data, error: fnError } = await invokeFunction<ApiResponse<Department>>('departments', {
+    if (!schemaName) throw new Error('No hay un condominio activo');
+    const { data, error: fnError } = await invokeFunction<ApiResponse<Department>>(`departments?schema_name=${encodeURIComponent(schemaName)}`, {
       method: 'PUT',
       body: { id, ...updates }
     });
@@ -62,7 +74,8 @@ export function useDepartments(towerId?: string) {
   };
 
   const deleteDepartment = async (id: string) => {
-    const { data, error: fnError } = await invokeFunction<ApiResponse<null>>('departments', {
+    if (!schemaName) throw new Error('No hay un condominio activo');
+    const { data, error: fnError } = await invokeFunction<ApiResponse<null>>(`departments?schema_name=${encodeURIComponent(schemaName)}`, {
       method: 'DELETE',
       body: { id }
     });

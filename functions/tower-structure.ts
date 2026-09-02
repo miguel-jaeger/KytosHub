@@ -55,21 +55,33 @@ export default async function(req: Request): Promise<Response> {
       apiKey: Deno.env.get('INSFORGE_API_KEY')
     });
 
-    const { data: towers, error: towersError } = await client.database
+    const url = new URL(req.url);
+    const schemaName = url.searchParams.get('schema_name') || url.searchParams.get('tenant_schema');
+
+    if (!schemaName) {
+      return new Response(
+        JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere el esquema del condominio (schema_name)' } }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const db = client.database.schema(schemaName);
+
+    const { data: towers, error: towersError } = await db
       .from('towers')
       .select('id, name, code, floors_count, departments_per_floor, created_at')
       .order('name');
 
     if (towersError) throw towersError;
 
-    const { data: floors, error: floorsError } = await client.database
+    const { data: floors, error: floorsError } = await db
       .from('floors')
       .select('id, tower_id, floor_number')
       .order('floor_number');
 
     if (floorsError) throw floorsError;
 
-    const { data: departments, error: deptsError } = await client.database
+    const { data: departments, error: deptsError } = await db
       .from('departments')
       .select('id, floor_id, tower_id, department_number, status')
       .order('department_number');

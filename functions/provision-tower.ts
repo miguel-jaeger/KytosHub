@@ -1,6 +1,7 @@
 import { createAdminClient } from 'npm:@insforge/sdk';
 
 interface ProvisionTowerRequest {
+  schema_name?: string;
   tower_name: string;
   tower_code: string;
   floors_count: number;
@@ -49,6 +50,13 @@ export default async function(req: Request): Promise<Response> {
 
     const body: ProvisionTowerRequest = await req.json();
 
+    if (!body.schema_name) {
+      return new Response(
+        JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere el esquema del condominio (schema_name)' } }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (!body.tower_name || !body.tower_code || !body.floors_count || !body.departments_per_floor) {
       return new Response(
         JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Campos requeridos: tower_name, tower_code, floors_count, departments_per_floor' } }),
@@ -63,7 +71,9 @@ export default async function(req: Request): Promise<Response> {
       );
     }
 
-    const { data: existingTower } = await client.database
+    const db = client.database.schema(body.schema_name);
+
+    const { data: existingTower } = await db
       .from('towers')
       .select('id')
       .eq('code', body.tower_code)
@@ -76,7 +86,7 @@ export default async function(req: Request): Promise<Response> {
       );
     }
 
-    const { data: tower, error: towerError } = await client.database
+    const { data: tower, error: towerError } = await db
       .from('towers')
       .insert([{
         name: body.tower_name,
@@ -99,7 +109,7 @@ export default async function(req: Request): Promise<Response> {
       });
     }
 
-    const { data: createdFloors, error: floorsError } = await client.database
+    const { data: createdFloors, error: floorsError } = await db
       .from('floors')
       .insert(floors)
       .select();
@@ -127,7 +137,7 @@ export default async function(req: Request): Promise<Response> {
       }
     }
 
-    const { error: deptsError } = await client.database
+    const { error: deptsError } = await db
       .from('departments')
       .insert(departments);
 

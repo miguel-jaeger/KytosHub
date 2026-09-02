@@ -1,9 +1,10 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
+import { useCondominium } from './contexts/CondominiumContext';
 import { LoginPage } from './pages/LoginPage';
-import { TowerWizard } from './modules/core/components/TowerWizard';
 import { ResidentsManager } from './modules/core/components/ResidentsManager';
 import { TowerStructureView } from './modules/core/components/TowerStructureView';
+import { SetupWizard } from './modules/core/components/SetupWizard';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -26,15 +27,23 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function AppShell() {
   const { user, signOut } = useAuth();
+  const { condominium } = useCondominium();
+  const navigate = useNavigate();
 
   return (
     <div className="app">
       <header>
         <h1>KytosHub - Gestión de Condominios</h1>
+        {condominium && (
+          <div className="active-condominium">
+            {condominium.image_url && <img src={condominium.image_url} alt={condominium.name} />}
+            <span>{condominium.name}</span>
+          </div>
+        )}
         <nav className="main-nav">
           <a href="/">Inicio</a>
           <a href="/structure">Estructura</a>
-          <a href="/setup">Configurar Torre</a>
+          <a href="/setup">Configurar Condominio</a>
           <a href="/residents">Residentes</a>
         </nav>
         {user && (
@@ -42,6 +51,7 @@ function AppShell() {
             className="logout-btn"
             onClick={async () => {
               await signOut();
+              navigate('/login');
             }}
           >
             Cerrar sesión ({user.email})
@@ -52,7 +62,7 @@ function AppShell() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/structure" element={<TowerStructureView />} />
-          <Route path="/setup" element={<TowerWizard />} />
+          <Route path="/setup" element={<SetupWizard />} />
           <Route path="/residents" element={<ResidentsManager />} />
         </Routes>
       </main>
@@ -70,8 +80,8 @@ function Dashboard() {
           <p>Torres, pisos y departamentos del condominio</p>
         </a>
         <a href="/setup" className="action-card">
-          <h3>Configurar Torre</h3>
-          <p>Crear estructura inicial del condominio</p>
+          <h3>Configurar Condominio</h3>
+          <p>Registrar condominio y crear su estructura inicial</p>
         </a>
         <a href="/residents" className="action-card">
           <h3>Gestionar Residentes</h3>
