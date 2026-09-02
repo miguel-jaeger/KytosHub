@@ -1,31 +1,62 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
+import { LoginPage } from './pages/LoginPage';
 import { TowerWizard } from './modules/core/components/TowerWizard';
 import { ResidentsManager } from './modules/core/components/ResidentsManager';
 import { TowerStructureView } from './modules/core/components/TowerStructureView';
 
-function App() {
-  return (
-    <Router>
-      <div className="app">
-        <header>
-          <h1>KytosHub - Gestión de Condominios</h1>
-          <nav className="main-nav">
-            <a href="/">Inicio</a>
-            <a href="/structure">Estructura</a>
-            <a href="/setup">Configurar Torre</a>
-            <a href="/residents">Residentes</a>
-          </nav>
-        </header>
-        <main>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/structure" element={<TowerStructureView />} />
-            <Route path="/setup" element={<TowerWizard />} />
-            <Route path="/residents" element={<ResidentsManager />} />
-          </Routes>
-        </main>
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg text-on-surface-variant">Cargando...</div>
       </div>
-    </Router>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function AppShell() {
+  const { user, signOut } = useAuth();
+
+  return (
+    <div className="app">
+      <header>
+        <h1>KytosHub - Gestión de Condominios</h1>
+        <nav className="main-nav">
+          <a href="/">Inicio</a>
+          <a href="/structure">Estructura</a>
+          <a href="/setup">Configurar Torre</a>
+          <a href="/residents">Residentes</a>
+        </nav>
+        {user && (
+          <button
+            className="logout-btn"
+            onClick={async () => {
+              await signOut();
+            }}
+          >
+            Cerrar sesión ({user.email})
+          </button>
+        )}
+      </header>
+      <main>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/structure" element={<TowerStructureView />} />
+          <Route path="/setup" element={<TowerWizard />} />
+          <Route path="/residents" element={<ResidentsManager />} />
+        </Routes>
+      </main>
+    </div>
   );
 }
 
@@ -48,6 +79,24 @@ function Dashboard() {
         </a>
       </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/*"
+          element={
+            <ProtectedRoute>
+              <AppShell />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </Router>
   );
 }
 
