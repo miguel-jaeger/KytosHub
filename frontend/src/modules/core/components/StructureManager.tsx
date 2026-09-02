@@ -4,25 +4,22 @@ import { invokeFunction } from '../../../lib/insforge';
 import { useTowerStructure } from '../hooks/useTowerStructure';
 import { TowerWizard } from './TowerWizard';
 import { DepartmentModal } from './DepartmentModal';
+import { PaginationBar, paginate } from '../../../components/Pagination';
 import type { TowerNode, DepartmentNode } from '../types';
 
-export function StructureManager({ section = 'towers' }: { section?: 'towers' | 'floors' | 'departments' | 'residents' }) {
+export function StructureManager() {
   const { condominium } = useCondominium();
   const { towers, loading, error, refresh } = useTowerStructure();
-  const [activeSection, setActiveSection] = useState<'towers' | 'floors' | 'departments' | 'residents'>(section);
   const [expandedTower, setExpandedTower] = useState<string | null>(null);
   const [expandedFloor, setExpandedFloor] = useState<string | null>(null);
   const [showTowerForm, setShowTowerForm] = useState(false);
   const [selectedDept, setSelectedDept] = useState<{ tower: TowerNode; floor: { id: string; floor_number: number }; dept: DepartmentNode } | null>(null);
   const [floorForm, setFloorForm] = useState<{ towerId: string; open: boolean; floorNumber: string }>({ towerId: '', open: false, floorNumber: '' });
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [towerPage, setTowerPage] = useState(1);
+  const [towerPerPage, setTowerPerPage] = useState<number | 'all'>(10);
 
-  const sectionTabs = [
-    { key: 'towers' as const, icon: 'apartment', label: 'Torres' },
-    { key: 'floors' as const, icon: 'layers', label: 'Pisos' },
-    { key: 'departments' as const, icon: 'door_front', label: 'Departamentos' },
-    { key: 'residents' as const, icon: 'group', label: 'Residentes' },
-  ];
+  const { slice: pagedTowers } = paginate(towers, towerPage, towerPerPage === 'all' ? towers.length : towerPerPage);
 
   const schemaName = condominium?.schema_name;
 
@@ -68,18 +65,6 @@ export function StructureManager({ section = 'towers' }: { section?: 'towers' | 
 
   return (
     <div className="structure-manager">
-      <div className="struct-tabs">
-        {sectionTabs.map(tab => (
-          <button
-            key={tab.key}
-            className={`struct-tab ${activeSection === tab.key ? 'active' : ''}`}
-            onClick={() => { setActiveSection(tab.key); setExpandedFloor(null); }}
-          >
-            <span className="material-symbols-outlined">{tab.icon}</span> {tab.label}
-          </button>
-        ))}
-      </div>
-
       {statusMsg && (
         <div className="success-message" onClick={() => setStatusMsg(null)}>
           {statusMsg} — clic para cerrar
@@ -105,9 +90,10 @@ export function StructureManager({ section = 'towers' }: { section?: 'towers' | 
           <button onClick={() => setShowTowerForm(true)}><span className="material-symbols-outlined">add_business</span> Adicionar</button>
         </div>
       ) : (
-        <div className="tower-list">
-          {towers.map(tower => (
-            <div key={tower.id} className="tower-card">
+        <>
+          <div className={`tower-list ${expandedTower ? 'tower-list-expanded' : ''}`}>
+            {pagedTowers.map(tower => (
+              <div key={tower.id} className={`tower-card ${expandedTower === tower.id ? 'tower-card-expanded' : expandedTower ? 'tower-card-hidden' : ''}`}>
               <div className="tower-header" onClick={() => setExpandedTower(expandedTower === tower.id ? null : tower.id)}>
                 <span className="tower-icon">{expandedTower === tower.id ? '▼' : '▶'}</span>
                 <div className="tower-info">
@@ -185,7 +171,16 @@ export function StructureManager({ section = 'towers' }: { section?: 'towers' | 
               )}
             </div>
           ))}
-        </div>
+          </div>
+          <PaginationBar
+            total={towers.length}
+            page={towerPage}
+            perPage={towerPerPage}
+            onPageChange={setTowerPage}
+            onPerPageChange={(n) => setTowerPerPage(n)}
+            itemLabel="torre"
+          />
+        </>
       )}
 
       {selectedDept && (

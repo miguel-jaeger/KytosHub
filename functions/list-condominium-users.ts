@@ -66,13 +66,11 @@ export default async function(req: Request): Promise<Response> {
         const enrichedUsers = [];
         for (const u of users || []) {
           let email = '';
-          let name = '';
           try {
-            const { data: ug } = await client.database.from('users_global').select('email, name').eq('id', u.user_id).single();
+            const { data: ug } = await client.database.from('users_global').select('email').eq('id', u.user_id).single();
             email = (ug as { email?: string })?.email || '';
-            name = (ug as { name?: string })?.name || '';
           } catch {}
-          enrichedUsers.push({ ...u, email, name });
+          enrichedUsers.push({ ...u, email, source: 'tenant_user' });
         }
 
         // Include residents from the tenant schema so the users view is populated
@@ -101,7 +99,8 @@ export default async function(req: Request): Promise<Response> {
                 status: 'ACTIVE',
                 created_at: r.created_at,
                 email: (r as { email?: string })?.email || '',
-                name: (r as { full_name?: string })?.full_name || ''
+                name: (r as { full_name?: string })?.full_name || '',
+                source: 'resident'
               });
             }
           }
@@ -115,7 +114,8 @@ export default async function(req: Request): Promise<Response> {
 
     switch (action || req.method) {
 
-      case 'POST': {
+      case 'POST':
+      case 'create': {
         const reqBody = body as unknown as AddUserRequest;
         if (!reqBody.tenant_id || !reqBody.email || !reqBody.name || !reqBody.role) {
           return new Response(
@@ -181,20 +181,53 @@ export default async function(req: Request): Promise<Response> {
         );
       }
 
-      case 'PUT': {
-        const userId = url.searchParams.get('user_id');
+      case 'PUT':
+      case 'update': {
+        const id = body.id as string;
+        const source = (body.source as string) || 'tenant_user';
 
-        if (!userId) {
+        if (!id) {
           return new Response(
-            JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere user_id' } }),
+            JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere id' } }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
 
+        if (source === 'resident') {
+          const schemaName = body.schema_name as string;
+          if (!schemaName) {
+            return new Response(
+              JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere schema_name' } }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          const updates: Record<string, unknown> = {};
+          if (body.name) updates.full_name = body.name;
+          if (body.email) updates.email = body.email;
+          if (body.phone) updates.phone = body.phone;
+
+          const { data, error } = await client.database.schema(schemaName)
+            .from('residents')
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+
+          if (error) throw error;
+          return new Response(
+            JSON.stringify({ success: true, data, error: null }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const updates: Record<string, unknown> = {};
+        if (body.role) updates.role = body.role;
+        if (body.status) updates.status = body.status;
+
         const { data: tu, error } = await client.database
           .from('tenant_users')
-          .update(body)
-          .eq('id', userId)
+          .update(updates)
+          .eq('id', id)
           .select()
           .single();
 
@@ -206,20 +239,41 @@ export default async function(req: Request): Promise<Response> {
         );
       }
 
-      case 'DELETE': {
-        const userId = url.searchParams.get('user_id');
+      case 'DELETE':
+      case 'delete': {
+        const id = body.id as string;
+        const source = (body.source as string) || 'tenant_user';
 
-        if (!userId) {
+        if (!id) {
           return new Response(
-            JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere user_id' } }),
+            JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere id' } }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (source === 'resident') {
+          const schemaName = body.schema_name as string;
+          if (!schemaName) {
+            return new Response(
+              JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere schema_name' } }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          const { error } = await client.database.schema(schemaName)
+            .from('residents')
+            .delete()
+            .eq('id', id);
+          if (error) throw error;
+          return new Response(
+            JSON.stringify({ success: true, data: null, error: null }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
 
         const { error } = await client.database
           .from('tenant_users')
           .delete()
-          .eq('id', userId);
+          .eq('id', id);
 
         if (error) throw error;
 

@@ -1,11 +1,14 @@
 import { useState, type FormEvent } from 'react';
 import { useResidents } from '../hooks/useResidents';
+import { PaginationBar, paginate } from '../../../components/Pagination';
 import type { Resident } from '../types';
 
 export function ResidentsManager({ departmentId }: { departmentId?: string }) {
   const { residents, loading, error, fetchResidents } = useResidents(departmentId);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState<number | 'all'>(10);
   const [formData, setFormData] = useState({
     department_id: departmentId || '',
     full_name: '',
@@ -70,7 +73,7 @@ export function ResidentsManager({ departmentId }: { departmentId?: string }) {
       <table>
         <thead><tr><th>Nombre</th><th>Documento</th><th>Tipo</th><th>Contacto</th></tr></thead>
         <tbody>
-          {residents.map(r => (
+          {paginate(residents, page, perPage === 'all' ? residents.length : perPage).slice.map(r => (
             <tr key={r.id}>
               <td>{r.full_name}{r.is_primary_contact ? ' ★' : ''}</td>
               <td>{r.document_type} {r.document_number}</td>
@@ -80,6 +83,16 @@ export function ResidentsManager({ departmentId }: { departmentId?: string }) {
           ))}
         </tbody>
       </table>
+      {residents.length > 0 && (
+        <PaginationBar
+          total={residents.length}
+          page={page}
+          perPage={perPage}
+          onPageChange={setPage}
+          onPerPageChange={(n) => setPerPage(n)}
+          itemLabel="residente"
+        />
+      )}
     </div>
   );
 }

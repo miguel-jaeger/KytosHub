@@ -30,6 +30,10 @@ export default async function(req: Request): Promise<Response> {
       case 'list': {
         let q = db.from('residents').select('*');
         if (body.department_id) q = q.eq('department_id', body.department_id);
+        if (body.search) {
+          const term = `%${String(body.search).trim()}%`;
+          q = q.or(`full_name.ilike.${term},document_number.ilike.${term},email.ilike.${term}`);
+        }
         const { data, error } = await q.order('created_at', { ascending: false });
         if (error) throw error;
         const residents = data || [];

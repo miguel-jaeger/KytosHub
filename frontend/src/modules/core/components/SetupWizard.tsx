@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useCondominium } from '../../../contexts/CondominiumContext';
 import { useCondominiumRegistration } from '../hooks/useCondominiumRegistration';
 import { StructureManager } from './StructureManager';
@@ -8,8 +8,7 @@ import type { WizardStep } from '../types';
 export function SetupWizard() {
   const { condominium, setCondominium } = useCondominium();
   const { register } = useCondominiumRegistration();
-  const [searchParams] = useSearchParams();
-  const section = searchParams.get('section') || 'towers';
+  const navigate = useNavigate();
   const [step, setStep] = useState<WizardStep>(condominium ? 'towers' : 'condominium');
 
   const [condoData, setCondoData] = useState({
@@ -86,6 +85,7 @@ export function SetupWizard() {
             </div>
             {condoError && <div className="error-message">{condoError}</div>}
             <div className="wizard-actions">
+              <button type="button" onClick={() => navigate('/admin/condominiums')}>Cancelar</button>
               <button type="submit" disabled={condoLoading}>{condoLoading ? 'Creando...' : 'Siguiente →'}</button>
             </div>
           </form>
@@ -100,7 +100,7 @@ export function SetupWizard() {
 <span className="done">1. Datos del condominio</span>
         <span className="active">2. Estructura</span>
       </div>
-      <StructureManager section={section as 'towers' | 'floors' | 'departments' | 'residents'} />
+      <StructureManager />
     </div>
   );
 }

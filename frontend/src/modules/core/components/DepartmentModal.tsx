@@ -1,5 +1,7 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useResidents } from '../hooks/useResidents';
+import { useCondominium } from '../../../contexts/CondominiumContext';
+import { PaginationBar, paginate } from '../../../components/Pagination';
 import type { Resident, DepartmentNode } from '../types';
 
 const relLabel: Record<Resident['relationship_type'], string> = {
@@ -23,10 +25,25 @@ export function DepartmentModal({
   departmentId: string;
   onClose: () => void;
 }) {
-  const { residents, loading: residentsLoading, createResident, deleteResident } = useResidents(departmentId);
+  const { condominium } = useCondominium();
+  const schemaName = condominium?.schema_name;
+  const { residents, loading: residentsLoading, createResident, deleteResident, fetchResidents } = useResidents(departmentId);
   const [showForm, setShowForm] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<Resident[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [resPage, setResPage] = useState(1);
+  const [resPerPage, setResPerPage] = useState<number | 'all'>(10);
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchPerPage, setSearchPerPage] = useState<number | 'all'>(10);
+
+  const { slice: pagedResidents } = paginate(residents, resPage, resPerPage === 'all' ? residents.length : resPerPage);
+  const { slice: pagedSearchResults } = paginate(searchResults, searchPage, searchPerPage === 'all' ? searchResults.length : searchPerPage);
   const [formData, setFormData] = useState<{
     full_name: string;
     document_type: Resident['document_type'];
@@ -45,9 +62,61 @@ export function DepartmentModal({
     phone: ''
   });
 
+  const doSearch = async (term: string) => {
+    if (!schemaName || !term.trim()) { setSearchResults([]); return; }
+    setSearching(true);
+    try {
+      const { invokeFunction } = await import('../../../lib/insforge');
+      const { data, error: fnError } = await invokeFunction<{ success: boolean; data: Resident[] | null; error: { message: string } | null }>('residents', {
+        method: 'POST',
+        body: { action: 'list', schema_name: schemaName, search: term.trim() }
+      });
+      if (fnError) throw fnError;
+      setSearchResults(data?.success ? (data.data || []) : []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al buscar residentes');
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  useEffect(() => {
+    const t = setTimeout(() => { doSearch(searchTerm); }, 300);
+    return () => clearTimeout(t);
+  }, [searchTerm, schemaName]);
+
+  const assignResident = async (r: Resident) => {
+    if (!schemaName) return;
+    const hadDept = !!r.department_id;
+    setAssigningId(r.id);
+    setError(null);
+    setMessage(null);
+    try {
+      const { invokeFunction } = await import('../../../lib/insforge');
+      const { data, error: fnError } = await invokeFunction<{ success: boolean; error: { message: string } | null }>('residents', {
+        method: 'POST',
+        body: { action: 'update', id: r.id, schema_name: schemaName, department_id: departmentId }
+      });
+      if (fnError) throw fnError;
+      if (!data?.success) { setError(data?.error?.message || 'No se pudo asignar el residente'); return; }
+      setMessage(hadDept
+        ? `"${r.full_name}" cambió al Dpto ${department.department_number}.`
+        : `"${r.full_name}" fue asignado al Dpto ${department.department_number}.`);
+      setSearchTerm('');
+      setSearchResults([]);
+      setShowSearch(false);
+      await fetchResidents();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error de conexión');
+    } finally {
+      setAssigningId(null);
+    }
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    setMessage(null);
     if (!formData.full_name.trim() || !formData.document_number.trim()) {
       setError('Nombre y documento son obligatorios');
       return;
@@ -113,10 +182,76 @@ export function DepartmentModal({
           <div className="residents-list">
             <div className="residents-header">
               <h4>Residentes ({residents.length})</h4>
-              <button onClick={() => { setShowForm(!showForm); setError(null); }}>
-                <span className="material-symbols-outlined">{showForm ? 'close' : 'person_add'}</span> {showForm ? 'Cancelar' : 'Adicionar'}
-              </button>
+              <div className="residents-actions">
+                <button onClick={() => { setShowSearch(!showSearch); setShowForm(false); setError(null); setMessage(null); }}>
+                  <span className="material-symbols-outlined">manage_search</span> {showSearch ? 'Cerrar' : 'Buscar existente'}
+                </button>
+                <button onClick={() => { setShowForm(!showForm); setShowSearch(false); setError(null); setMessage(null); }}>
+                  <span className="material-symbols-outlined">{showForm ? 'close' : 'person_add'}</span> {showForm ? 'Cancelar' : 'Adicionar'}
+                </button>
+              </div>
             </div>
+
+            {showSearch && (
+              <div className="resident-search">
+                <div className="form-group">
+                  <label>Buscar residente por nombre, documento o correo</label>
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Nombre, documento o correo..."
+                    autoFocus
+                  />
+                </div>
+                {searching ? (
+                  <div className="loading-message">Buscando...</div>
+                ) : searchResults.length === 0 ? (
+                  searchTerm.trim() ? <p className="empty-text">Sin resultados.</p> : <p className="empty-text">Escriba para buscar residentes existentes.</p>
+                ) : (
+                  <table className="residents-table">
+                    <thead>
+                      <tr>
+                        <th>Nombre</th>
+                        <th>Documento</th>
+                        <th>Departamento actual</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pagedSearchResults.map(r => (
+                        <tr key={r.id}>
+                          <td>{r.full_name}</td>
+                          <td>{r.document_type} {r.document_number}</td>
+                          <td>
+                            {r.departments?.department_number
+                              ? <>Dpto {r.departments.department_number}{r.departments.towers?.code ? ` (${r.departments.towers.code})` : ''}</>
+                              : <span className="status-badge status-vacant">Sin asignar</span>}
+                          </td>
+                          <td>
+                            <button className="btn-primary" onClick={() => assignResident(r)} disabled={assigningId === r.id}>
+                              {assigningId === r.id ? '...' : r.department_id ? 'Cambiar' : 'Asignar'}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                {searchResults.length > 0 && (
+                  <PaginationBar
+                    total={searchResults.length}
+                    page={searchPage}
+                    perPage={searchPerPage}
+                    onPageChange={setSearchPage}
+                    onPerPageChange={(n) => setSearchPerPage(n)}
+                    itemLabel="resultado"
+                  />
+                )}
+              </div>
+            )}
+
+            {message && <div className="success-message">{message}</div>}
 
             {residentsLoading ? (
               <div className="loading-message">Cargando residentes...</div>
@@ -134,7 +269,7 @@ export function DepartmentModal({
                   </tr>
                 </thead>
                 <tbody>
-                  {residents.map(r => (
+                  {pagedResidents.map(r => (
                     <tr key={r.id}>
                       <td>{r.full_name}{r.is_primary_contact ? ' ★' : ''}</td>
                       <td>{r.document_type} {r.document_number}</td>
@@ -145,6 +280,16 @@ export function DepartmentModal({
                   ))}
                 </tbody>
               </table>
+            )}
+            {residents.length > 0 && (
+              <PaginationBar
+                total={residents.length}
+                page={resPage}
+                perPage={resPerPage}
+                onPageChange={setResPage}
+                onPerPageChange={(n) => setResPerPage(n)}
+                itemLabel="residente"
+              />
             )}
           </div>
 

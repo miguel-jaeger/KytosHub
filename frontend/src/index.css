@@ -443,6 +443,14 @@ tr:hover {
   overflow: hidden;
 }
 
+.tower-card-expanded {
+  grid-column: 1 / -1;
+}
+
+.tower-list-expanded .tower-card-hidden {
+  display: none;
+}
+
 .tower-header {
   display: flex;
   align-items: center;
@@ -1135,6 +1143,132 @@ html.dark .condo-count { color: #ccc; }
   border-top: 1px solid #e5e7eb;
 }
 
+.condo-picker {
+  position: relative;
+}
+
+.condo-picker-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  z-index: 30;
+  padding: 0.35rem;
+}
+
+.condo-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #0b1c30;
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+.condo-picker-item:hover {
+  background: #e8f5ec;
+  color: #006c49;
+}
+
+.condo-picker-item.selected {
+  background: #e8f5ec;
+  color: #006c49;
+  font-weight: 600;
+}
+
+.condo-picker-item .material-symbols-outlined {
+  font-size: 18px;
+  color: #006c49;
+}
+
+.condo-picker-empty {
+  padding: 0.6rem;
+  text-align: center;
+  color: #76777d;
+  font-size: 0.85rem;
+}
+
+html.dark .condo-picker-dropdown { background: #1e1e1e; border-color: #333; }
+html.dark .condo-picker-item { color: #e5e7eb; }
+html.dark .condo-picker-item:hover { background: #2a2a2a; color: #90caf9; }
+html.dark .condo-picker-item.selected { background: #2a2a2a; color: #90caf9; }
+
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.pagination-size {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #45464d;
+}
+
+.pagination-size select {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #c6c6cd;
+  border-radius: 8px;
+  background: #f8f9ff;
+  color: #0b1c30;
+  font-size: 0.85rem;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pagination button {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #c6c6cd;
+  border-radius: 8px;
+  background: #f8f9ff;
+  color: #0b1c30;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.pagination button:hover:not(:disabled) {
+  background: #e8f5ec;
+  border-color: #006c49;
+  color: #006c49;
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination span {
+  font-size: 0.85rem;
+  color: #45464d;
+}
+
+html.dark .pagination-size { color: #ccc; }
+html.dark .pagination-size select { background: #2a2a2a; color: #e5e7eb; border-color: #444; }
+html.dark .pagination button { background: #2a2a2a; color: #ccc; border-color: #444; }
+html.dark .pagination span { color: #ccc; }
+
 .icon-btn {
   width: 36px;
   height: 36px;
@@ -1237,6 +1371,20 @@ html.dark .condo-card-actions { border-top-color: #333; }
 .modal-header h3 { margin: 0; color: #0b1c30; }
 .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #76777d; }
 .residents-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.residents-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.residents-header button { display: inline-flex; align-items: center; gap: 0.35rem; background: #f1f5f9; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.45rem 0.7rem; cursor: pointer; color: #0b1c30; font-size: 0.85rem; transition: all 0.2s; }
+.residents-header button:hover { background: #e8f5ec; border-color: #006c49; color: #006c49; }
+.residents-header button .material-symbols-outlined { font-size: 18px; }
+.resident-search { background: #f8f9ff; padding: 1rem; border-radius: 8px; border: 1px solid #e5e7eb; margin-bottom: 1rem; }
+.resident-search input { width: 100%; padding: 0.7rem 0.75rem; border: 1px solid #c6c6cd; border-radius: 8px; background: #fff; color: #0b1c30; font-size: 0.95rem; }
+.resident-search input:focus { outline: none; border-color: #006c49; box-shadow: 0 0 0 2px rgba(0,108,73,0.15); }
+.btn-primary { background: #006c49 !important; color: #fff !important; padding: 0.35rem 0.7rem !important; border-radius: 6px !important; font-size: 0.85rem !important; cursor: pointer; border: none; }
+.btn-primary:hover { background: #00503a !important; }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+html.dark .residents-header button { background: #2a2a2a; border-color: #444; color: #e5e7eb; }
+html.dark .residents-header button:hover { background: #333; color: #90caf9; border-color: #90caf9; }
+html.dark .resident-search { background: #1e1e1e; border-color: #333; }
+html.dark .resident-search input { background: #2a2a2a; border-color: #444; color: #e5e7eb; }
 .residents-table { width: 100%; border-collapse: collapse; }
 .residents-table th, .residents-table td { padding: 0.6rem; border-bottom: 1px solid #e5e7eb; text-align: left; font-size: 0.9rem; }
 .residents-table th { background: #f8f9ff; color: #45464d; }

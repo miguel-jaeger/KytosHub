@@ -4,6 +4,7 @@ import { useCondominiums } from '../hooks/useCondominiums';
 import { useCondominium } from '../../../contexts/CondominiumContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { invokeFunction } from '../../../lib/insforge';
+import { PaginationBar, paginate } from '../../../components/Pagination';
 
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '';
@@ -35,6 +36,12 @@ export function SuperAdminDashboard() {
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState<number | 'all'>(10);
+
+  const { slice: pagedCondos } = paginate(visibleCondominiums, page, perPage === 'all' ? visibleCondominiums.length : perPage);
+
+  useEffect(() => { setPage(1); }, [visibleCondominiums.length, search]);
 
   const startEdit = (c: { id: string; name: string; address: string | null; admin_phone: string | null }) => {
     setEditingId(c.id);
@@ -122,8 +129,9 @@ export function SuperAdminDashboard() {
           {!search && <p>Use el botón "Adicionar" para registrar uno.</p>}
         </div>
       ) : (
-        <div className="condominiums-grid">
-          {visibleCondominiums.map(c => (
+        <>
+          <div className="condominiums-grid">
+          {pagedCondos.map(c => (
             <div key={c.id} className="condominium-card">
               {editingId !== c.id && (
                 <div className="condo-thumb">
@@ -216,7 +224,16 @@ export function SuperAdminDashboard() {
               </div>
             </div>
           ))}
-        </div>
+          </div>
+          <PaginationBar
+            total={visibleCondominiums.length}
+            page={page}
+            perPage={perPage}
+            onPageChange={setPage}
+            onPerPageChange={(n) => setPerPage(n)}
+            itemLabel="condominio"
+          />
+        </>
       )}
     </div>
   );
