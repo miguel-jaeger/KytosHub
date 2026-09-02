@@ -134,15 +134,16 @@ export function TowerWizard({ onComplete }: TowerWizardProps) {
       <div className="wizard-actions">
         {step > 1 && (
           <button onClick={() => setStep(step - 1)} disabled={loading}>
-            Anterior
+            <span className="material-symbols-outlined">arrow_back</span> Anterior
           </button>
         )}
         {step < 3 ? (
           <button onClick={() => setStep(step + 1)} disabled={!canProceed() || loading}>
-            Siguiente
+            Siguiente <span className="material-symbols-outlined">arrow_forward</span>
           </button>
         ) : (
           <button onClick={handleSubmit} disabled={!canProceed() || loading}>
+            <span className="material-symbols-outlined">add_business</span>
             {loading ? 'Creando...' : 'Crear Torre'}
           </button>
         )}

@@ -83,7 +83,7 @@ export function SetupWizard() {
             </div>
             {condoError && <div className="error-message">{condoError}</div>}
             <div className="wizard-actions">
-              <button type="submit" disabled={condoLoading}>{condoLoading ? 'Creando...' : 'Siguiente →'}</button>
+              <button type="submit" disabled={condoLoading}><span className="material-symbols-outlined">arrow_forward</span> {condoLoading ? 'Creando...' : 'Siguiente'}</button>
             </div>
           </form>
         </div>

@@ -181,8 +181,8 @@ header h1 {
 }
 
 .action-card {
-  background: #1a1a1a;
-  border: 1px solid #333;
+  background: #fff;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
   padding: 1.5rem;
   text-decoration: none;
@@ -196,18 +196,19 @@ header h1 {
 
 .action-card h3 {
   margin: 0 0 0.5rem 0;
-  color: #646cff;
+  color: #0b1c30;
 }
 
 .action-card p {
   margin: 0;
-  color: #888;
+  color: #76777d;
 }
 
 .wizard-container {
-  background: #1a1a1a;
+  background: #fff;
   border-radius: 8px;
-  
+  border: 1px solid #e5e7eb;
+  padding: 1.5rem;
 }
 
 .wizard-header h2 {
@@ -263,10 +264,11 @@ header h1 {
 }
 
 .wizard-summary {
-  background: #242424;
+  background: #f8f9ff;
   padding: 1rem;
   border-radius: 4px;
   margin-top: 1rem;
+  color: #0b1c30;
 }
 
 .wizard-actions {
@@ -312,9 +314,10 @@ button:disabled {
 }
 
 .residents-manager {
-  background: #1a1a1a;
+  background: #fff;
   border-radius: 8px;
-  
+  border: 1px solid #e5e7eb;
+  padding: 1.5rem;
 }
 
 .residents-manager .header {
@@ -326,17 +329,20 @@ button:disabled {
 
 .residents-manager h2 {
   margin: 0;
+  color: #0b1c30;
 }
 
 .form-modal {
-  background: #242424;
+  background: #f8f9ff;
   padding: 1.5rem;
   border-radius: 8px;
   margin-bottom: 1.5rem;
+  border: 1px solid #e5e7eb;
 }
 
 .form-modal h3 {
   margin: 0 0 1rem 0;
+  color: #0b1c30;
 }
 
 .form-group.checkbox {
@@ -364,16 +370,17 @@ table {
 th, td {
   padding: 0.75rem;
   text-align: left;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid #e5e7eb;
+  color: #0b1c30;
 }
 
 th {
-  background: #242424;
-  color: #ccc;
+  background: #f8f9ff;
+  color: #45464d;
 }
 
 tr:hover {
-  background: #242424;
+  background: #f8f9ff;
 }
 
 .error {
@@ -412,9 +419,10 @@ tr:hover {
 }
 
 .tower-structure {
-  background: #1a1a1a;
+  background: #fff;
   border-radius: 8px;
-  
+  border: 1px solid #e5e7eb;
+  padding: 1.5rem;
 }
 
 .tower-structure .header {
@@ -435,8 +443,8 @@ tr:hover {
 }
 
 .tower-card {
-  background: #242424;
-  border: 1px solid #333;
+  background: #fff;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
   overflow: hidden;
 }
@@ -451,7 +459,7 @@ tr:hover {
 }
 
 .tower-header:hover {
-  background: #2a2a2a;
+  background: #f8f9ff;
 }
 
 .tower-icon {
@@ -465,27 +473,27 @@ tr:hover {
 
 .tower-info h3 {
   margin: 0;
-  color: #fff;
+  color: #0b1c30;
 }
 
 .tower-code {
-  color: #888;
+  color: #76777d;
   font-size: 0.85rem;
 }
 
 .tower-stats {
   display: flex;
   gap: 1rem;
-  color: #888;
+  color: #76777d;
   font-size: 0.9rem;
 }
 
 .floor-list {
-  border-top: 1px solid #333;
+  border-top: 1px solid #e5e7eb;
 }
 
 .floor-card {
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .floor-header {
@@ -498,7 +506,7 @@ tr:hover {
 }
 
 .floor-header:hover {
-  background: #2a2a2a;
+  background: #f8f9ff;
 }
 
 .floor-icon {
@@ -508,12 +516,12 @@ tr:hover {
 
 .floor-label {
   flex: 1;
-  color: #ccc;
+  color: #0b1c30;
   font-weight: 500;
 }
 
 .floor-count {
-  color: #888;
+  color: #76777d;
   font-size: 0.85rem;
 }
 
@@ -525,8 +533,8 @@ tr:hover {
 }
 
 .department-card {
-  background: #1a1a1a;
-  border: 1px solid #333;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
   border-radius: 6px;
   padding: 0.75rem;
   display: flex;
@@ -535,7 +543,7 @@ tr:hover {
 }
 
 .department-number {
-  color: #fff;
+  color: #0b1c30;
   font-weight: 500;
 }
 
@@ -563,13 +571,13 @@ tr:hover {
 
 .empty-state {
   text-align: center;
-  color: #888;
+  color: #76777d;
   padding: 3rem;
 }
 
 .loading-message {
   text-align: center;
-  color: #888;
+  color: #76777d;
   padding: 3rem;
 }
 
@@ -598,17 +606,19 @@ tr:hover {
 }
 
 .condo-registration {
-  background: #1a1a1a;
+  background: #fff;
   border-radius: 8px;
-  
+  border: 1px solid #e5e7eb;
+  padding: 1.5rem;
 }
 
 .condo-registration h2 {
   margin: 0 0 0.25rem 0;
+  color: #0b1c30;
 }
 
 .form-hint {
-  color: #888;
+  color: #76777d;
   margin: 0 0 1.5rem 0;
   font-size: 0.9rem;
 }
@@ -620,15 +630,16 @@ tr:hover {
 }
 
 .condo-form small {
-  color: #888;
+  color: #76777d;
   display: block;
   margin-top: 0.35rem;
 }
 
 .condo-form code {
-  background: #242424;
+  background: #e5e7eb;
   padding: 0.1rem 0.35rem;
   border-radius: 4px;
+  color: #0b1c30;
 }
 
 .image-uploader {
@@ -649,14 +660,14 @@ tr:hover {
   width: 100%;
   max-width: 360px;
   height: 180px;
-  border: 2px dashed #444;
+  border: 2px dashed #c6c6cd;
   border-radius: 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  color: #888;
+  color: #76777d;
 }
 
 .image-placeholder .material-symbols-outlined {
