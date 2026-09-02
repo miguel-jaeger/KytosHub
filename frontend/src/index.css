@@ -666,3 +666,51 @@ tr:hover {
 .image-placeholder .material-symbols-outlined {
   font-size: 40px;
 }
+
+.setup-complete {
+  background: #1a1a1a;
+  border-radius: 8px;
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.setup-complete h2 {
+  margin: 1rem 0 0.5rem;
+}
+
+.setup-complete p {
+  color: #888;
+  margin-bottom: 2rem;
+}
+
+.setup-complete {
+  background: #1a1a1a;
+  border-radius: 8px;
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.setup-complete h2 {
+  margin: 1rem 0 0.5rem;
+}
+
+.setup-complete p {
+  color: #888;
+  margin-bottom: 2rem;
+}
+
+.setup-complete {
+  background: #1a1a1a;
+  border-radius: 8px;
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.setup-complete h2 {
+  margin: 1rem 0 0.5rem;
+}
+
+.setup-complete p {
+  color: #888;
+  margin-bottom: 2rem;
+}
