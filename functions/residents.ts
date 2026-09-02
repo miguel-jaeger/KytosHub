@@ -20,11 +20,21 @@ export default async function(req: Request): Promise<Response> {
     const url = new URL(req.url);
     const residentId = url.searchParams.get('id');
     const departmentId = url.searchParams.get('department_id');
+    const schemaName = url.searchParams.get('schema_name') || url.searchParams.get('tenant_schema');
+
+    if (!schemaName) {
+      return new Response(
+        JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere el esquema del condominio (schema_name)' } }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const db = db.schema(schemaName);
 
     switch (req.method) {
       case 'GET': {
         if (residentId) {
-          const { data: resident, error } = await client.database
+          const { data: resident, error } = await db
             .from('residents')
             .select('*, departments(department_number, towers(name, code))')
             .eq('id', residentId)
@@ -43,7 +53,7 @@ export default async function(req: Request): Promise<Response> {
           );
         }
 
-        let query = client.database
+        let query = db
           .from('residents')
           .select('*, departments(department_number, towers(name, code))');
 
@@ -70,7 +80,7 @@ export default async function(req: Request): Promise<Response> {
           );
         }
 
-        const { data: existing } = await client.database
+        const { data: existing } = await db
           .from('residents')
           .select('id')
           .eq('department_id', body.department_id)
@@ -84,7 +94,7 @@ export default async function(req: Request): Promise<Response> {
           );
         }
 
-        const { data: resident, error } = await client.database
+        const { data: resident, error } = await db
           .from('residents')
           .insert([{
             department_id: body.department_id,
@@ -113,7 +123,7 @@ export default async function(req: Request): Promise<Response> {
         }
 
         const body = await req.json();
-        const { data: resident, error } = await client.database
+        const { data: resident, error } = await db
           .from('residents')
           .update(body)
           .eq('id', residentId)
@@ -136,7 +146,7 @@ export default async function(req: Request): Promise<Response> {
           );
         }
 
-        const { error } = await client.database
+        const { error } = await db
           .from('residents')
           .delete()
           .eq('id', residentId);
