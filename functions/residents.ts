@@ -1,4 +1,4 @@
-import { createClient } from 'npm:@insforge/sdk';
+import { createAdminClient } from 'npm:@insforge/sdk';
 
 export default async function(req: Request): Promise<Response> {
   const corsHeaders = {
@@ -12,21 +12,10 @@ export default async function(req: Request): Promise<Response> {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    const userToken = authHeader ? authHeader.replace('Bearer ', '') : null;
-
-    const client = createClient({
+    const client = createAdminClient({
       baseUrl: Deno.env.get('INSFORGE_BASE_URL'),
-      accessToken: userToken
+      apiKey: Deno.env.get('INSFORGE_API_KEY')
     });
-
-    const { data: userData } = await client.auth.getCurrentUser();
-    if (!userData?.user?.id) {
-      return new Response(
-        JSON.stringify({ success: false, data: null, error: { code: 'UNAUTHORIZED', message: 'Usuario no autenticado' } }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
 
     const url = new URL(req.url);
     const residentId = url.searchParams.get('id');

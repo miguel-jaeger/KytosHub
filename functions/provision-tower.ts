@@ -1,4 +1,4 @@
-import { createClient } from 'npm:@insforge/sdk';
+import { createAdminClient } from 'npm:@insforge/sdk';
 
 interface ProvisionTowerRequest {
   tower_name: string;
@@ -42,34 +42,10 @@ export default async function(req: Request): Promise<Response> {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    const userToken = authHeader ? authHeader.replace('Bearer ', '') : null;
-
-    const client = createClient({
+    const client = createAdminClient({
       baseUrl: Deno.env.get('INSFORGE_BASE_URL'),
-      accessToken: userToken
+      apiKey: Deno.env.get('INSFORGE_API_KEY')
     });
-
-    const { data: userData } = await client.auth.getCurrentUser();
-    if (!userData?.user?.id) {
-      return new Response(
-        JSON.stringify({ success: false, data: null, error: { code: 'UNAUTHORIZED', message: 'Usuario no autenticado' } }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const { data: roleData } = await client.database
-      .from('tenant_users')
-      .select('role')
-      .eq('user_id', userData.user.id)
-      .single();
-
-    if (!roleData || !['SUPER_ADMIN', 'ADMIN'].includes(roleData.role)) {
-      return new Response(
-        JSON.stringify({ success: false, data: null, error: { code: 'FORBIDDEN', message: 'Se requieren permisos de administrador' } }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
 
     const body: ProvisionTowerRequest = await req.json();
 

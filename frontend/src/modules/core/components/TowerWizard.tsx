@@ -6,18 +6,21 @@ interface TowerWizardProps {
   onComplete?: () => void;
 }
 
+const initialFormData: ProvisionTowerRequest = {
+  tower_name: '',
+  tower_code: '',
+  floors_count: 1,
+  departments_per_floor: 1,
+  naming_pattern: 'SEQUENTIAL'
+};
+
 export function TowerWizard({ onComplete }: TowerWizardProps) {
   const { createTower } = useTowers();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState<ProvisionTowerRequest>({
-    tower_name: '',
-    tower_code: '',
-    floors_count: 1,
-    departments_per_floor: 1,
-    naming_pattern: 'SEQUENTIAL'
-  });
+  const [success, setSuccess] = useState<string | null>(null);
+  const [formData, setFormData] = useState<ProvisionTowerRequest>(initialFormData);
 
   const handleChange = (field: keyof ProvisionTowerRequest, value: string | number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -28,7 +31,10 @@ export function TowerWizard({ onComplete }: TowerWizardProps) {
     try {
       setLoading(true);
       setError(null);
-      await createTower(formData);
+      const result = await createTower(formData);
+      setSuccess(`Torre creada exitosamente: ${result?.tower_name || formData.tower_name}`);
+      setFormData(initialFormData);
+      setStep(1);
       onComplete?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear la torre');
@@ -114,6 +120,7 @@ export function TowerWizard({ onComplete }: TowerWizardProps) {
         )}
 
         {error && <div className="error-message">{error}</div>}
+        {success && <div className="success-message">{success}</div>}
 
         <div className="wizard-summary">
           <p>Se crearán:</p>
