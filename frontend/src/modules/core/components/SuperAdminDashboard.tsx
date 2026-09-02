@@ -182,7 +182,7 @@ export function SuperAdminDashboard() {
                       </div>
                     </div>
                     <div className="form-actions">
-                      <button onClick={() => setEditingId(null)}><span className="material-symbols-outlined">close</span> Cancelar</button>
+                      <button className="btn-cancel" onClick={() => setEditingId(null)}><span className="material-symbols-outlined">close</span> Cancelar</button>
                       <button onClick={handleSaveEdit} disabled={saving}><span className="material-symbols-outlined">save</span> {saving ? 'Guardando...' : 'Guardar'}</button>
                     </div>
                   </div>

@@ -143,12 +143,12 @@ export function CondominioAdminDashboard() {
       const body: Record<string, unknown> = {
         action: 'update',
         id: editingUser.id,
-        source: editingUser.source || 'tenant_user'
+        source: editingUser.source || 'tenant_user',
+        name: editingUser.name,
+        email: editingUser.email
       };
       if (editingUser.source === 'resident') {
         body.schema_name = condominium?.schema_name;
-        body.name = editingUser.name;
-        body.email = editingUser.email;
       } else {
         body.role = editingUser.role;
         body.status = editingUser.status;
@@ -199,6 +199,11 @@ export function CondominioAdminDashboard() {
     }
   };
 
+  useEffect(() => {
+    setCondoSearch(condominium?.name || '');
+    setCondoDropdownOpen(false);
+  }, [condominium]);
+
   const selectCondo = (c: { id: string; name: string; slug: string; short_name: string | null; schema_name: string; image_url: string | null }) => {
     setCondominium({
       tenant_id: c.id,
@@ -224,13 +229,11 @@ export function CondominioAdminDashboard() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  if (!condominium) return <div className="empty-state"><p>No hay condominio seleccionado.</p>{isSuperAdmin && <p>Seleccione un condominio desde <strong>Condominios</strong>.</p>}</div>;
-
   return (
     <div className="dashboard">
       <div className="header">
-        <h2>Usuarios - {condominium.name}</h2>
-        <button onClick={openAddForm}><span className="material-symbols-outlined">person_add</span> Adicionar</button>
+        <h2>Usuarios - {condominium?.name || 'Seleccione un condominio'}</h2>
+        {condominium && <button onClick={openAddForm}><span className="material-symbols-outlined">person_add</span> Adicionar</button>}
       </div>
       <div className="condo-search-panel">
         {isSuperAdmin && condominiums.length > 0 && (
@@ -250,7 +253,7 @@ export function CondominioAdminDashboard() {
                   <div className="condo-picker-empty">Sin resultados</div>
                 ) : (
                   filteredCondos.map(c => (
-                    <button key={c.id} type="button" className={`condo-picker-item ${c.id === condominium.tenant_id ? 'selected' : ''}`} onClick={() => selectCondo(c)}>
+                    <button key={c.id} type="button" className={`condo-picker-item ${c.id === condominium?.tenant_id ? 'selected' : ''}`} onClick={() => selectCondo(c)}>
                       <span className="material-symbols-outlined">apartment</span>
                       <span>{c.name}</span>
                     </button>
@@ -305,7 +308,7 @@ export function CondominioAdminDashboard() {
           </div>
           <small>Se creará una cuenta con contraseña: <code>{newUser.email.split('@')[0]}Kytos</code></small>
           <div className="form-actions">
-            <button onClick={() => setShowAddForm(false)}><span className="material-symbols-outlined">close</span> Cancelar</button>
+            <button className="btn-cancel" onClick={() => setShowAddForm(false)}><span className="material-symbols-outlined">close</span> Cancelar</button>
             <button onClick={handleAddUser} disabled={submitting}>
               <span className="material-symbols-outlined">person_add</span> {submitting ? 'Creando...' : 'Crear'}
             </button>
@@ -316,18 +319,15 @@ export function CondominioAdminDashboard() {
       {showEditForm && editingUser && (
         <div className="form-modal">
           <h3>Editar Usuario</h3>
-          {editingUser.source === 'resident' ? (
-            <>
-              <div className="form-group">
-                <label>Nombre</label>
-                <input type="text" value={editingUser.name || ''} onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Email</label>
-                <input type="email" value={editingUser.email || ''} onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })} />
-              </div>
-            </>
-          ) : (
+          <div className="form-group">
+            <label>Nombre</label>
+            <input type="text" value={editingUser.name || ''} onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })} />
+          </div>
+          <div className="form-group">
+            <label>Email</label>
+            <input type="email" value={editingUser.email || ''} onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })} />
+          </div>
+          {editingUser.source !== 'resident' && (
             <>
               <div className="form-group">
                 <label>Rol</label>
@@ -348,7 +348,7 @@ export function CondominioAdminDashboard() {
             </>
           )}
           <div className="form-actions">
-            <button onClick={() => setShowEditForm(false)}><span className="material-symbols-outlined">close</span> Cancelar</button>
+            <button className="btn-cancel" onClick={() => setShowEditForm(false)}><span className="material-symbols-outlined">close</span> Cancelar</button>
             <button onClick={handleSaveEdit}><span className="material-symbols-outlined">save</span> Guardar</button>
           </div>
         </div>

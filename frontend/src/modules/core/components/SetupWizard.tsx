@@ -85,7 +85,7 @@ export function SetupWizard() {
             </div>
             {condoError && <div className="error-message">{condoError}</div>}
             <div className="wizard-actions">
-              <button type="button" onClick={() => navigate('/admin/condominiums')}>Cancelar</button>
+              <button type="button" className="btn-cancel" onClick={() => navigate('/admin/condominiums')}>Cancelar</button>
               <button type="submit" disabled={condoLoading}>{condoLoading ? 'Creando...' : 'Siguiente →'}</button>
             </div>
           </form>

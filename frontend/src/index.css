@@ -290,6 +290,18 @@ button:hover:not(:disabled) {
   background: #535bf2;
 }
 
+button.btn-cancel {
+  background: #ba1a1a;
+  color: #fff;
+}
+
+button.btn-cancel:hover:not(:disabled) {
+  background: #93000a;
+}
+
+html.dark button.btn-cancel { background: #ba1a1a; color: #fff; }
+html.dark button.btn-cancel:hover:not(:disabled) { background: #93000a; }
+
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -838,6 +850,8 @@ tr:hover {
   flex: 1;
   width: 100%;
   max-width: 100%;
+  padding: 10px;
+  box-sizing: border-box;
 }
 
 .sidebar.collapsed + .app-layout,
@@ -987,8 +1001,8 @@ html.dark .profile-card h3, html.dark .password-card h3, html.dark .theme-card h
 
 .condominiums-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 320px));
+  gap: 1rem;
   width: 100%;
 }
 

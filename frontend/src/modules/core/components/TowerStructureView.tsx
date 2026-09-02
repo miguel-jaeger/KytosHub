@@ -333,7 +333,7 @@ function DepartmentModal({
               {error && <div className="error-message">{error}</div>}
 
               <div className="form-actions">
-                <button type="button" onClick={() => setShowForm(false)}>Cancelar</button>
+                <button type="button" className="btn-cancel" onClick={() => setShowForm(false)}>Cancelar</button>
                 <button type="submit" disabled={submitting}>
                   {submitting ? 'Guardando...' : 'Adicionar'}
                 </button>

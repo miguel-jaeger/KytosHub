@@ -66,11 +66,17 @@ export default async function(req: Request): Promise<Response> {
         const enrichedUsers = [];
         for (const u of users || []) {
           let email = '';
+          let name = '';
           try {
-            const { data: ug } = await client.database.from('users_global').select('email').eq('id', u.user_id).single();
+            const { data: ug } = await client.database.from('users_global').select('email, name').eq('id', u.user_id).single();
             email = (ug as { email?: string })?.email || '';
+            name = (ug as { name?: string })?.name || '';
           } catch {}
-          enrichedUsers.push({ ...u, email, source: 'tenant_user' });
+          try {
+            const { data: prof } = await client.auth.getProfile(u.user_id);
+            if (!name) name = (prof as { name?: string } | null)?.name || '';
+          } catch {}
+          enrichedUsers.push({ ...u, email, name, source: 'tenant_user' });
         }
 
         // Include residents from the tenant schema so the users view is populated
@@ -150,7 +156,7 @@ export default async function(req: Request): Promise<Response> {
         if (userId) {
           const { error: ugError } = await client.database
             .from('users_global')
-            .insert([{ id: userId, email, password_hash: defaultPassword, is_superadmin: false }]);
+            .insert([{ id: userId, email, name: reqBody.name, password_hash: defaultPassword, is_superadmin: false }]);
 
           if (ugError) {
             console.error('users_global insert error:', ugError);
@@ -232,6 +238,17 @@ export default async function(req: Request): Promise<Response> {
           .single();
 
         if (error) throw error;
+
+        if (tu?.user_id) {
+          if (body.email || body.name) {
+            try {
+              const ugUpdate: Record<string, unknown> = {};
+              if (body.email) ugUpdate.email = body.email;
+              if (body.name) ugUpdate.name = body.name;
+              await client.database.from('users_global').update(ugUpdate).eq('id', tu.user_id);
+            } catch (e) { console.error('users_global update error:', e); }
+          }
+        }
 
         return new Response(
           JSON.stringify({ success: true, data: tu, error: null }),
