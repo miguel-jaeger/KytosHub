@@ -153,7 +153,7 @@ export function CondominioAdminDashboard() {
           <tbody>
             {users.map(u => (
               <tr key={u.id}>
-                <td>{u.users_global?.email || '-'}</td>
+                <td>{(u as unknown as { email?: string }).email || u.users_global?.email || '-'}</td>
                 <td>{ROLE_LABELS[u.role] || u.role}</td>
                 <td><span className={`status-badge ${u.status === 'ACTIVE' ? 'status-occupied' : 'status-vacant'}`}>{u.status}</span></td>
                 <td>{new Date(u.created_at).toLocaleDateString('es-PE')}</td>
