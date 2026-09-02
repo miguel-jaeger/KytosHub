@@ -114,7 +114,7 @@ export function DepartmentModal({
             <div className="residents-header">
               <h4>Residentes ({residents.length})</h4>
               <button onClick={() => { setShowForm(!showForm); setError(null); }}>
-                <span className="material-symbols-outlined">{showForm ? 'close' : 'person_add'}</span> {showForm ? 'Cancelar' : 'Agregar'}
+                <span className="material-symbols-outlined">{showForm ? 'close' : 'person_add'}</span> {showForm ? 'Cancelar' : 'Adicionar'}
               </button>
             </div>
 
@@ -202,7 +202,7 @@ export function DepartmentModal({
               {error && <div className="error-message">{error}</div>}
 
               <div className="form-actions">
-                <button type="submit" disabled={submitting}>{submitting ? 'Guardando...' : 'Agregar'}</button>
+                <button type="submit" disabled={submitting}>{submitting ? 'Guardando...' : 'Adicionar'}</button>
               </div>
             </form>
           )}

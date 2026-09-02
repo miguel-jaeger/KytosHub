@@ -1174,3 +1174,37 @@ html.dark .icon-btn:hover { background: #333; color: #90caf9; }
 html.dark .icon-btn.danger { background: rgba(186,26,26,0.2); border-color: #ba1a1a; color: #ff8a80; }
 html.dark .icon-btn.danger:hover { background: #ba1a1a; color: #fff; }
 html.dark .condo-card-actions { border-top-color: #333; }
+
+.modal-content {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.15);
+}
+
+.image-click-area {
+  width: 100%;
+  max-width: 320px;
+  padding: 0.5rem;
+  border: 2px dashed #c6c6cd;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.image-click-area:hover {
+  border-color: #006c49;
+  background: #f8f9ff;
+}
+.image-click-area .image-preview,
+.image-click-area .image-placeholder {
+  border: none;
+  margin: 0;
+  padding: 0;
+  max-width: 100%;
+}
+
+/* Ensure form containers keep at least 10px of inner separation from edges */
+.form-modal, .modal-content, .condo-registration, .wizard-container,
+.password-card, .theme-card, .profile-card, .resident-form, .condo-edit-form {
+  padding: 0.75rem;
+}
