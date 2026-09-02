@@ -6,7 +6,7 @@ const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '';
 
 export function useProfile() {
-  const { user } = useAuth();
+  const { user, updateAvatar } = useAuth() as ReturnType<typeof useAuth> & { updateAvatar: (url: string) => void };
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -48,6 +48,7 @@ export function useProfile() {
       const url = data.secure_url as string;
       const { insforge } = await import('../lib/insforge');
       await insforge.auth.setProfile({ avatar_url: url });
+      updateAvatar(url);
       return url;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al subir imagen');
