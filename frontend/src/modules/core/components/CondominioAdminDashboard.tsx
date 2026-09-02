@@ -46,8 +46,15 @@ export function CondominioAdminDashboard() {
   const [condoDropdownOpen, setCondoDropdownOpen] = useState(false);
   const condoDropdownRef = useRef<HTMLDivElement>(null);
 
+  const [addCondoSearch, setAddCondoSearch] = useState('');
+  const [addCondoDropdownOpen, setAddCondoDropdownOpen] = useState(false);
+  const addCondoDropdownRef = useRef<HTMLDivElement>(null);
+
   const openAddForm = () => {
-    setNewUser({ email: '', name: '', role: 'RESIDENT', tenant_id: condominium?.tenant_id || '' });
+    const initial = condominium?.tenant_id || '';
+    const initialName = condominiums.find(c => c.id === initial)?.name || '';
+    setNewUser({ email: '', name: '', role: 'RESIDENT', tenant_id: initial });
+    setAddCondoSearch(initialName);
     setShowAddForm(true);
   };
   const [submitting, setSubmitting] = useState(false);
@@ -111,6 +118,7 @@ export function CondominioAdminDashboard() {
       if (data?.success) {
         setShowAddForm(false);
         setNewUser({ email: '', name: '', role: 'RESIDENT', tenant_id: '' });
+        setAddCondoSearch('');
         if (condominium && newUser.tenant_id && newUser.tenant_id !== condominium.tenant_id) {
           setCondominium({
             tenant_id: newUser.tenant_id,
@@ -219,10 +227,28 @@ export function CondominioAdminDashboard() {
 
   const filteredCondos = condominiums.filter(c => c.name.toLowerCase().includes(condoSearch.trim().toLowerCase()));
 
+  const filteredAddCondos = condominiums.filter(c => c.name.toLowerCase().includes(addCondoSearch.trim().toLowerCase()));
+
+  const selectAddCondo = (c: { id: string; name: string }) => {
+    setNewUser(prev => ({ ...prev, tenant_id: c.id }));
+    setAddCondoSearch(c.name);
+    setAddCondoDropdownOpen(false);
+  };
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (condoDropdownRef.current && !condoDropdownRef.current.contains(e.target as Node)) {
         setCondoDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (addCondoDropdownRef.current && !addCondoDropdownRef.current.contains(e.target as Node)) {
+        setAddCondoDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -285,9 +311,30 @@ export function CondominioAdminDashboard() {
           {isSuperAdmin && (
             <div className="form-group">
               <label>Condominio</label>
-              <select value={newUser.tenant_id} onChange={(e) => setNewUser({ ...newUser, tenant_id: e.target.value })}>
-                {condominiums.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <div className="search-bar condo-picker" ref={addCondoDropdownRef}>
+                <span className="material-symbols-outlined search-icon">apartment</span>
+                <input
+                  type="text"
+                  value={addCondoSearch}
+                  placeholder="Buscar condominio..."
+                  onFocus={() => setAddCondoDropdownOpen(true)}
+                  onChange={(e) => { setAddCondoSearch(e.target.value); setAddCondoDropdownOpen(true); }}
+                />
+                {addCondoDropdownOpen && (
+                  <div className="condo-picker-dropdown">
+                    {filteredAddCondos.length === 0 ? (
+                      <div className="condo-picker-empty">Sin resultados</div>
+                    ) : (
+                      filteredAddCondos.map(c => (
+                        <button key={c.id} type="button" className={`condo-picker-item ${c.id === newUser.tenant_id ? 'selected' : ''}`} onClick={() => selectAddCondo(c)}>
+                          <span className="material-symbols-outlined">apartment</span>
+                          <span>{c.name}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
           <div className="form-group">
