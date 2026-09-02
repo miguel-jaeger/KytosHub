@@ -54,12 +54,38 @@ export function DepartmentModal({
     }
     setSubmitting(true);
     try {
+      const { invokeFunction } = await import('../../../lib/insforge');
+      const isOwner = formData.relationship_type === 'PROPIETARIO';
+      let accountMessage = '';
+
+      // Create the resident record
       await createResident({
         department_id: departmentId,
         ...formData
       });
+
+      // If owner with email, create the auth account with default password
+      if (isOwner && formData.email.trim()) {
+        const { data: acctRes, error: acctErr } = await invokeFunction<{ success: boolean; data?: { default_password?: string }; error?: { message?: string } }>('resident-account', {
+          method: 'POST',
+          body: { action: 'create', email: formData.email, full_name: formData.full_name, document_number: formData.document_number, relationship_type: formData.relationship_type }
+        });
+        if (acctErr) {
+          setError((acctErr as Error).message);
+          setSubmitting(false);
+          return;
+        }
+        if (!acctRes?.success) {
+          setError(acctRes?.error?.message || 'No se pudo crear la cuenta del propietario');
+          setSubmitting(false);
+          return;
+        }
+        accountMessage = ` Cuenta creada. Contraseña: ${acctRes.data?.default_password || '12345678'}`;
+      }
+
       setShowForm(false);
       setFormData({ full_name: '', document_type: 'DNI', document_number: '', relationship_type: 'PROPIETARIO', is_primary_contact: false, email: '', phone: '' });
+      alert(`Residente agregado.${accountMessage}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al agregar residente');
     } finally {
