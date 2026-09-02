@@ -441,12 +441,7 @@ table {
 
 .dashboard table th:first-child,
 .dashboard table td:first-child {
-  width: 12%;
-}
-
-.dashboard table th:nth-last-child(2),
-.dashboard table td:nth-last-child(2) {
-  width: 10%;
+  width: 14%;
 }
 
 .dashboard table th:nth-last-child(3),
@@ -454,9 +449,14 @@ table {
   width: 12%;
 }
 
+.dashboard table th:nth-last-child(2),
+.dashboard table td:nth-last-child(2) {
+  width: 13%;
+}
+
 .dashboard table th:last-child,
 .dashboard table td:last-child {
-  width: 15%;
+  width: 16%;
   text-align: right;
   white-space: normal;
 }

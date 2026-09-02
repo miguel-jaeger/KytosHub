@@ -498,6 +498,10 @@ export function CondominioAdminDashboard() {
             <label>Email</label>
             <input type="email" value={editingUser.email || ''} onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })} />
           </div>
+          <div className="form-group">
+            <label>Fecha de registro</label>
+            <input type="text" value={editingUser.created_at ? new Date(editingUser.created_at).toLocaleDateString('es-PE') : '-'} readOnly />
+          </div>
           {editingUser.source !== 'resident' && (
             <>
               <div className="form-group">
@@ -541,7 +545,6 @@ export function CondominioAdminDashboard() {
                 <th>Email</th>
                 <th>Rol</th>
                 <th>Estado</th>
-                <th>Fecha</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -553,7 +556,6 @@ export function CondominioAdminDashboard() {
                   <td>{u.email || u.users_global?.email || '-'}</td>
                   <td>{ROLE_LABELS[u.role] || u.role}</td>
                   <td><span className={`status-badge ${u.status === 'ACTIVE' ? 'status-occupied' : 'status-vacant'}`}>{u.status}</span></td>
-                  <td>{u.created_at ? new Date(u.created_at).toLocaleDateString('es-PE') : '-'}</td>
                   <td>
                     <div className="condo-card-actions" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none', justifyContent: 'flex-start' }}>
                       <button className="icon-btn" onClick={() => startEdit(u)} title="Editar usuario">
