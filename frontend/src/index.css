@@ -185,7 +185,7 @@ header h1 {
 }
 
 .action-card {
-  background: #1a1a1a;
+  background: #f8f9ff;
   border: 1px solid #333;
   border-radius: 8px;
   padding: 1.5rem;
@@ -209,7 +209,7 @@ header h1 {
 }
 
 .wizard-container {
-  background: #1a1a1a;
+  background: #f8f9ff;
   border-radius: 8px;
   padding: 2rem;
 }
@@ -267,7 +267,7 @@ header h1 {
 }
 
 .wizard-summary {
-  background: #242424;
+  background: #f8f9ff;
   padding: 1rem;
   border-radius: 4px;
   margin-top: 1rem;
@@ -316,7 +316,7 @@ button:disabled {
 }
 
 .residents-manager {
-  background: #1a1a1a;
+  background: #f8f9ff;
   border-radius: 8px;
   padding: 2rem;
 }
@@ -333,7 +333,7 @@ button:disabled {
 }
 
 .form-modal {
-  background: #242424;
+  background: #f8f9ff;
   padding: 1.5rem;
   border-radius: 8px;
   margin-bottom: 1.5rem;
@@ -372,12 +372,12 @@ th, td {
 }
 
 th {
-  background: #242424;
-  color: #ccc;
+  background: #f8f9ff;
+  color: #45464d;
 }
 
 tr:hover {
-  background: #242424;
+  background: #f8f9ff;
 }
 
 .error {
@@ -416,7 +416,7 @@ tr:hover {
 }
 
 .tower-structure {
-  background: #1a1a1a;
+  background: #f8f9ff;
   border-radius: 8px;
   padding: 2rem;
 }
@@ -439,7 +439,7 @@ tr:hover {
 }
 
 .tower-card {
-  background: #242424;
+  background: #f8f9ff;
   border: 1px solid #333;
   border-radius: 8px;
   overflow: hidden;
@@ -512,7 +512,7 @@ tr:hover {
 
 .floor-label {
   flex: 1;
-  color: #ccc;
+  color: #45464d;
   font-weight: 500;
 }
 
@@ -529,7 +529,7 @@ tr:hover {
 }
 
 .department-card {
-  background: #1a1a1a;
+  background: #f8f9ff;
   border: 1px solid #333;
   border-radius: 6px;
   padding: 0.75rem;
@@ -602,7 +602,7 @@ tr:hover {
 }
 
 .condo-registration {
-  background: #1a1a1a;
+  background: #f8f9ff;
   border-radius: 8px;
   padding: 2rem;
 }
@@ -630,7 +630,7 @@ tr:hover {
 }
 
 .condo-form code {
-  background: #242424;
+  background: #f8f9ff;
   padding: 0.1rem 0.35rem;
   border-radius: 4px;
 }
@@ -671,7 +671,7 @@ tr:hover {
 }
 
 .condominium-card {
-  background: #1a1a1a;
+  background: #f8f9ff;
   border: 1px solid #333;
   border-radius: 8px;
   overflow: hidden;
@@ -760,7 +760,7 @@ tr:hover {
 }
 
 .setup-complete {
-  background: #1a1a1a;
+  background: #f8f9ff;
   border-radius: 8px;
   padding: 3rem 2rem;
   text-align: center;
@@ -776,7 +776,7 @@ tr:hover {
 }
 
 .setup-complete {
-  background: #1a1a1a;
+  background: #f8f9ff;
   border-radius: 8px;
   padding: 3rem 2rem;
   text-align: center;
@@ -792,7 +792,7 @@ tr:hover {
 }
 
 .setup-complete {
-  background: #1a1a1a;
+  background: #f8f9ff;
   border-radius: 8px;
   padding: 3rem 2rem;
   text-align: center;
