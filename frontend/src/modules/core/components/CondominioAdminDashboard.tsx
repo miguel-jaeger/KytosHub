@@ -34,9 +34,10 @@ export function CondominioAdminDashboard() {
     try {
       setLoading(true);
       setError(null);
-      const params = new URLSearchParams({ tenant_id: condominium.tenant_id });
-      if (filterRole) params.set('role', filterRole);
-      const { data, error: fnError } = await invokeFunction<{ success: boolean; data: TenantUser[] | null; error: { message: string } | null }>(`list-condominium-users?${params.toString()}`);
+      const { data, error: fnError } = await invokeFunction<{ success: boolean; data: TenantUser[] | null; error: { message: string } | null }>('list-condominium-users', {
+        method: 'POST',
+        body: { action: 'list', tenant_id: condominium.tenant_id, role: filterRole || undefined }
+      });
 
       if (fnError) throw fnError;
 
