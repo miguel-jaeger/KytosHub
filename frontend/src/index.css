@@ -433,6 +433,65 @@ table {
   overflow-x: hidden;
 }
 
+.users-card-grid {
+  display: none;
+  gap: 0.75rem;
+  padding: 0;
+}
+
+.user-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.9rem;
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.user-card-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #eff4ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #0d47a1;
+}
+
+.user-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-card-line {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  padding: 0.15rem 0;
+  word-break: break-word;
+}
+
+.user-card-label {
+  color: #76777d;
+  font-weight: 600;
+  flex-shrink: 0;
+  min-width: 74px;
+}
+
+.user-card-actions {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+html.dark .user-card { background: #1e1e1e; border-color: #333; }
+html.dark .user-card-label { color: #aaa; }
+html.dark .user-card-avatar { background: #14253f; color: #90caf9; }
+
 .dashboard table {
   table-layout: fixed;
   width: 100%;
@@ -1750,11 +1809,36 @@ html.dark .resident-search input { background: #2a2a2a; border-color: #444; colo
     padding: 1.5rem 1rem;
   }
 
-  .dashboard table th:nth-child(2),
-  .dashboard table td:nth-child(2),
-  .dashboard table th:nth-child(3),
-  .dashboard table td:nth-child(3) {
+  .users-card-grid {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .users-table-wrap table {
     display: none;
+  }
+
+  .user-card {
+    flex-wrap: wrap;
+  }
+
+  .user-card-actions {
+    justify-content: flex-end;
+    width: 100%;
+  }
+
+  .profile-card {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .avatar-section {
+    width: 100%;
+  }
+
+  .avatar-upload-btn {
+    padding: 0.5rem 0.9rem;
+    font-size: 0.9rem;
   }
 
   .pagination-bar {

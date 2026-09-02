@@ -537,6 +537,34 @@ export function CondominioAdminDashboard() {
         <div className="empty-state"><p>No hay usuarios registrados en este condominio.</p></div>
       ) : (
         <div className="users-table-wrap">
+          <div className="users-card-grid">
+            {pagedUsers.map(u => (
+              <div key={`${u.id}-${u.user_id}`} className="user-card">
+                <div className="user-card-avatar">
+                  <span className="material-symbols-outlined">person</span>
+                </div>
+                <div className="user-card-info">
+                  <div className="user-card-line"><span className="user-card-label">Nombre</span><span>{u.name || '-'}</span></div>
+                  <div className="user-card-line"><span className="user-card-label">Correo</span><span>{u.email || u.users_global?.email || '-'}</span></div>
+                  {viewAllCondos && <div className="user-card-line"><span className="user-card-label">Condominio</span><span>{u.tenant_name || '-'}</span></div>}
+                  <div className="user-card-line"><span className="user-card-label">Rol</span><span>{ROLE_LABELS[u.role] || u.role}</span></div>
+                  <div className="user-card-line"><span className="user-card-label">Estado</span><span className={`status-badge ${u.status === 'ACTIVE' ? 'status-occupied' : 'status-vacant'}`}>{u.status}</span></div>
+                </div>
+                <div className="user-card-actions">
+                  <button className="icon-btn" onClick={() => startEdit(u)} title="Editar usuario">
+                    <span className="material-symbols-outlined">edit</span>
+                  </button>
+                  <button className="icon-btn" onClick={() => handleResetPassword(u)} title="Restablecer contraseña (12345678)">
+                    <span className="material-symbols-outlined">key</span>
+                  </button>
+                  <button className="icon-btn danger" onClick={() => handleDeleteUser(u)} title="Eliminar usuario">
+                    <span className="material-symbols-outlined">delete</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
           <table>
             <thead>
               <tr>
