@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useCondominium } from '../contexts/CondominiumContext';
@@ -6,15 +6,19 @@ import { useUserRole, useRoleLabel, SUPER_ADMIN_EMAIL } from '../hooks/useUserRo
 import { invokeFunction } from '../lib/insforge';
 
 export function Sidebar() {
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window !== 'undefined') return window.innerWidth <= 820;
-    return false;
-  });
+  const [collapsed, setCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth <= 820 : false));
   const [condoImgFailed, setCondoImgFailed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { condominium, setCondominium } = useCondominium();
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 820);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
   const role = useUserRole();
@@ -54,6 +58,48 @@ export function Sidebar() {
   };
 
   const linkClass = (path: string) => `sidebar-link ${location.pathname === path ? 'active' : ''}`;
+
+  if (isMobile) {
+    return (
+      <nav className="mobile-navbar">
+        <Link to="/" className={`mobile-nav-link ${location.pathname === '/' ? 'active' : ''}`}>
+          <span className="material-symbols-outlined">dashboard</span>
+          {!collapsed && <span className="mobile-nav-label">Inicio</span>}
+        </Link>
+
+        {isSuperAdmin && (
+          <Link to="/admin/condominiums" className={`mobile-nav-link ${location.pathname === '/admin/condominiums' ? 'active' : ''}`}>
+            <span className="material-symbols-outlined">apartment</span>
+            {!collapsed && <span className="mobile-nav-label">Condominios</span>}
+          </Link>
+        )}
+
+        {canManageCondo && (
+          <button onClick={openMyCondominium} className={`mobile-nav-link ${location.pathname === '/setup' ? 'active' : ''}`}>
+            <span className="material-symbols-outlined">home_work</span>
+            {!collapsed && <span className="mobile-nav-label">Mi Cond</span>}
+          </button>
+        )}
+
+        {canManageUsers && (
+          <Link to="/admin/users" className={`mobile-nav-link ${location.pathname === '/admin/users' ? 'active' : ''}`}>
+            <span className="material-symbols-outlined">group</span>
+            {!collapsed && <span className="mobile-nav-label">Usuarios</span>}
+          </Link>
+        )}
+
+        <Link to="/profile" className={`mobile-nav-link ${location.pathname === '/profile' ? 'active' : ''}`}>
+          <span className="material-symbols-outlined">account_circle</span>
+          {!collapsed && <span className="mobile-nav-label">Perfil</span>}
+        </Link>
+
+        <button className="mobile-nav-link mobile-logout" onClick={signOut} title="Cerrar sesión">
+          <span className="material-symbols-outlined">logout</span>
+          {!collapsed && <span className="mobile-nav-label">Salir</span>}
+        </button>
+      </nav>
+    );
+  }
 
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
