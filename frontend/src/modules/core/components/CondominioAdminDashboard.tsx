@@ -100,19 +100,18 @@ export function CondominioAdminDashboard() {
         <h2>Usuarios - {condominium.name}</h2>
         <button onClick={() => setShowAddForm(true)}><span className="material-symbols-outlined">person_add</span> Adicionar</button>
       </div>
-      {isSuperAdmin && condominiums.length > 0 && (
-        <div className="filter-bar">
-          <label>Condominio:</label>
-          <select value={condominium.tenant_id} onChange={e => {
-            const c = condominiums.find(x => x.id === e.target.value);
-            if (c) setCondominium({ tenant_id: c.id, name: c.name, slug: c.slug, short_name: c.short_name || c.slug, schema_name: c.schema_name, image_url: c.image_url });
-          }}>
-            {condominiums.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </div>
-      )}
-
       <div className="condo-search-panel">
+        {isSuperAdmin && condominiums.length > 0 && (
+          <div className="search-bar" style={{ marginBottom: '0.75rem' }}>
+            <span className="material-symbols-outlined search-icon">apartment</span>
+            <select value={condominium.tenant_id} onChange={e => {
+              const c = condominiums.find(x => x.id === e.target.value);
+              if (c) setCondominium({ tenant_id: c.id, name: c.name, slug: c.slug, short_name: c.short_name || c.slug, schema_name: c.schema_name, image_url: c.image_url });
+            }} style={{ width: '100%', padding: '0.7rem 0.75rem 0.7rem 2.6rem', border: '1px solid #c6c6cd', borderRadius: '8px', background: '#f8f9ff', color: '#0b1c30' }}>
+              {condominiums.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+        )}
         <div className="search-bar">
           <span className="material-symbols-outlined search-icon">filter_list</span>
           <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} style={{ width: '100%', padding: '0.7rem 0.75rem 0.7rem 2.6rem', border: '1px solid #c6c6cd', borderRadius: '8px', background: '#f8f9ff', color: '#0b1c30' }}>
