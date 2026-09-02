@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useCondominiums } from '../hooks/useCondominiums';
 
 export function SuperAdminDashboard() {
-  const { condominiums, loading, error, updateCondominium, fetchCondominiums } = useCondominiums();
+  const { condominiums, loading, error, search, setSearch, updateCondominium, deleteCondominium } = useCondominiums();
   const [editing, setEditing] = useState<string | null>(null);
   const [editData, setEditData] = useState({ name: '', address: '', admin_phone: '' });
 
@@ -21,6 +21,15 @@ export function SuperAdminDashboard() {
     }
   };
 
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`¿Eliminar "${name}" y todos sus datos asociados? Esta acción no se puede deshacer.`)) return;
+    try {
+      await deleteCondominium(id);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error al eliminar');
+    }
+  };
+
   if (loading) return <div className="loading-message">Cargando condominios...</div>;
   if (error) return <div className="error">{error}</div>;
 
@@ -28,13 +37,21 @@ export function SuperAdminDashboard() {
     <div className="dashboard">
       <div className="header">
         <h2>Administrar Condominios</h2>
-        <button onClick={() => fetchCondominiums()}>Actualizar</button>
+      </div>
+
+      <div className="search-bar">
+        <input
+          type="text"
+          placeholder="Buscar por nombre, slug o dirección..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
 
       {condominiums.length === 0 ? (
         <div className="empty-state">
-          <p>No hay condominios registrados.</p>
-          <p>Use el asistente de configuración para crear uno.</p>
+          <p>{search ? 'No se encontraron condominios con ese criterio.' : 'No hay condominios registrados.'}</p>
+          {!search && <p>Use el asistente de configuración para crear uno.</p>}
         </div>
       ) : (
         <div className="condominiums-grid">
@@ -55,10 +72,13 @@ export function SuperAdminDashboard() {
                 ) : (
                   <>
                     <h3>{c.name}</h3>
-                    <p>{c.address || 'Sin dirección'}</p>
-                    <p>{c.admin_phone || 'Sin teléfono'}</p>
+                    <p className="text-on-surface-variant">{c.address || 'Sin dirección'}</p>
+                    <p className="text-on-surface-variant">{c.admin_phone || 'Sin teléfono'}</p>
                     <span className={`status-badge ${c.status === 'ACTIVE' ? 'status-occupied' : 'status-vacant'}`}>{c.status}</span>
-                    <button onClick={() => startEdit(c)}>Editar</button>
+                    <div className="form-actions">
+                      <button onClick={() => startEdit(c)}>Editar</button>
+                      <button className="delete-btn" onClick={() => handleDelete(c.id, c.name)}>Eliminar</button>
+                    </div>
                   </>
                 )}
               </div>
