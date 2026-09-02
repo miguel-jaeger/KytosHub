@@ -19,6 +19,16 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+function mapUser(raw: Record<string, unknown>): AuthUser {
+  const profile = raw.profile as Record<string, unknown> | undefined;
+  return {
+    id: String(raw.id ?? ''),
+    email: String(raw.email ?? ''),
+    name: profile?.name as string | undefined,
+    avatar_url: profile?.avatar_url as string | undefined
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,13 +50,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, []);
-
-  const mapUser = (raw: Record<string, unknown>): AuthUser => ({
-    id: String(raw.id ?? ''),
-    email: String(raw.email ?? ''),
-    name: (raw.profile as Record<string, unknown> | undefined)?.name as string | undefined,
-    avatar_url: (raw.profile as Record<string, unknown> | undefined)?.avatar_url as string | undefined
-  });
 
   const signInWithPassword = useCallback(async (email: string, password: string) => {
     const { data, error } = await insforge.auth.signInWithPassword({ email, password });
