@@ -55,6 +55,28 @@ export interface ProvisionTowerResult {
   departments_created: number;
 }
 
+export interface DepartmentNode {
+  id: string;
+  department_number: string;
+  status: 'HABITADO' | 'DESOCUPADO' | 'MANTENIMIENTO';
+}
+
+export interface FloorNode {
+  id: string;
+  floor_number: number;
+  departments: DepartmentNode[];
+}
+
+export interface TowerNode {
+  id: string;
+  name: string;
+  code: string;
+  floors_count: number;
+  departments_per_floor: number;
+  created_at: string;
+  floors: FloorNode[];
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data: T | null;
