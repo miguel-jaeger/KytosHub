@@ -1250,3 +1250,9 @@ html.dark .condo-card-actions { border-top-color: #333; }
 .tower-list { padding: 0 10px; }
 .tower-card { margin: 0 2px; }
 
+
+.sidebar-user { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; padding: 0.4rem; border-radius: 8px; margin-bottom: 0.5rem; }
+.sidebar-user:hover { background: #f1f5f9; }
+.sidebar-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+.sidebar-avatar-icon { font-size: 32px; color: #76777d; }
+
