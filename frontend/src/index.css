@@ -1046,3 +1046,131 @@ html.dark .condominium-card .condo-info p { color: #aaa; }
 }
 
 html.dark .condo-thumb { background: #2a2a2a; }
+
+.btn-add-condo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #006c49 !important;
+  color: #fff !important;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.condo-search-panel {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin: 1rem 0 1.5rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+.condo-search-panel .search-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.condo-search-panel .search-icon {
+  position: absolute;
+  left: 0.75rem;
+  color: #76777d;
+  font-size: 20px;
+  pointer-events: none;
+}
+
+.condo-search-panel .search-bar input {
+  width: 100%;
+  padding: 0.7rem 0.75rem 0.7rem 2.6rem;
+  border: 1px solid #c6c6cd;
+  border-radius: 8px;
+  background: #f8f9ff;
+  color: #0b1c30;
+  font-size: 0.95rem;
+}
+.condo-search-panel .search-bar input:focus {
+  outline: none;
+  border-color: #006c49;
+  box-shadow: 0 0 0 2px rgba(0, 108, 73, 0.15);
+}
+
+.condo-search-panel .clear-search {
+  position: absolute;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  color: #76777d;
+  cursor: pointer;
+  padding: 0.2rem;
+}
+
+.condo-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: #45464d;
+  font-weight: 500;
+}
+.condo-count .material-symbols-outlined {
+  font-size: 18px;
+  color: #006c49;
+}
+
+html.dark .condo-search-panel { background: #1e1e1e; border-color: #333; }
+html.dark .condo-search-panel .search-bar input { background: #2a2a2a; color: #e5e7eb; border-color: #444; }
+html.dark .condo-search-panel .search-icon { color: #aaa; }
+html.dark .condo-count { color: #ccc; }
+
+.condo-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #f1f5f9;
+  border: 1px solid #e5e7eb;
+  color: #45464d;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.icon-btn:hover {
+  background: #e8f5ec;
+  border-color: #006c49;
+  color: #006c49;
+}
+
+.icon-btn.danger {
+  color: #ba1a1a;
+  border-color: #ffdad6;
+  background: #ffdad6;
+}
+
+.icon-btn.danger:hover {
+  background: #ba1a1a;
+  color: #fff;
+  border-color: #ba1a1a;
+}
+
+.icon-btn .material-symbols-outlined {
+  font-size: 20px;
+}
+
+html.dark .icon-btn { background: #2a2a2a; border-color: #444; color: #ccc; }
+html.dark .icon-btn:hover { background: #333; color: #90caf9; }
+html.dark .icon-btn.danger { background: rgba(186,26,26,0.2); border-color: #ba1a1a; color: #ff8a80; }
+html.dark .icon-btn.danger:hover { background: #ba1a1a; color: #fff; }
+html.dark .condo-card-actions { border-top-color: #333; }

@@ -7,7 +7,7 @@ const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '';
 
 export function SuperAdminDashboard() {
-  const { condominiums, loading, error, search, setSearch, fetchCondominiums, updateCondominium, deleteCondominium } = useCondominiums();
+  const { condominiums, loading, error, search, setSearch, updateCondominium, deleteCondominium } = useCondominiums();
   const { setCondominium } = useCondominium();
   const navigate = useNavigate();
 
@@ -80,17 +80,27 @@ export function SuperAdminDashboard() {
     <div className="dashboard">
       <div className="header">
         <h2>Administrar Condominios</h2>
-        <button onClick={() => fetchCondominiums()}><span className="material-symbols-outlined">refresh</span> Actualizar</button>
+        <button onClick={() => navigate('/setup')} className="btn-add-condo">
+          <span className="material-symbols-outlined">add_business</span> Adicionar Condominio
+        </button>
       </div>
 
-      <div className="search-bar">
-        <input type="text" placeholder="Buscar por nombre..." value={search} onChange={e => setSearch(e.target.value)} />
+      <div className="condo-search-panel">
+        <div className="search-bar">
+          <span className="material-symbols-outlined search-icon">search</span>
+          <input type="text" placeholder="Buscar condominio por nombre..." value={search} onChange={e => setSearch(e.target.value)} />
+          {search && <button className="clear-search" onClick={() => setSearch('')}><span className="material-symbols-outlined">close</span></button>}
+        </div>
+        <div className="condo-count">
+          <span className="material-symbols-outlined">apartment</span>
+          {condominiums.length} condominio{condominiums.length !== 1 ? 's' : ''} registrado{condominiums.length !== 1 ? 's' : ''}
+        </div>
       </div>
 
       {condominiums.length === 0 ? (
         <div className="empty-state">
           <p>{search ? 'No se encontraron condominios.' : 'No hay condominios registrados.'}</p>
-          {!search && <p>Registre un condominio desde el asistente de configuración.</p>}
+          {!search && <p>Use el botón "Adicionar Condominio" para registrar uno.</p>}
         </div>
       ) : (
         <div className="condominiums-grid">
@@ -175,9 +185,13 @@ export function SuperAdminDashboard() {
                       </button>
                     </div>
 
-                    <div className="form-actions">
-                      <button onClick={() => startEdit(c)}><span className="material-symbols-outlined">edit</span> Editar</button>
-                      <button className="delete-btn" onClick={() => handleDelete(c.id, c.name)}><span className="material-symbols-outlined">delete</span> Eliminar</button>
+                    <div className="condo-card-actions">
+                      <button className="icon-btn" onClick={() => startEdit(c)} title="Editar condominio">
+                        <span className="material-symbols-outlined">edit</span>
+                      </button>
+                      <button className="icon-btn danger" onClick={() => handleDelete(c.id, c.name)} title="Eliminar condominio">
+                        <span className="material-symbols-outlined">delete</span>
+                      </button>
                     </div>
                   </>
                 )}
