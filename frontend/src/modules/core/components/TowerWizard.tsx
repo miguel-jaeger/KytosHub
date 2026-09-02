@@ -4,6 +4,7 @@ import { useTowers } from '../hooks/useTowers';
 
 interface TowerWizardProps {
   onComplete?: () => void;
+  onCancel?: () => void;
 }
 
 const initialFormData: ProvisionTowerRequest = {
@@ -14,7 +15,7 @@ const initialFormData: ProvisionTowerRequest = {
   naming_pattern: 'SEQUENTIAL'
 };
 
-export function TowerWizard({ onComplete }: TowerWizardProps) {
+export function TowerWizard({ onComplete, onCancel }: TowerWizardProps) {
   const { createTower } = useTowers();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -132,6 +133,9 @@ export function TowerWizard({ onComplete }: TowerWizardProps) {
       </div>
 
       <div className="wizard-actions">
+        <button type="button" className="btn-cancel" onClick={onCancel} disabled={loading}>
+          <span className="material-symbols-outlined">close</span> Cancelar
+        </button>
         {step > 1 && (
           <button onClick={() => setStep(step - 1)} disabled={loading}>
             <span className="material-symbols-outlined">arrow_back</span> Anterior

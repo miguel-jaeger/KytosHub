@@ -80,7 +80,7 @@ export function StructureManager() {
 
       {showTowerForm && (
         <div className="tower-form-section">
-          <TowerWizard onComplete={() => { setShowTowerForm(false); refresh(); }} />
+          <TowerWizard onComplete={() => { setShowTowerForm(false); refresh(); }} onCancel={() => setShowTowerForm(false)} />
         </div>
       )}
 
