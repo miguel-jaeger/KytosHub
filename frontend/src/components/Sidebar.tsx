@@ -14,7 +14,6 @@ interface NavItem {
 const navItems: NavItem[] = [
   { path: '/', icon: 'dashboard', label: 'Inicio' },
   { path: '/admin/condominiums', icon: 'apartment', label: 'Condominios', requiresAdmin: true },
-  { path: '/structure', icon: 'account_tree', label: 'Estructura', requiresCondo: true },
   { path: '/setup', icon: 'settings', label: 'Configurar', requiresCondo: true },
   { path: '/admin/users', icon: 'group', label: 'Usuarios', requiresCondo: true },
   { path: '/profile', icon: 'account_circle', label: 'Mi Perfil' },

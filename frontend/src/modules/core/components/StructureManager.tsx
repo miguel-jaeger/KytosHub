@@ -6,15 +6,23 @@ import { TowerWizard } from './TowerWizard';
 import { DepartmentModal } from './DepartmentModal';
 import type { TowerNode, DepartmentNode } from '../types';
 
-export function StructureManager() {
+export function StructureManager({ section = 'towers' }: { section?: 'towers' | 'floors' | 'departments' | 'residents' }) {
   const { condominium } = useCondominium();
   const { towers, loading, error, refresh } = useTowerStructure();
+  const [activeSection, setActiveSection] = useState<'towers' | 'floors' | 'departments' | 'residents'>(section);
   const [expandedTower, setExpandedTower] = useState<string | null>(null);
   const [expandedFloor, setExpandedFloor] = useState<string | null>(null);
   const [showTowerForm, setShowTowerForm] = useState(false);
   const [selectedDept, setSelectedDept] = useState<{ tower: TowerNode; floor: { id: string; floor_number: number }; dept: DepartmentNode } | null>(null);
   const [floorForm, setFloorForm] = useState<{ towerId: string; open: boolean; floorNumber: string }>({ towerId: '', open: false, floorNumber: '' });
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+
+  const sectionTabs = [
+    { key: 'towers' as const, icon: 'apartment', label: 'Torres' },
+    { key: 'floors' as const, icon: 'layers', label: 'Pisos' },
+    { key: 'departments' as const, icon: 'door_front', label: 'Departamentos' },
+    { key: 'residents' as const, icon: 'group', label: 'Residentes' },
+  ];
 
   const schemaName = condominium?.schema_name;
 
@@ -60,6 +68,18 @@ export function StructureManager() {
 
   return (
     <div className="structure-manager">
+      <div className="struct-tabs">
+        {sectionTabs.map(tab => (
+          <button
+            key={tab.key}
+            className={`struct-tab ${activeSection === tab.key ? 'active' : ''}`}
+            onClick={() => { setActiveSection(tab.key); setExpandedFloor(null); }}
+          >
+            <span className="material-symbols-outlined">{tab.icon}</span> {tab.label}
+          </button>
+        ))}
+      </div>
+
       {statusMsg && (
         <div className="success-message" onClick={() => setStatusMsg(null)}>
           {statusMsg} — clic para cerrar

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 
-interface Condominium {
+export interface Condominium {
   id: string;
   name: string;
   slug: string;
@@ -12,10 +12,10 @@ interface Condominium {
   image_url: string | null;
   status: string;
   created_at: string;
-  towers_count: number;
-  floors_count: number;
-  departments_count: number;
-  residents_count: number;
+  towers_count?: number;
+  floors_count?: number;
+  departments_count?: number;
+  residents_count?: number;
 }
 
 export function useCondominiums() {
@@ -28,17 +28,21 @@ export function useCondominiums() {
     try {
       setLoading(true);
       setError(null);
-      const slug = search ? `list-condominiums?search=${encodeURIComponent(search)}` : 'list-condominiums';
-      const { data, error: fnError } = await invokeFunction<{ success: boolean; data: Condominium[] | null; error: { message: string } | null }>(slug);
+      const { data, error: fnError } = await invokeFunction<{ success: boolean; data: Condominium[] | null; error: { message: string } | null }>('list-condominiums', {
+        method: 'POST',
+        body: { action: 'list', search: search || undefined }
+      });
 
       if (fnError) throw fnError;
 
       if (data?.success && data.data) {
         setCondominiums(data.data);
       } else {
+        setCondominiums([]);
         setError(data?.error?.message || 'Error al cargar condominios');
       }
     } catch (err) {
+      setCondominiums([]);
       setError(err instanceof Error ? err.message : 'Error de conexión');
     } finally {
       setLoading(false);
@@ -51,8 +55,8 @@ export function useCondominiums() {
 
   const updateCondominium = async (id: string, updates: Partial<Condominium>) => {
     const { data, error: fnError } = await invokeFunction<{ success: boolean; data: Condominium | null; error: { message: string } | null }>('list-condominiums', {
-      method: 'PUT',
-      body: { id, ...updates }
+      method: 'POST',
+      body: { action: 'update', id, ...updates }
     });
 
     if (fnError) throw fnError;
@@ -65,18 +69,15 @@ export function useCondominiums() {
   };
 
   const deleteCondominium = async (id: string) => {
-    const { data, error: fnError } = await invokeFunction<{ success: boolean; data: null; error: { message: string } | null }>('list-condominiums', {
-      method: 'DELETE',
-      body: { id }
+    const { data, error: fnError } = await invokeFunction<{ success: boolean; error?: { message?: string } }>('list-condominiums', {
+      method: 'POST',
+      body: { action: 'delete', id }
     });
 
     if (fnError) throw fnError;
-
-    if (data?.success) {
-      await fetchCondominiums();
-      return true;
-    }
-    throw new Error(data?.error?.message || 'Error al eliminar condominio');
+    if (!data?.success) throw new Error(data?.error?.message || 'Error al eliminar condominio');
+    await fetchCondominiums();
+    return true;
   };
 
   return {
