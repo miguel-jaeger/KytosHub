@@ -175,7 +175,7 @@ header h1 {
 
 .quick-actions {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 1rem;
   margin-top: 1rem;
 }
@@ -775,9 +775,28 @@ tr:hover {
 
 .sidebar-user {
   display: block;
-  font-size: 0.75rem;
-  color: #76777d;
   margin-bottom: 0.5rem;
+}
+
+.sidebar-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  overflow: hidden;
+}
+
+.sidebar-user-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #0b1c30;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-user-role {
+  font-size: 0.7rem;
+  color: #76777d;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -806,6 +825,9 @@ tr:hover {
   transition: margin-left 0.3s ease;
   min-height: 100vh;
   background: #f8f9ff;
+  flex: 1;
+  width: 100%;
+  max-width: 100%;
 }
 
 .sidebar.collapsed + .app-layout,
@@ -849,7 +871,7 @@ html.dark .app-layout { background: #121212; }
 html.dark .sidebar { background: #1e1e1e; border-right-color: #333; }
 html.dark .sidebar-logo-text, html.dark .sidebar-link, html.dark .sidebar-condominium { color: #e5e7eb; }
 html.dark .sidebar-link:hover, html.dark .sidebar-link.active { background: #2a2a2a; color: #90caf9; }
-html.dark .sidebar-user { color: #aaa; }
+html.dark .sidebar-user-name { color: #e5e7eb; } html.dark .sidebar-user-role { color: #aaa; } html.dark .sidebar-user { color: #aaa; }
 html.dark .dashboard h2, html.dark .dashboard h1, html.dark .header h2 { color: #e5e7eb; }
 html.dark .action-card { background: #1e1e1e; border-color: #333; }
 html.dark .action-card h3 { color: #90caf9; }
@@ -952,3 +974,41 @@ html.dark .profile-card h3, html.dark .password-card h3, html.dark .theme-card h
 .count-link { display: inline-flex; align-items: center; gap: 0.35rem; background: #f1f5f9; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.4rem 0.6rem; cursor: pointer; color: #0b1c30; font-size: 0.8rem; transition: all 0.2s; }
 .count-link:hover { background: #e8f5ec; border-color: #006c49; color: #006c49; }
 .count-link .material-symbols-outlined { font-size: 16px; color: #006c49; }
+
+.condominiums-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.condominium-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.condominium-card .condo-img {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+}
+
+.condominium-card .condo-info {
+  padding: 1.25rem;
+}
+
+.condominium-card .condo-info h3 {
+  margin: 0 0 0.5rem;
+  color: #0b1c30;
+}
+
+.condominium-card .condo-info p {
+  margin: 0 0 0.5rem;
+  color: #76777d;
+}
+
+html.dark .condominium-card { background: #1e1e1e; border-color: #333; }
+html.dark .condominium-card .condo-info h3 { color: #e5e7eb; }
+html.dark .condominium-card .condo-info p { color: #aaa; }
