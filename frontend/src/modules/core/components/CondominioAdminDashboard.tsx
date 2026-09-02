@@ -542,7 +542,7 @@ export function CondominioAdminDashboard() {
               <tr>
                 {viewAllCondos && <th>Condominio</th>}
                 <th>Nombre</th>
-                <th>Email</th>
+                <th className="users-email-cell">Email</th>
                 <th>Rol</th>
                 <th>Estado</th>
                 <th>Acciones</th>
@@ -553,7 +553,7 @@ export function CondominioAdminDashboard() {
                 <tr key={`${u.id}-${u.user_id}`}>
                   {viewAllCondos && <td>{u.tenant_name || '-'}</td>}
                   <td>{u.name || '-'}</td>
-                  <td>{u.email || u.users_global?.email || '-'}</td>
+                  <td className="users-email-cell">{u.email || u.users_global?.email || '-'}</td>
                   <td>{ROLE_LABELS[u.role] || u.role}</td>
                   <td><span className={`status-badge ${u.status === 'ACTIVE' ? 'status-occupied' : 'status-vacant'}`}>{u.status}</span></td>
                   <td>

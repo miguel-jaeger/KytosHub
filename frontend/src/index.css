@@ -454,22 +454,27 @@ table {
 
 .dashboard table th:first-child,
 .dashboard table td:first-child {
-  width: 14%;
+  width: 13%;
 }
 
-.dashboard table th:nth-last-child(3),
-.dashboard table td:nth-last-child(3) {
-  width: 12%;
+.dashboard table th.users-email-cell,
+.dashboard table td.users-email-cell {
+  width: 20%;
 }
 
 .dashboard table th:nth-last-child(2),
 .dashboard table td:nth-last-child(2) {
+  width: 12%;
+}
+
+.dashboard table th:nth-last-child(3),
+.dashboard table td:nth-last-child(3) {
   width: 13%;
 }
 
 .dashboard table th:last-child,
 .dashboard table td:last-child {
-  width: 16%;
+  width: 21%;
   text-align: right;
   white-space: normal;
 }
