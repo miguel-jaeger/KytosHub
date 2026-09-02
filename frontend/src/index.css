@@ -806,3 +806,88 @@ tr:hover {
   color: #888;
   margin-bottom: 2rem;
 }
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #fff;
+  color: #0b1c30;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.modal-header h3 { margin: 0; color: #0b1c30; }
+.modal-header p { margin: 0.25rem 0 0; color: #76777d; }
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #76777d;
+  padding: 0;
+}
+
+.modal-body { display: flex; flex-direction: column; gap: 1.5rem; }
+
+.residents-list h4 { margin: 0 0 0.75rem; color: #0b1c30; }
+.residents-header { display: flex; justify-content: space-between; align-items: center; }
+
+.residents-table { width: 100%; border-collapse: collapse; }
+.residents-table th, .residents-table td {
+  padding: 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.875rem;
+  color: #0b1c30;
+}
+.residents-table th { background: #f8f9ff; font-weight: 600; color: #45464d; }
+
+.empty-text { color: #76777d; font-style: italic; }
+
+.resident-form {
+  background: #f8f9ff;
+  padding: 1rem;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.resident-form h4 { margin: 0 0 0.5rem; color: #0b1c30; }
+.resident-form .form-group label { color: #45464d; }
+.resident-form .form-group input, .resident-form .form-group select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #c6c6cd;
+  border-radius: 4px;
+  background: #fff;
+  color: #0b1c30;
+  font-size: 0.875rem;
+}
+.resident-form .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.resident-form .form-group small { color: #76777d; display: block; margin-top: 0.25rem; font-size: 0.75rem; }
+.resident-form .form-group.checkbox { display: flex; align-items: center; }
+.resident-form .form-group.checkbox input { width: auto; margin-right: 0.5rem; }
+.resident-form .form-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.5rem; }
