@@ -28,43 +28,25 @@ export default async function(req: Request): Promise<Response> {
 
     switch (action) {
       case 'list': {
-        let q = db.from('residents').select('*');
-        if (body.department_id) q = q.eq('department_id', body.department_id);
-        const { data, error } = await q.order('created_at', { ascending: false });
+        let q = db.from('floors').select('*');
+        if (body.tower_id) q = q.eq('tower_id', body.tower_id);
+        const { data, error } = await q.order('floor_number');
         if (error) throw error;
         return ok(corsHeaders, data || []);
       }
 
       case 'create': {
-        if (!body.department_id || !body.full_name || !body.document_type || !body.document_number || !body.relationship_type) {
-          return bad(corsHeaders, 'department_id, full_name, document_type, document_number, relationship_type son requeridos');
-        }
-        const { data, error } = await db.from('residents').insert([{
-          department_id: body.department_id,
-          full_name: String(body.full_name).trim(),
-          document_type: body.document_type,
-          document_number: String(body.document_number).trim(),
-          relationship_type: body.relationship_type,
-          is_primary_contact: body.is_primary_contact || false,
-          email: body.email || null,
-          phone: body.phone || null
-        }]).select().single();
+        if (!body.tower_id || !body.floor_number) return bad(corsHeaders, 'tower_id y floor_number son requeridos');
+        const { data: existing } = await db.from('floors').select('id').eq('tower_id', body.tower_id).eq('floor_number', body.floor_number).single().catch(() => ({ data: null }));
+        if (existing) return err(corsHeaders, 'DUPLICATE', 'Ya existe ese piso');
+        const { data, error } = await db.from('floors').insert([{ tower_id: body.tower_id, floor_number: body.floor_number }]).select().single();
         if (error) throw error;
         return new Response(JSON.stringify({ success: true, data, error: null }), { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      case 'update': {
-        if (!body.id) return bad(corsHeaders, 'id es requerido');
-        const update = { ...body } as Record<string, unknown>;
-        delete update.id; delete update.schema_name; delete update.action;
-        const { data, error } = await db.from('residents').update(update).eq('id', body.id).select().single();
-        if (error) throw error;
-        return ok(corsHeaders, data);
-      }
-
       case 'delete': {
         if (!body.id) return bad(corsHeaders, 'id es requerido');
-        const { error } = await db.from('residents').delete().eq('id', body.id);
+        const { error } = await db.from('floors').delete().eq('id', body.id);
         if (error) throw error;
         return ok(corsHeaders, null);
       }
@@ -73,7 +55,7 @@ export default async function(req: Request): Promise<Response> {
         return bad(corsHeaders, `Acción desconocida: ${action}`);
     }
   } catch (error) {
-    console.error('Error in residents:', error);
+    console.error('Error in floors:', error);
     return new Response(JSON.stringify({ success: false, data: null, error: { code: 'INTERNAL_ERROR', message: String(error) } }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 }
@@ -83,4 +65,7 @@ function ok(cors: Record<string, string>, data: unknown): Response {
 }
 function bad(cors: Record<string, string>, msg: string): Response {
   return new Response(JSON.stringify({ success: false, data: null, error: { code: 'BAD_REQUEST', message: msg } }), { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } });
+}
+function err(cors: Record<string, string>, code: string, msg: string): Response {
+  return new Response(JSON.stringify({ success: false, data: null, error: { code, message: msg } }), { status: 409, headers: { ...cors, 'Content-Type': 'application/json' } });
 }

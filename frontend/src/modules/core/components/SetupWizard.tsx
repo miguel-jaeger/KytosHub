@@ -1,20 +1,13 @@
 import { useState } from 'react';
 import { useCondominium } from '../../../contexts/CondominiumContext';
 import { useCondominiumRegistration } from '../hooks/useCondominiumRegistration';
-import { useTowerStructure } from '../hooks/useTowerStructure';
-import { TowerWizard } from './TowerWizard';
-import { ResidentsManager } from './ResidentsManager';
-import type { TowerNode } from '../types';
-
-type WizardStep = 'condominium' | 'towers' | 'residents';
+import { StructureManager } from './StructureManager';
+import type { WizardStep } from '../types';
 
 export function SetupWizard() {
   const { condominium, setCondominium } = useCondominium();
   const { register } = useCondominiumRegistration();
-  const { towers, loading: towersLoading } = useTowerStructure();
   const [step, setStep] = useState<WizardStep>(condominium ? 'towers' : 'condominium');
-  const [selectedTower, setSelectedTower] = useState<TowerNode | null>(null);
-  const [showTowerWizard, setShowTowerWizard] = useState(false);
 
   const [condoData, setCondoData] = useState({
     name: condominium?.name || '',
@@ -63,7 +56,6 @@ export function SetupWizard() {
         <div className="wizard-steps">
           <span className="active">1. Datos del condominio</span>
           <span>2. Estructura</span>
-          <span>3. Residentes</span>
         </div>
         <div className="condo-registration">
           <h2>Datos del Condominio</h2>
@@ -86,7 +78,7 @@ export function SetupWizard() {
               <input type="text" value={condoData.admin_phone} onChange={e => setCondoData({ ...condoData, admin_phone: e.target.value })} placeholder="+51 999 888 777" />
             </div>
             <div className="form-group">
-              <label>Logo del Condominio (opcional)</label>
+              <label>Imagen del Condominio (opcional)</label>
               <input type="file" accept="image/*" onChange={e => setCondoImageFile(e.target.files?.[0] || null)} />
             </div>
             {condoError && <div className="error-message">{condoError}</div>}
@@ -103,65 +95,9 @@ export function SetupWizard() {
     <div className="setup-wizard">
       <div className="wizard-steps">
 <span className="done">1. Datos del condominio</span>
-        <span className={step === 'towers' ? 'active' : step === 'residents' ? 'done' : ''}>2. Estructura</span>
-        <span className={step === 'residents' ? 'active' : ''}>3. Residentes</span>
+        <span className="active">2. Estructura</span>
       </div>
-      <div className="wizard-nav">
-        <button className={step === 'towers' ? 'active' : ''} onClick={() => { setStep('towers'); setSelectedTower(null); setShowTowerWizard(false); }}>Torres</button>
-        <button className={step === 'residents' ? 'active' : ''} onClick={() => setStep('residents')}>Residentes</button>
-      </div>
-
-      {step === 'towers' && (
-        <div className="structure-section">
-          {towersLoading ? (
-            <div className="loading-message">Cargando estructura...</div>
-          ) : towers.length === 0 ? (
-            <div className="empty-state">
-              <p>No hay torres registradas.</p>
-              <button onClick={() => setShowTowerWizard(true)}>Crear primera torre</button>
-            </div>
-          ) : (
-            <>
-              <div className="structure-header">
-                <h3>Torres del Condominio</h3>
-                <button onClick={() => setShowTowerWizard(true)}>+ Agregar Torre</button>
-              </div>
-              {showTowerWizard && <TowerWizard onComplete={() => setShowTowerWizard(false)} />}
-              {towers.map(tower => (
-                <div key={tower.id} className="tower-card" onClick={() => setSelectedTower(selectedTower?.id === tower.id ? null : tower)}>
-                  <div className="tower-header">
-                    <span className="tower-icon">{selectedTower?.id === tower.id ? '▼' : '▶'}</span>
-                    <div className="tower-info">
-                      <h3>{tower.name}</h3>
-                      <span className="tower-code">Código: {tower.code}</span>
-                    </div>
-                    <div className="tower-stats">
-                      <span>{tower.floors.length} pisos</span>
-                      <span>{tower.floors.reduce((sum, f) => sum + f.departments.length, 0)} deptos</span>
-                    </div>
-                  </div>
-                  {selectedTower?.id === tower.id && (
-                    <div className="tower-floors">
-                      {tower.floors.map(floor => (
-                        <div key={floor.id} className="floor-row">
-                          <span className="floor-label">Piso {floor.floor_number}</span>
-                          <div className="department-tags">
-                            {floor.departments.map(dept => (
-                              <span key={dept.id} className="department-tag">Dpto {dept.department_number}</span>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-      )}
-
-      {step === 'residents' && <ResidentsManager />}
+      <StructureManager />
     </div>
   );
 }

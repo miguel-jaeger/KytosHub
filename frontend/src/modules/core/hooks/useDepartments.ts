@@ -38,25 +38,27 @@ export function useDepartments(towerId?: string) {
 
   const createDepartment = async (dept: Omit<Department, 'id' | 'created_at'>) => {
     if (!schemaName) throw new Error('No hay un condominio activo');
-    const { data, error: fnError } = await invokeFunction<ApiResponse<Department>>('departments', {
-      method: 'POST',
-      body: { action: 'create', schema_name: schemaName, ...dept }
-    });
+    const { data, error: fnError } = await invokeFunction<ApiResponse<Department>>('departments', { method: 'POST', body: { action: 'create', schema_name: schemaName, ...dept } });
     if (fnError) throw fnError;
     if (data?.success) { await fetchDepartments(); return data.data; }
     throw new Error(data?.error?.message || 'Error al crear departamento');
   };
 
+  const updateDepartment = async (id: string, updates: Partial<Department>) => {
+    if (!schemaName) throw new Error('No hay un condominio activo');
+    const { data, error: fnError } = await invokeFunction<ApiResponse<Department>>('departments', { method: 'POST', body: { action: 'update', id, schema_name: schemaName, ...updates } });
+    if (fnError) throw fnError;
+    if (data?.success) { await fetchDepartments(); return data.data; }
+    throw new Error(data?.error?.message || 'Error al actualizar departamento');
+  };
+
   const deleteDepartment = async (id: string) => {
     if (!schemaName) throw new Error('No hay un condominio activo');
-    const { data, error: fnError } = await invokeFunction<ApiResponse<null>>('departments', {
-      method: 'POST',
-      body: { action: 'delete', id, schema_name: schemaName }
-    });
+    const { data, error: fnError } = await invokeFunction<ApiResponse<null>>('departments', { method: 'POST', body: { action: 'delete', id, schema_name: schemaName } });
     if (fnError) throw fnError;
     if (data?.success) { await fetchDepartments(); return true; }
     throw new Error(data?.error?.message || 'Error al eliminar departamento');
   };
 
-  return { departments, loading, error, fetchDepartments, createDepartment, deleteDepartment };
+  return { departments, loading, error, fetchDepartments, createDepartment, updateDepartment, deleteDepartment };
 }

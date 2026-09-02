@@ -52,6 +52,21 @@ export default async function(req: Request): Promise<Response> {
 
     if (deptsError) throw deptsError;
 
+    let residents: { id: string; department_id: string }[] = [];
+    try {
+      const res = await db
+        .from('residents')
+        .select('id, department_id');
+      if (!res.error) residents = res.data || [];
+    } catch {
+      residents = [];
+    }
+
+    const residentCountByDept = new Map<string, number>();
+    for (const r of residents || []) {
+      residentCountByDept.set(r.department_id, (residentCountByDept.get(r.department_id) || 0) + 1);
+    }
+
     const structure = (towers || []).map((tower) => ({
       ...tower,
       floors: (floors || [])
@@ -64,7 +79,8 @@ export default async function(req: Request): Promise<Response> {
             .map((dept) => ({
               id: dept.id,
               department_number: dept.department_number,
-              status: dept.status
+              status: dept.status,
+              residents_count: residentCountByDept.get(dept.id) || 0
             }))
         }))
     }));

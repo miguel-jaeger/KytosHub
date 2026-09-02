@@ -23,78 +23,69 @@ export default async function(req: Request): Promise<Response> {
     const schemaName = body.schema_name as string;
     const action = (body.action as string) || 'list';
 
-    if (!schemaName) {
-      return new Response(
-        JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'schema_name es requerido' } }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
+    if (!schemaName) return bad(corsHeaders, 'schema_name es requerido');
     const db = client.database.schema(schemaName);
 
     switch (action) {
       case 'list': {
-        let query = db.from('departments').select('*');
-        if (body.department_id) query = query.eq('id', body.department_id);
-        if (body.tower_id) query = query.eq('tower_id', body.tower_id);
-        const { data: departments, error } = await query.order('department_number');
+        let q = db.from('departments').select('*');
+        if (body.id) q = q.eq('id', body.id);
+        if (body.tower_id) q = q.eq('tower_id', body.tower_id);
+        if (body.floor_id) q = q.eq('floor_id', body.floor_id);
+        const { data, error } = await q.order('department_number');
         if (error) throw error;
-        return new Response(
-          JSON.stringify({ success: true, data: departments || [], error: null }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return ok(corsHeaders, data || []);
       }
 
       case 'create': {
         if (!body.floor_id || !body.tower_id || !body.department_number) {
-          return new Response(
-            JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'floor_id, tower_id, department_number son requeridos' } }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+          return bad(corsHeaders, 'floor_id, tower_id, department_number son requeridos');
         }
-        const { data: dept, error } = await db
-          .from('departments')
-          .insert([{
-            floor_id: body.floor_id,
-            tower_id: body.tower_id,
-            department_number: body.department_number,
-            status: body.status || 'HABITADO'
-          }])
-          .select()
-          .single();
+        const { data: existing } = await db.from('departments').select('id').eq('tower_id', body.tower_id).eq('department_number', body.department_number).single().catch(() => ({ data: null }));
+        if (existing) return conflict(corsHeaders, 'Ya existe un departamento con ese número en la torre');
+        const { data, error } = await db.from('departments').insert([{
+          floor_id: body.floor_id,
+          tower_id: body.tower_id,
+          department_number: body.department_number,
+          status: body.status || 'HABITADO'
+        }]).select().single();
         if (error) throw error;
-        return new Response(
-          JSON.stringify({ success: true, data: dept, error: null }),
-          { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return new Response(JSON.stringify({ success: true, data, error: null }), { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      case 'update': {
+        if (!body.id) return bad(corsHeaders, 'id es requerido');
+        const update = {} as Record<string, unknown>;
+        if (body.status) update.status = body.status;
+        if (body.department_number) update.department_number = body.department_number;
+        if (body.floor_id !== undefined) update.floor_id = body.floor_id;
+        const { data, error } = await db.from('departments').update(update).eq('id', body.id).select().single();
+        if (error) throw error;
+        return ok(corsHeaders, data);
       }
 
       case 'delete': {
-        if (!body.id) {
-          return new Response(
-            JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'id es requerido' } }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
+        if (!body.id) return bad(corsHeaders, 'id es requerido');
         const { error } = await db.from('departments').delete().eq('id', body.id);
         if (error) throw error;
-        return new Response(
-          JSON.stringify({ success: true, data: null, error: null }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return ok(corsHeaders, null);
       }
 
       default:
-        return new Response(
-          JSON.stringify({ success: false, data: null, error: { code: 'BAD_REQUEST', message: `Acción desconocida: ${action}` } }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return bad(corsHeaders, `Acción desconocida: ${action}`);
     }
   } catch (error) {
     console.error('Error in departments:', error);
-    return new Response(
-      JSON.stringify({ success: false, data: null, error: { code: 'INTERNAL_ERROR', message: String(error) } }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ success: false, data: null, error: { code: 'INTERNAL_ERROR', message: String(error) } }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
+}
+
+function ok(cors: Record<string, string>, data: unknown): Response {
+  return new Response(JSON.stringify({ success: true, data, error: null }), { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+}
+function bad(cors: Record<string, string>, msg: string): Response {
+  return new Response(JSON.stringify({ success: false, data: null, error: { code: 'BAD_REQUEST', message: msg } }), { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } });
+}
+function conflict(cors: Record<string, string>, msg: string): Response {
+  return new Response(JSON.stringify({ success: false, data: null, error: { code: 'DUPLICATE', message: msg } }), { status: 409, headers: { ...cors, 'Content-Type': 'application/json' } });
 }

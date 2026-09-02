@@ -7,11 +7,11 @@ export function useResidents(departmentId?: string) {
   const { condominium } = useCondominium();
   const schemaName = condominium?.schema_name;
   const [residents, setResidents] = useState<Resident[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchResidents = useCallback(async () => {
-    if (!schemaName) { setResidents([]); setLoading(false); return; }
+    if (!schemaName) return;
     try {
       setLoading(true);
       setError(null);
@@ -19,7 +19,9 @@ export function useResidents(departmentId?: string) {
         method: 'POST',
         body: { action: 'list', schema_name: schemaName, department_id: departmentId }
       });
+
       if (fnError) throw fnError;
+
       if (data?.success && data.data) {
         setResidents(data.data);
       } else {
@@ -42,9 +44,30 @@ export function useResidents(departmentId?: string) {
       method: 'POST',
       body: { action: 'create', schema_name: schemaName, ...resident }
     });
+
     if (fnError) throw fnError;
-    if (data?.success) { await fetchResidents(); return data.data; }
+
+    if (data?.success) {
+      await fetchResidents();
+      return data.data;
+    }
     throw new Error(data?.error?.message || 'Error al crear residente');
+  };
+
+  const updateResident = async (id: string, updates: Partial<Resident>) => {
+    if (!schemaName) throw new Error('No hay un condominio activo');
+    const { data, error: fnError } = await invokeFunction<ApiResponse<Resident>>('residents', {
+      method: 'POST',
+      body: { action: 'update', id, schema_name: schemaName, ...updates }
+    });
+
+    if (fnError) throw fnError;
+
+    if (data?.success) {
+      await fetchResidents();
+      return data.data;
+    }
+    throw new Error(data?.error?.message || 'Error al actualizar residente');
   };
 
   const deleteResident = async (id: string) => {
@@ -53,8 +76,13 @@ export function useResidents(departmentId?: string) {
       method: 'POST',
       body: { action: 'delete', id, schema_name: schemaName }
     });
+
     if (fnError) throw fnError;
-    if (data?.success) { await fetchResidents(); return true; }
+
+    if (data?.success) {
+      await fetchResidents();
+      return true;
+    }
     throw new Error(data?.error?.message || 'Error al eliminar residente');
   };
 
@@ -64,6 +92,7 @@ export function useResidents(departmentId?: string) {
     error,
     fetchResidents,
     createResident,
+    updateResident,
     deleteResident
   };
 }

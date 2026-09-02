@@ -19,14 +19,7 @@ export function SuperAdminDashboard() {
   const openCondominium = (e: React.MouseEvent, c: { id: string; name: string; slug: string; short_name: string | null; schema_name: string; image_url: string | null }) => {
     if (editingId || showCreate) return;
     e.stopPropagation();
-    setCondominium({
-      tenant_id: c.id,
-      name: c.name,
-      slug: c.slug,
-      short_name: c.short_name || c.slug,
-      schema_name: c.schema_name,
-      image_url: c.image_url
-    });
+    setCondominium({ tenant_id: c.id, name: c.name, slug: c.slug, short_name: c.short_name || c.slug, schema_name: c.schema_name, image_url: c.image_url });
     navigate('/setup');
   };
 
@@ -58,18 +51,9 @@ export function SuperAdminDashboard() {
         method: 'POST',
         body: createData
       });
-
       if (fnError) throw fnError;
-
       if (data?.success && data.data) {
-        setCondominium({
-          tenant_id: data.data.tenant_id,
-          name: data.data.name,
-          slug: data.data.slug,
-          short_name: data.data.short_name,
-          schema_name: data.data.schema_name,
-          image_url: null
-        });
+        setCondominium({ tenant_id: data.data.tenant_id, name: data.data.name, slug: data.data.slug, short_name: data.data.short_name, schema_name: data.data.schema_name, image_url: null });
         setShowCreate(false);
         setCreateData({ name: '', address: '', admin_phone: '' });
         fetchCondominiums();
@@ -87,11 +71,7 @@ export function SuperAdminDashboard() {
   const handleDelete = async (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();
     if (!confirm(`¿Eliminar "${name}" y todos sus datos asociados?`)) return;
-    try {
-      await deleteCondominium(id);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error al eliminar');
-    }
+    try { await deleteCondominium(id); } catch (err) { alert(err instanceof Error ? err.message : 'Error al eliminar'); }
   };
 
   if (loading) return <div className="loading-message">Cargando condominios...</div>;
@@ -101,7 +81,7 @@ export function SuperAdminDashboard() {
     <div className="dashboard">
       <div className="header">
         <h2>Administrar Condominios</h2>
-        <button onClick={() => setShowCreate(true)}>+ Agregar Condominio</button>
+        <button onClick={() => setShowCreate(true)}><span className="material-symbols-outlined">add_business</span> Agregar Condominio</button>
       </div>
 
       {showCreate && (
@@ -121,8 +101,8 @@ export function SuperAdminDashboard() {
           </div>
           {createError && <div className="error-message">{createError}</div>}
           <div className="form-actions">
-            <button onClick={() => setShowCreate(false)}>Cancelar</button>
-            <button onClick={handleCreate} disabled={creating}>{creating ? 'Creando...' : 'Crear'}</button>
+            <button onClick={() => setShowCreate(false)}><span className="material-symbols-outlined">close</span> Cancelar</button>
+            <button onClick={handleCreate} disabled={creating}><span className="material-symbols-outlined">check</span> {creating ? 'Creando...' : 'Crear'}</button>
           </div>
         </div>
       )}
@@ -138,7 +118,7 @@ export function SuperAdminDashboard() {
       ) : (
         <div className="condominiums-grid">
           {condominiums.map(c => (
-            <div key={c.id} className="condominium-card" onClick={(e) => openCondominium(e, c)}>
+            <div key={c.id} className="condominium-card clickable" onClick={(e) => openCondominium(e, c)}>
               {c.image_url && <img src={c.image_url} alt={c.name} className="condo-img" />}
               <div className="condo-info">
                 {editingId === c.id ? (
@@ -150,8 +130,8 @@ export function SuperAdminDashboard() {
                     <label>Teléfono</label>
                     <input value={editData.admin_phone} onChange={e => setEditData({ ...editData, admin_phone: e.target.value })} />
                     <div className="form-actions">
-                      <button onClick={handleSaveEdit}>Guardar</button>
-                      <button onClick={() => setEditingId(null)}>Cancelar</button>
+                      <button onClick={handleSaveEdit}><span className="material-symbols-outlined">save</span> Guardar</button>
+                      <button onClick={() => setEditingId(null)}><span className="material-symbols-outlined">close</span> Cancelar</button>
                     </div>
                   </div>
                 ) : (
@@ -165,8 +145,8 @@ export function SuperAdminDashboard() {
                       <span className="count-item"><span className="material-symbols-outlined">group</span>{c.residents_count ?? 0} residentes</span>
                     </div>
                     <div className="form-actions">
-                      <button onClick={(e) => startEdit(e, c)}>Editar</button>
-                      <button className="delete-btn" onClick={(e) => handleDelete(e, c.id, c.name)}>Eliminar</button>
+                      <button onClick={(e) => startEdit(e, c)}><span className="material-symbols-outlined">edit</span> Editar</button>
+                      <button className="delete-btn" onClick={(e) => handleDelete(e, c.id, c.name)}><span className="material-symbols-outlined">delete</span> Eliminar</button>
                     </div>
                   </>
                 )}
