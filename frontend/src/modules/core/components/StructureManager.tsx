@@ -68,7 +68,9 @@ export function StructureManager() {
 
       <div className="header">
         <h2>Estructura del Condominio</h2>
-        <button onClick={() => { setShowTowerForm(!showTowerForm); setExpandedTower(null); }}>+ Agregar Torre</button>
+        <button onClick={() => { setShowTowerForm(!showTowerForm); setExpandedTower(null); }}>
+          <span className="material-symbols-outlined">add_business</span> Agregar Torre
+        </button>
       </div>
 
       {showTowerForm && (
@@ -80,7 +82,7 @@ export function StructureManager() {
       {towers.length === 0 ? (
         <div className="empty-state">
           <p>No hay torres registradas.</p>
-          <button onClick={() => setShowTowerForm(true)}>Crear primera torre</button>
+          <button onClick={() => setShowTowerForm(true)}><span className="material-symbols-outlined">add_business</span> Crear primera torre</button>
         </div>
       ) : (
         <div className="tower-list">
@@ -97,7 +99,9 @@ export function StructureManager() {
                   <span>{tower.floors.reduce((s, f) => s + f.departments.length, 0)} deptos</span>
                 </div>
                 <div className="tower-actions" onClick={(e) => e.stopPropagation()}>
-                  <button className="btn-danger" onClick={() => handleDeleteTower(tower.id)} title="Eliminar torre">🗑</button>
+                  <button className="btn-danger" onClick={() => handleDeleteTower(tower.id)} title="Eliminar torre">
+                    <span className="material-symbols-outlined">delete</span>
+                  </button>
                 </div>
               </div>
 
@@ -108,11 +112,13 @@ export function StructureManager() {
                     {floorForm.open && floorForm.towerId === tower.id ? (
                       <div className="inline-add">
                         <input type="number" value={floorForm.floorNumber} onChange={e => setFloorForm({ ...floorForm, floorNumber: e.target.value })} placeholder="N° piso" />
-                        <button onClick={handleAddFloor}>Agregar</button>
-                        <button onClick={() => setFloorForm({ towerId: '', open: false, floorNumber: '' })}>Cancelar</button>
+                        <button onClick={handleAddFloor}><span className="material-symbols-outlined">check</span> Agregar</button>
+                        <button onClick={() => setFloorForm({ towerId: '', open: false, floorNumber: '' })}><span className="material-symbols-outlined">close</span></button>
                       </div>
                     ) : (
-                      <button onClick={() => setFloorForm({ towerId: tower.id, open: true, floorNumber: String(tower.floors.length + 1) })}>+ Piso</button>
+                      <button onClick={() => setFloorForm({ towerId: tower.id, open: true, floorNumber: String(tower.floors.length + 1) })}>
+                        <span className="material-symbols-outlined">add</span> Piso
+                      </button>
                     )}
                   </div>
 
@@ -123,7 +129,9 @@ export function StructureManager() {
                         <span className="floor-label">Piso {floor.floor_number}</span>
                         <span className="floor-count">{floor.departments.length} deptos</span>
                         <div className="floor-actions" onClick={(e) => e.stopPropagation()}>
-                          <button className="btn-danger" onClick={() => handleDeleteFloor(floor.id)} title="Eliminar piso">🗑</button>
+                          <button className="btn-danger" onClick={() => handleDeleteFloor(floor.id)} title="Eliminar piso">
+                            <span className="material-symbols-outlined">delete</span>
+                          </button>
                         </div>
                       </div>
 
@@ -140,7 +148,12 @@ export function StructureManager() {
                                   <option value="DESOCUPADO">Desocupado</option>
                                   <option value="MANTENIMIENTO">Mantenimiento</option>
                                 </select>
-                                <button className="btn-danger" onClick={() => handleDeleteDept(dept.id)} title="Eliminar departamento">🗑</button>
+                                <button className="btn-edit" onClick={() => setSelectedDept({ tower, floor, dept })} title="Editar / Residentes">
+                                  <span className="material-symbols-outlined">group</span>
+                                </button>
+                                <button className="btn-danger" onClick={() => handleDeleteDept(dept.id)} title="Eliminar departamento">
+                                  <span className="material-symbols-outlined">delete</span>
+                                </button>
                               </div>
                             </div>
                           ))}

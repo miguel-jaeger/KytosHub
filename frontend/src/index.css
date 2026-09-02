@@ -831,3 +831,9 @@ tr:hover {
 .department-card .status-badge.ocupado, .department-card .status-badge.HABITADO { background: rgba(81, 207, 102, 0.15); color: #006c49; }
 .department-card .status-badge.desocupado, .department-card .status-badge.DESOCUPADO { background: rgba(148, 148, 184, 0.15); color: #76777d; }
 .department-card .status-badge.mantenimiento, .department-card .status-badge.MANTENIMIENTO { background: rgba(255, 193, 7, 0.15); color: #b26b00; }
+
+.btn-edit { background: #006c49 !important; color: #fff !important; padding: 0.3rem 0.5rem !important; font-size: 0.85rem !important; }
+.btn-edit:hover { background: #005236 !important; }
+
+button .material-symbols-outlined { font-size: 16px; vertical-align: middle; }
+.btn-danger .material-symbols-outlined, .btn-edit .material-symbols-outlined { font-size: 16px; }

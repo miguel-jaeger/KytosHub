@@ -87,7 +87,9 @@ export function DepartmentModal({
           <div className="residents-list">
             <div className="residents-header">
               <h4>Residentes ({residents.length})</h4>
-              <button onClick={() => { setShowForm(!showForm); setError(null); }}>{showForm ? 'Cancelar' : '+ Agregar'}</button>
+              <button onClick={() => { setShowForm(!showForm); setError(null); }}>
+                <span className="material-symbols-outlined">{showForm ? 'close' : 'person_add'}</span> {showForm ? 'Cancelar' : 'Agregar'}
+              </button>
             </div>
 
             {residentsLoading ? (
@@ -112,7 +114,7 @@ export function DepartmentModal({
                       <td>{r.document_type} {r.document_number}</td>
                       <td>{relLabel[r.relationship_type]}</td>
                       <td>{r.email || r.phone || '-'}</td>
-                      <td><button className="btn-danger" onClick={() => handleDelete(r.id)} title="Eliminar">🗑</button></td>
+                      <td><button className="btn-danger" onClick={() => handleDelete(r.id)} title="Eliminar"><span className="material-symbols-outlined">delete</span></button></td>
                     </tr>
                   ))}
                 </tbody>

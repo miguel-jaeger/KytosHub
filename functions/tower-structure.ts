@@ -52,12 +52,15 @@ export default async function(req: Request): Promise<Response> {
 
     if (deptsError) throw deptsError;
 
-    const { data: residents, error: residentsError } = await db
-      .from('residents')
-      .select('id, department_id')
-      .catch(() => ({ data: [], error: null }));
-
-    if (residentsError) throw residentsError;
+    let residents: { id: string; department_id: string }[] = [];
+    try {
+      const res = await db
+        .from('residents')
+        .select('id, department_id');
+      if (!res.error) residents = res.data || [];
+    } catch {
+      residents = [];
+    }
 
     const residentCountByDept = new Map<string, number>();
     for (const r of residents || []) {
