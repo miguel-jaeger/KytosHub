@@ -27,12 +27,14 @@ export default async function(req: Request): Promise<Response> {
       apiKey: Deno.env.get('INSFORGE_API_KEY')
     });
 
+    let body: Record<string, unknown> = {};
+    try { body = await req.json(); } catch {}
     const url = new URL(req.url);
-    const tenantId = url.searchParams.get('tenant_id');
-    const role = url.searchParams.get('role');
+    const tenantId = (body.tenant_id as string) || url.searchParams.get('tenant_id');
+    const role = (body.role as string) || url.searchParams.get('role');
+    const action = (body.action as string) || (req.method === 'GET' ? 'list' : '');
 
-    switch (req.method) {
-      case 'GET': {
+    if (action === 'list' || req.method === 'GET') {
         if (!tenantId) {
           return new Response(
             JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere tenant_id' } }),
@@ -53,17 +55,12 @@ export default async function(req: Request): Promise<Response> {
 
         if (error) throw error;
 
-        // Resolve emails from auth.users
         const enrichedUsers = [];
         for (const u of users || []) {
           let email = '';
           try {
-            const { data: authUser } = await client.database
-              .from('auth.users' as never)
-              .select('email')
-              .eq('id', u.user_id)
-              .single();
-            email = authUser?.email || '';
+            const { data: ug } = await client.database.from('users_global').select('email').eq('id', u.user_id).single();
+            email = (ug as { email?: string })?.email || '';
           } catch {}
           enrichedUsers.push({ ...u, email });
         }
@@ -74,10 +71,11 @@ export default async function(req: Request): Promise<Response> {
         );
       }
 
-      case 'POST': {
-        const body: AddUserRequest = await req.json();
+    switch (action || req.method) {
 
-        if (!body.tenant_id || !body.email || !body.name || !body.role) {
+      case 'POST': {
+        const reqBody = body as unknown as AddUserRequest;
+        if (!reqBody.tenant_id || !reqBody.email || !reqBody.name || !reqBody.role) {
           return new Response(
             JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Campos requeridos: tenant_id, email, name, role' } }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -85,9 +83,9 @@ export default async function(req: Request): Promise<Response> {
         }
 
         const { data: signUpData, error: signUpError } = await client.auth.signUp({
-          email: body.email,
-          password: `${body.email.split('@')[0]}Kytos`,
-          name: body.name,
+          email: reqBody.email,
+          password: `${reqBody.email.split('@')[0]}Kytos`,
+          name: reqBody.name,
           redirectTo: 'https://kytos-hub.vercel.app'
         });
 
@@ -97,7 +95,7 @@ export default async function(req: Request): Promise<Response> {
 
           await client.database.from('users_global').insert([{
             id: userId,
-            email: body.email,
+            email: reqBody.email,
             password_hash: 'oauth',
             is_superadmin: false
           }]);
@@ -107,9 +105,9 @@ export default async function(req: Request): Promise<Response> {
           const { data: tu, error: tuError } = await client.database
             .from('tenant_users')
             .insert([{
-              tenant_id: body.tenant_id,
+              tenant_id: reqBody.tenant_id,
               user_id: userId,
-              role: body.role,
+              role: reqBody.role,
               status: 'ACTIVE'
             }])
             .select()
@@ -118,7 +116,7 @@ export default async function(req: Request): Promise<Response> {
           if (tuError) throw tuError;
 
           return new Response(
-            JSON.stringify({ success: true, data: { tenant_user_id: tu.id, user_id: userId, email: body.email, role: body.role }, error: null }),
+            JSON.stringify({ success: true, data: { tenant_user_id: tu.id, user_id: userId, email: reqBody.email, role: reqBody.role }, error: null }),
             { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
