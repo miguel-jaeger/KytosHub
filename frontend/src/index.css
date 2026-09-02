@@ -939,3 +939,16 @@ html.dark .profile-card h3, html.dark .password-card h3, html.dark .theme-card h
   cursor: pointer;
   font-size: 0.9rem;
 }
+
+/* Structure section tabs */
+.struct-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.struct-tab { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.9rem; border: 1px solid #c6c6cd; background: #fff; color: #45464d; border-radius: 8px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; }
+.struct-tab:hover { background: #eff4ff; }
+.struct-tab.active { background: #006c49; border-color: #006c49; color: #fff; }
+.struct-tab .material-symbols-outlined { font-size: 16px; }
+
+/* Condominium count links */
+.condo-counts { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e5e7eb; }
+.count-link { display: inline-flex; align-items: center; gap: 0.35rem; background: #f1f5f9; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.4rem 0.6rem; cursor: pointer; color: #0b1c30; font-size: 0.8rem; transition: all 0.2s; }
+.count-link:hover { background: #e8f5ec; border-color: #006c49; color: #006c49; }
+.count-link .material-symbols-outlined { font-size: 16px; color: #006c49; }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useCondominium } from '../../../contexts/CondominiumContext';
 import { useCondominiumRegistration } from '../hooks/useCondominiumRegistration';
 import { StructureManager } from './StructureManager';
@@ -7,6 +8,8 @@ import type { WizardStep } from '../types';
 export function SetupWizard() {
   const { condominium, setCondominium } = useCondominium();
   const { register } = useCondominiumRegistration();
+  const [searchParams] = useSearchParams();
+  const section = searchParams.get('section') || 'towers';
   const [step, setStep] = useState<WizardStep>(condominium ? 'towers' : 'condominium');
 
   const [condoData, setCondoData] = useState({
@@ -97,7 +100,7 @@ export function SetupWizard() {
         <span className="done">1. Datos del condominio</span>
         <span className="active">2. Estructura</span>
       </div>
-      <StructureManager />
+      <StructureManager section={section as 'towers' | 'floors' | 'departments' | 'residents'} />
     </div>
   );
 }
