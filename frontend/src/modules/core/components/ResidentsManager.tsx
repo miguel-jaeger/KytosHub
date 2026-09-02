@@ -1,71 +1,50 @@
-import { useState } from 'react';
-import type { Resident } from '../types';
+import { useState, type FormEvent } from 'react';
 import { useResidents } from '../hooks/useResidents';
-import { useDepartments } from '../hooks/useDepartments';
+import type { Resident } from '../types';
 
-interface ResidentsManagerProps {
-  towerId?: string;
-}
-
-export function ResidentsManager({ towerId }: ResidentsManagerProps) {
-  const { residents, loading, error, createResident, updateResident, deleteResident } = useResidents();
-  const { departments } = useDepartments(towerId);
+export function ResidentsManager({ departmentId }: { departmentId?: string }) {
+  const { residents, loading, error, fetchResidents } = useResidents(departmentId);
   const [showForm, setShowForm] = useState(false);
-  const [editingResident, setEditingResident] = useState<Resident | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    department_id: '',
-    user_id: '',
-    is_owner: false,
+    department_id: departmentId || '',
+    full_name: '',
+    document_type: 'DNI' as Resident['document_type'],
+    document_number: '',
     relationship_type: 'PROPIETARIO' as Resident['relationship_type'],
-    is_primary_contact: false
+    is_primary_contact: false,
+    email: '',
+    phone: ''
   });
-
-  const handleEdit = (resident: Resident) => {
-    setEditingResident(resident);
-    setFormData({
-      department_id: resident.department_id,
-      user_id: resident.user_id,
-      is_owner: resident.is_owner,
-      relationship_type: resident.relationship_type,
-      is_primary_contact: resident.is_primary_contact
-    });
-    setShowForm(true);
-  };
-
-  const handleSubmit = async () => {
-    try {
-      if (editingResident) {
-        await updateResident(editingResident.id, formData);
-      } else {
-        await createResident(formData);
-      }
-      setShowForm(false);
-      setEditingResident(null);
-      resetForm();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error al guardar residente');
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (confirm('¿Estás seguro de eliminar este residente?')) {
-      try {
-        await deleteResident(id);
-      } catch (err) {
-        alert(err instanceof Error ? err.message : 'Error al eliminar residente');
-      }
-    }
-  };
 
   const resetForm = () => {
     setFormData({
-      department_id: '',
-      user_id: '',
-      is_owner: false,
+      department_id: departmentId || '',
+      full_name: '',
+      document_type: 'DNI',
+      document_number: '',
       relationship_type: 'PROPIETARIO',
-      is_primary_contact: false
+      is_primary_contact: false,
+      email: '',
+      phone: ''
     });
   };
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await fetchResidents();
+      setShowForm(false);
+      resetForm();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error al guardar');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const relLabel: Record<string, string> = { PROPIETARIO: 'Propietario', FAMILIAR: 'Familiar', INQUILINO: 'Inquilino' };
 
   if (loading) return <div>Cargando residentes...</div>;
   if (error) return <div className="error">{error}</div>;
@@ -74,102 +53,29 @@ export function ResidentsManager({ towerId }: ResidentsManagerProps) {
     <div className="residents-manager">
       <div className="header">
         <h2>Residentes</h2>
-        <button onClick={() => { resetForm(); setShowForm(true); }}>
-          Agregar Residente
-        </button>
+        <button onClick={() => { resetForm(); setShowForm(true); }}>Agregar Residente</button>
       </div>
 
       {showForm && (
-        <div className="form-modal">
-          <h3>{editingResident ? 'Editar Residente' : 'Nuevo Residente'}</h3>
-          <div className="form-group">
-            <label>Departamento</label>
-            <select
-              value={formData.department_id}
-              onChange={(e) => setFormData({ ...formData, department_id: e.target.value })}
-            >
-              <option value="">Seleccionar departamento</option>
-              {departments.map(dept => (
-                <option key={dept.id} value={dept.id}>
-                  {dept.towers?.code} - {dept.department_number}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="form-group">
-            <label>ID Usuario</label>
-            <input
-              type="text"
-              value={formData.user_id}
-              onChange={(e) => setFormData({ ...formData, user_id: e.target.value })}
-              placeholder="ID del usuario"
-            />
-          </div>
-          <div className="form-group">
-            <label>Tipo de Relación</label>
-            <select
-              value={formData.relationship_type}
-              onChange={(e) => setFormData({ ...formData, relationship_type: e.target.value as Resident['relationship_type'] })}
-            >
-              <option value="OWNER">Propietario</option>
-              <option value="FAMILY">Familiar</option>
-              <option value="TENANT">Inquilino</option>
-            </select>
-          </div>
-          <div className="form-group checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={formData.is_owner}
-                onChange={(e) => setFormData({ ...formData, is_owner: e.target.checked })}
-              />
-              Es propietario
-            </label>
-          </div>
-          <div className="form-group checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={formData.is_primary_contact}
-                onChange={(e) => setFormData({ ...formData, is_primary_contact: e.target.checked })}
-              />
-              Contacto principal
-            </label>
-          </div>
-          <div className="form-actions">
-            <button onClick={() => { setShowForm(false); setEditingResident(null); }}>
-              Cancelar
-            </button>
-            <button onClick={handleSubmit}>
-              {editingResident ? 'Guardar' : 'Crear'}
-            </button>
-          </div>
-        </div>
+        <form className="form-modal" onSubmit={handleSubmit}>
+          <h3>Agregar Residente</h3>
+          <div className="form-group"><label>Nombre completo</label><input type="text" value={formData.full_name} onChange={e => setFormData({ ...formData, full_name: e.target.value })} required /></div>
+          <div className="form-group"><label>Documento</label><select value={formData.document_type} onChange={e => setFormData({ ...formData, document_type: e.target.value as Resident['document_type'] })}><option value="DNI">DNI</option><option value="CE">CE</option><option value="PASAPORTE">Pasaporte</option></select></div>
+          <div className="form-group"><label>Número</label><input type="text" value={formData.document_number} onChange={e => setFormData({ ...formData, document_number: e.target.value })} required /></div>
+          <div className="form-group"><label>Relación</label><select value={formData.relationship_type} onChange={e => setFormData({ ...formData, relationship_type: e.target.value as Resident['relationship_type'] })}><option value="PROPIETARIO">Propietario</option><option value="FAMILIAR">Familiar</option><option value="INQUILINO">Inquilino</option></select></div>
+          <div className="form-actions"><button type="button" onClick={() => setShowForm(false)}>Cancelar</button><button type="submit" disabled={submitting}>{submitting ? 'Guardando...' : 'Agregar'}</button></div>
+        </form>
       )}
 
       <table>
-        <thead>
-          <tr>
-            <th>Torre</th>
-            <th>Depto</th>
-            <th>Tipo</th>
-            <th>Propietario</th>
-            <th>Contacto Principal</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
+        <thead><tr><th>Nombre</th><th>Documento</th><th>Tipo</th><th>Contacto</th></tr></thead>
         <tbody>
-          {residents.map(resident => (
-            <tr key={resident.id}>
-              <td>{resident.departments?.towers?.name || '-'}</td>
-              <td>{resident.departments?.department_number || '-'}</td>
-              <td>{resident.relationship_type}</td>
-              <td>{resident.is_owner ? 'Sí' : 'No'}</td>
-              <td>{resident.is_primary_contact ? 'Sí' : 'No'}</td>
-              <td>
-                <button onClick={() => handleEdit(resident)}>Editar</button>
-                <button onClick={() => handleDelete(resident.id)}>Eliminar</button>
-              </td>
+          {residents.map(r => (
+            <tr key={r.id}>
+              <td>{r.full_name}{r.is_primary_contact ? ' ★' : ''}</td>
+              <td>{r.document_type} {r.document_number}</td>
+              <td>{relLabel[r.relationship_type]}</td>
+              <td>{r.email || r.phone || '-'}</td>
             </tr>
           ))}
         </tbody>

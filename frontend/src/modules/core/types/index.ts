@@ -28,10 +28,14 @@ export interface Department {
 export interface Resident {
   id: string;
   department_id: string;
-  user_id: string;
-  is_owner: boolean;
+  full_name: string;
+  document_type: 'DNI' | 'CE' | 'PASAPORTE';
+  document_number: string;
   relationship_type: 'PROPIETARIO' | 'FAMILIAR' | 'INQUILINO';
   is_primary_contact: boolean;
+  email: string | null;
+  phone: string | null;
+  user_id: string | null;
   created_at: string;
   departments?: {
     department_number: string;
