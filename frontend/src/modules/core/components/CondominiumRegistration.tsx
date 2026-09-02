@@ -111,11 +111,11 @@ export function CondominiumRegistration({ onRegistered }: CondominiumRegistratio
 
         <div className="form-group">
           <label>Dirección</label>
-          <input
-            type="text"
+          <textarea
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             placeholder="Av. Los Olivos 123, Lima"
+            rows={3}
           />
         </div>
 
