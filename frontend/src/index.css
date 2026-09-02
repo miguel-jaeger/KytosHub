@@ -696,6 +696,37 @@ tr:hover {
   font-size: 0.9rem;
 }
 
+.condo-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.condo-edit-form label {
+  font-size: 0.75rem;
+  color: #888;
+  margin-bottom: -0.25rem;
+}
+
+.condo-edit-form input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #c6c6cd;
+  border-radius: 4px;
+  background: #f8f9ff;
+  color: #0b1c30;
+  font-size: 0.9rem;
+}
+
+.condominium-card.clickable {
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.condominium-card.clickable:hover {
+  border-color: #646cff;
+}
+
 .image-uploader {
   display: flex;
   flex-direction: column;
