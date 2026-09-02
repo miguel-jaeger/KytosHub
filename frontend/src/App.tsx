@@ -2,9 +2,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavig
 import { useAuth } from './contexts/AuthContext';
 import { useCondominium } from './contexts/CondominiumContext';
 import { LoginPage } from './pages/LoginPage';
-import { ResidentsManager } from './modules/core/components/ResidentsManager';
 import { TowerStructureView } from './modules/core/components/TowerStructureView';
 import { SetupWizard } from './modules/core/components/SetupWizard';
+import { SuperAdminDashboard } from './modules/core/components/SuperAdminDashboard';
+import { CondominioAdminDashboard } from './modules/core/components/CondominioAdminDashboard';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -30,6 +31,8 @@ function AppShell() {
   const { condominium } = useCondominium();
   const navigate = useNavigate();
 
+  const isSuperAdmin = user?.email === 'miguel.jaeger@gmail.com';
+
   return (
     <div className="app">
       <header>
@@ -42,9 +45,10 @@ function AppShell() {
         )}
         <nav className="main-nav">
           <Link to="/">Inicio</Link>
-          <Link to="/structure">Estructura</Link>
-          <Link to="/setup">Configurar Condominio</Link>
-          <Link to="/residents">Residentes</Link>
+          {isSuperAdmin && <Link to="/admin/condominiums">Condominios</Link>}
+          {condominium && <Link to="/structure">Estructura</Link>}
+          {condominium && <Link to="/setup">Configurar Condominio</Link>}
+          {condominium && <Link to="/admin/users">Usuarios</Link>}
         </nav>
         {user && (
           <button
@@ -61,9 +65,10 @@ function AppShell() {
       <main>
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/admin/condominiums" element={<SuperAdminDashboard />} />
+          <Route path="/admin/users" element={<CondominioAdminDashboard />} />
           <Route path="/structure" element={<TowerStructureView />} />
           <Route path="/setup" element={<SetupWizard />} />
-          <Route path="/residents" element={<ResidentsManager />} />
         </Routes>
       </main>
     </div>
@@ -71,10 +76,19 @@ function AppShell() {
 }
 
 function Dashboard() {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.email === 'miguel.jaeger@gmail.com';
+
   return (
     <div className="dashboard">
       <h2>Panel de Control</h2>
       <div className="quick-actions">
+        {isSuperAdmin && (
+          <Link to="/admin/condominiums" className="action-card">
+            <h3>Administrar Condominios</h3>
+            <p>Ver, editar y gestionar todos los condominios</p>
+          </Link>
+        )}
         <Link to="/structure" className="action-card">
           <h3>Ver Estructura</h3>
           <p>Torres, pisos y departamentos del condominio</p>
@@ -83,9 +97,9 @@ function Dashboard() {
           <h3>Configurar Condominio</h3>
           <p>Registrar condominio y crear su estructura inicial</p>
         </Link>
-        <Link to="/residents" className="action-card">
-          <h3>Gestionar Residentes</h3>
-          <p>Administrar padrones de residentes</p>
+        <Link to="/admin/users" className="action-card">
+          <h3>Gestionar Usuarios</h3>
+          <p>Administrar roles y accesos del condominio</p>
         </Link>
       </div>
     </div>

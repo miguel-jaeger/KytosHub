@@ -72,7 +72,23 @@ BEGIN
         UNIQUE(department_id, user_id)
     )', v_schema_name, v_schema_name);
 
-    -- Indexes with generic names (names are unique within each schema)
+    -- residents (redesigned: name + document, not user_id)
+    EXECUTE format('CREATE TABLE IF NOT EXISTS %I.residents (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        department_id uuid NOT NULL REFERENCES %I.departments(id) ON DELETE CASCADE,
+        full_name varchar(200) NOT NULL,
+        document_type varchar(20) NOT NULL CHECK (document_type IN (''DNI'', ''CE'', ''PASAPORTE'')),
+        document_number varchar(30) NOT NULL,
+        relationship_type varchar(20) NOT NULL CHECK (relationship_type IN (''PROPIETARIO'', ''FAMILIAR'', ''INQUILINO'')),
+        is_primary_contact boolean NOT NULL DEFAULT false,
+        email varchar(255),
+        phone varchar(30),
+        user_id uuid,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE(department_id, document_number)
+    )', v_schema_name, v_schema_name);
+
+    -- Indexes with generic names
     EXECUTE format('CREATE INDEX IF NOT EXISTS idx_towers_code ON %I.towers(code)', v_schema_name);
     EXECUTE format('CREATE INDEX IF NOT EXISTS idx_floors_tower_id ON %I.floors(tower_id)', v_schema_name);
     EXECUTE format('CREATE INDEX IF NOT EXISTS idx_depts_floor_id ON %I.departments(floor_id)', v_schema_name);
