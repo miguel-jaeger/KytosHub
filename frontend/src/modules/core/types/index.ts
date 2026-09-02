@@ -35,7 +35,7 @@ export interface Resident {
   is_primary_contact: boolean;
   email: string | null;
   phone: string | null;
-  user_id: string | null;
+  user_id?: string | null;
   created_at: string;
   departments?: {
     department_number: string;
@@ -63,6 +63,7 @@ export interface DepartmentNode {
   id: string;
   department_number: string;
   status: 'HABITADO' | 'DESOCUPADO' | 'MANTENIMIENTO';
+  residents_count?: number;
 }
 
 export interface FloorNode {
@@ -89,3 +90,5 @@ export interface ApiResponse<T> {
     message: string;
   } | null;
 }
+
+export type WizardStep = 'condominium' | 'towers' | 'residents';

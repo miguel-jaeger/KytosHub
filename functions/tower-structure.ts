@@ -1,52 +1,14 @@
 import { createAdminClient } from 'npm:@insforge/sdk';
 
-interface TowerNode {
-  id: string;
-  name: string;
-  code: string;
-  floors_count: number;
-  departments_per_floor: number;
-  created_at: string;
-  floors: FloorNode[];
-}
-
-interface FloorNode {
-  id: string;
-  floor_number: number;
-  departments: DepartmentNode[];
-}
-
-interface DepartmentNode {
-  id: string;
-  department_number: string;
-  status: 'HABITADO' | 'DESOCUPADO' | 'MANTENIMIENTO';
-}
-
-interface TowerStructureResponse {
-  success: boolean;
-  data: TowerNode[] | null;
-  error: {
-    code: string;
-    message: string;
-  } | null;
-}
-
 export default async function(req: Request): Promise<Response> {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization'
   };
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: corsHeaders });
-  }
-
-  if (req.method !== 'GET') {
-    return new Response(
-      JSON.stringify({ success: false, data: null, error: { code: 'METHOD_NOT_ALLOWED', message: 'Solo se permite GET' } }),
-      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
   }
 
   try {
@@ -55,12 +17,14 @@ export default async function(req: Request): Promise<Response> {
       apiKey: Deno.env.get('INSFORGE_API_KEY')
     });
 
-    const url = new URL(req.url);
-    const schemaName = url.searchParams.get('schema_name') || url.searchParams.get('tenant_schema');
+    let body: Record<string, unknown> = {};
+    try { body = await req.json(); } catch {}
+
+    const schemaName = body.schema_name as string;
 
     if (!schemaName) {
       return new Response(
-        JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere el esquema del condominio (schema_name)' } }),
+        JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'schema_name es requerido' } }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -88,8 +52,21 @@ export default async function(req: Request): Promise<Response> {
 
     if (deptsError) throw deptsError;
 
-    const structure: TowerNode[] = (towers || []).map((tower) => {
-      const towerFloors = (floors || [])
+    const { data: residents, error: residentsError } = await db
+      .from('residents')
+      .select('id, department_id')
+      .catch(() => ({ data: [], error: null }));
+
+    if (residentsError) throw residentsError;
+
+    const residentCountByDept = new Map<string, number>();
+    for (const r of residents || []) {
+      residentCountByDept.set(r.department_id, (residentCountByDept.get(r.department_id) || 0) + 1);
+    }
+
+    const structure = (towers || []).map((tower) => ({
+      ...tower,
+      floors: (floors || [])
         .filter((floor) => floor.tower_id === tower.id)
         .map((floor) => ({
           id: floor.id,
@@ -99,39 +76,20 @@ export default async function(req: Request): Promise<Response> {
             .map((dept) => ({
               id: dept.id,
               department_number: dept.department_number,
-              status: dept.status
+              status: dept.status,
+              residents_count: residentCountByDept.get(dept.id) || 0
             }))
-        }));
-
-      return {
-        id: tower.id,
-        name: tower.name,
-        code: tower.code,
-        floors_count: tower.floors_count,
-        departments_per_floor: tower.departments_per_floor,
-        created_at: tower.created_at,
-        floors: towerFloors
-      };
-    });
-
-    const response: TowerStructureResponse = {
-      success: true,
-      data: structure,
-      error: null
-    };
+        }))
+    }));
 
     return new Response(
-      JSON.stringify(response),
+      JSON.stringify({ success: true, data: structure, error: null }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     console.error('Error in tower-structure:', error);
     return new Response(
-      JSON.stringify({
-        success: false,
-        data: null,
-        error: { code: 'INTERNAL_ERROR', message: 'Error interno al obtener la estructura' }
-      }),
+      JSON.stringify({ success: false, data: null, error: { code: 'INTERNAL_ERROR', message: String(error) } }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
