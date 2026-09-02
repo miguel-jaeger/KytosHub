@@ -13,7 +13,9 @@ interface TenantUser {
   created_at: string;
   name?: string;
   email?: string;
+  tenant_id?: string;
   tenant_name?: string;
+  schema_name?: string;
   source?: 'tenant_user' | 'resident';
   users_global?: { email: string; is_superadmin: boolean } | null;
 }
@@ -51,6 +53,12 @@ export function CondominioAdminDashboard() {
   const [addCondoSearch, setAddCondoSearch] = useState('');
   const [addCondoDropdownOpen, setAddCondoDropdownOpen] = useState(false);
   const addCondoDropdownRef = useRef<HTMLDivElement>(null);
+
+  const [editCondoSearch, setEditCondoSearch] = useState('');
+  const [editCondoDropdownOpen, setEditCondoDropdownOpen] = useState(false);
+  const editCondoDropdownRef = useRef<HTMLDivElement>(null);
+  const [editOriginalTenant, setEditOriginalTenant] = useState('');
+  const [editOriginalSchema, setEditOriginalSchema] = useState('');
 
   const openAddForm = () => {
     const initial = condominium?.tenant_id || '';
@@ -174,7 +182,12 @@ export function CondominioAdminDashboard() {
   };
 
   const startEdit = (u: TenantUser) => {
-    setEditingUser(u);
+    const tenantId = u.tenant_id || condominium?.tenant_id || '';
+    const schemaName = condominium?.schema_name || '';
+    setEditingUser({ ...u, tenant_id: tenantId, schema_name: schemaName });
+    setEditOriginalTenant(tenantId);
+    setEditOriginalSchema(schemaName);
+    setEditCondoSearch(condominiums.find(c => c.id === tenantId)?.name || '');
     setShowEditForm(true);
   };
 
@@ -189,10 +202,13 @@ export function CondominioAdminDashboard() {
         email: editingUser.email
       };
       if (editingUser.source === 'resident') {
-        body.schema_name = condominium?.schema_name;
+        body.schema_name = editOriginalSchema;
+        body.tenant_id = editOriginalTenant;
+        if (editingUser.tenant_id) body.new_tenant_id = editingUser.tenant_id;
       } else {
         body.role = editingUser.role;
         body.status = editingUser.status;
+        if (editingUser.tenant_id) body.tenant_id = editingUser.tenant_id;
       }
 
       const { data, error: fnError } = await invokeFunction<{ success: boolean; error: { message: string } | null }>('list-condominium-users', {
@@ -291,6 +307,24 @@ export function CondominioAdminDashboard() {
     setAddCondoSearch(c.name);
     setAddCondoDropdownOpen(false);
   };
+
+  const filteredEditCondos = condominiums.filter(c => c.name.toLowerCase().includes(editCondoSearch.trim().toLowerCase()));
+
+  const selectEditCondo = (c: { id: string; name: string; schema_name: string }) => {
+    setEditingUser(prev => prev ? { ...prev, tenant_id: c.id, schema_name: c.schema_name } : prev);
+    setEditCondoSearch(c.name);
+    setEditCondoDropdownOpen(false);
+  };
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (editCondoDropdownRef.current && !editCondoDropdownRef.current.contains(e.target as Node)) {
+        setEditCondoDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -427,6 +461,35 @@ export function CondominioAdminDashboard() {
       {showEditForm && editingUser && (
         <div className="form-modal">
           <h3>Editar Usuario</h3>
+          {isSuperAdmin && (
+            <div className="form-group">
+              <label>Condominio</label>
+              <div className="search-bar condo-picker" ref={editCondoDropdownRef}>
+                <span className="material-symbols-outlined search-icon">apartment</span>
+                <input
+                  type="text"
+                  value={editCondoSearch}
+                  placeholder="Buscar condominio..."
+                  onFocus={() => setEditCondoDropdownOpen(true)}
+                  onChange={(e) => { setEditCondoSearch(e.target.value); setEditCondoDropdownOpen(true); }}
+                />
+                {editCondoDropdownOpen && (
+                  <div className="condo-picker-dropdown">
+                    {filteredEditCondos.length === 0 ? (
+                      <div className="condo-picker-empty">Sin resultados</div>
+                    ) : (
+                      filteredEditCondos.map(c => (
+                        <button key={c.id} type="button" className={`condo-picker-item ${c.id === editingUser.tenant_id ? 'selected' : ''}`} onClick={() => selectEditCondo(c)}>
+                          <span className="material-symbols-outlined">apartment</span>
+                          <span>{c.name}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           <div className="form-group">
             <label>Nombre</label>
             <input type="text" value={editingUser.name || ''} onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })} />

@@ -1,7 +1,8 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { useTheme } from './hooks/useTheme';
+import { useCondominium } from './contexts/CondominiumContext';
 import { Sidebar } from './components/Sidebar';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
@@ -27,9 +28,9 @@ function useUserRole() {
     }).then(({ data }) => {
       if (cancelled) return;
       if (data?.success && data.data) {
-        const active = data.data.find(x => x.status === 'ACTIVE');
-        if (active && (active.role === 'ADMIN' || active.role === 'SUPER_ADMIN')) setRole('admin');
-        else setRole('resident');
+        const active = data.data.filter(x => x.status === 'ACTIVE');
+        const highest = active.some(x => x.role === 'SUPER_ADMIN' || x.role === 'ADMIN');
+        setRole(highest ? 'admin' : 'resident');
       } else {
         setRole('resident');
       }
@@ -80,7 +81,41 @@ function AppShell() {
 function Dashboard() {
   const { user } = useAuth();
   const role = useUserRole();
+  const { setCondominium } = useCondominium();
+  const navigate = useNavigate();
   const canManageUsers = role === 'super' || role === 'admin';
+  const canManageCondo = role === 'admin' || role === 'super';
+
+  const openMyCondominium = async () => {
+    if (!user) return;
+    setCondominium(null);
+    try {
+      const { data } = await invokeFunction<{ success: boolean; data: { tenant_id: string; role: string; status: string }[] | null }>('list-condominium-users', {
+        method: 'POST',
+        body: { action: 'list-by-user', user_id: user.id }
+      });
+      const active = (data?.data || []).filter(x => x.status === 'ACTIVE');
+      const tenantId = active[0]?.tenant_id;
+      if (tenantId) {
+        const { data: condo } = await invokeFunction<{ success: boolean; data: { id: string; name: string; slug: string; short_name: string | null; schema_name: string; image_url: string | null } | null }>('list-condominiums', {
+          method: 'POST',
+          body: { action: 'list', id: tenantId }
+        });
+        const c = condo?.data;
+        if (c) {
+          setCondominium({
+            tenant_id: c.id,
+            name: c.name,
+            slug: c.slug,
+            short_name: c.short_name || c.slug,
+            schema_name: c.schema_name,
+            image_url: c.image_url
+          });
+        }
+      }
+    } catch {}
+    navigate('/setup');
+  };
 
   if (role === 'loading') return <div className="loading-message">Cargando...</div>;
 
@@ -102,6 +137,13 @@ function Dashboard() {
               <h3>Administrar Condominios</h3>
               <p>Ver, registrar y gestionar condominios</p>
             </Link>
+          )}
+          {canManageCondo && (
+            <button onClick={openMyCondominium} className="action-card action-card-btn">
+              <span className="material-symbols-outlined">home_work</span>
+              <h3>Mi Condominio</h3>
+              <p>Administrar torres, pisos, departamentos y residentes</p>
+            </button>
           )}
           <Link to="/admin/users" className="action-card">
             <span className="material-symbols-outlined">group</span>

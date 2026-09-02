@@ -43,8 +43,9 @@ export function ProfilePage() {
       body: { action: 'list-by-user', user_id: authUser.id }
     }).then(({ data }) => {
       if (data?.success && data.data) {
-        const active = data.data.find(x => x.status === 'ACTIVE');
-        setRole(active?.role || null);
+        const active = data.data.filter(x => x.status === 'ACTIVE');
+        const adminRole = active.find(x => x.role === 'SUPER_ADMIN' || x.role === 'ADMIN');
+        setRole(adminRole?.role || active[0]?.role || null);
       } else {
         setRole(null);
       }

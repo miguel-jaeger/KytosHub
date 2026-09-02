@@ -226,6 +226,13 @@ html.dark .welcome-card p { color: #aaa; }
   border-color: #646cff;
 }
 
+.action-card-btn {
+  text-align: left;
+  font-size: 1rem;
+  background: #fff !important;
+  color: inherit !important;
+}
+
 .action-card h3 {
   margin: 0 0 0.5rem 0;
   color: #0b1c30;
@@ -413,6 +420,8 @@ table {
 
 .dashboard table {
   table-layout: fixed;
+  width: 100%;
+  max-width: 100%;
   word-break: break-word;
   overflow-wrap: anywhere;
 }
@@ -424,20 +433,24 @@ table {
 
 .dashboard table th:last-child,
 .dashboard table td:last-child {
-  width: 132px;
-  min-width: 132px;
+  width: 11%;
   text-align: right;
   white-space: nowrap;
 }
 
 .dashboard table th:nth-last-child(2),
 .dashboard table td:nth-last-child(2) {
-  width: 110px;
+  width: 12%;
 }
 
 .dashboard table th:nth-last-child(3),
 .dashboard table td:nth-last-child(3) {
-  width: 130px;
+  width: 14%;
+}
+
+.dashboard table th:first-child,
+.dashboard table td:first-child {
+  width: 14%;
 }
 
 .dashboard table td .condo-card-actions {
@@ -922,15 +935,17 @@ tr:hover {
   min-height: 100vh;
   background: #f8f9ff;
   flex: 1;
-  width: 100%;
-  max-width: 100%;
+  width: calc(100% - 260px);
+  max-width: calc(100% - 260px);
   padding: 10px;
   box-sizing: border-box;
+  overflow-x: hidden;
 }
 
-.sidebar.collapsed + .app-layout,
 .sidebar.collapsed ~ .app-layout {
   margin-left: 64px;
+  width: calc(100% - 64px);
+  max-width: calc(100% - 64px);
 }
 
 .structure-manager { padding: 1rem 0; width: 100%; max-width: 100%; }

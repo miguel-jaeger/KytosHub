@@ -290,6 +290,28 @@ export default async function(req: Request): Promise<Response> {
             .single();
 
           if (error) throw error;
+
+          // Move resident to another condominium if requested
+          const newTenantId = body.new_tenant_id as string | undefined;
+          if (newTenantId && newTenantId !== (body.tenant_id as string)) {
+            try {
+              const { data: tenants } = await client.database.from('tenants').select('id, schema_name').eq('id', newTenantId).single();
+              const newSchemaName = (tenants as { schema_name?: string } | null)?.schema_name;
+              if (newSchemaName && newSchemaName !== schemaName) {
+                const { data: existing } = await client.database.schema(newSchemaName).from('residents').select('id').eq('document_number', String((data as { document_number?: string })?.document_number || '')).single().catch(() => ({ data: null }));
+                if (!existing) {
+                  const resident = data as Record<string, unknown>;
+                  const movePayload: Record<string, unknown> = {};
+                  for (const col of ['department_id', 'full_name', 'document_type', 'document_number', 'relationship_type', 'is_primary_contact', 'email', 'phone', 'user_id']) {
+                    if (resident[col] !== undefined) movePayload[col] = resident[col];
+                  }
+                  await client.database.schema(newSchemaName).from('residents').insert([movePayload]);
+                  await client.database.schema(schemaName).from('residents').delete().eq('id', id);
+                }
+              }
+            } catch (e) { console.error('resident move error:', e); }
+          }
+
           return new Response(
             JSON.stringify({ success: true, data, error: null }),
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -299,6 +321,7 @@ export default async function(req: Request): Promise<Response> {
         const updates: Record<string, unknown> = {};
         if (body.role) updates.role = body.role;
         if (body.status) updates.status = body.status;
+        if (body.tenant_id) updates.tenant_id = body.tenant_id;
 
         const { data: tu, error } = await client.database
           .from('tenant_users')
