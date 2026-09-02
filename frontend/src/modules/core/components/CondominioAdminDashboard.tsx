@@ -312,11 +312,11 @@ export function CondominioAdminDashboard() {
             <div className="form-group">
               <label>Condominio</label>
               <div className="search-bar condo-picker" ref={addCondoDropdownRef}>
-                <span className="material-symbols-outlined search-icon">apartment</span>
                 <input
                   type="text"
                   value={addCondoSearch}
                   placeholder="Buscar condominio..."
+                  style={{ paddingLeft: '0.75rem' }}
                   onFocus={() => setAddCondoDropdownOpen(true)}
                   onChange={(e) => { setAddCondoSearch(e.target.value); setAddCondoDropdownOpen(true); }}
                 />
