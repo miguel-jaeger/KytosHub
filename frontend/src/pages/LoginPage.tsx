@@ -100,7 +100,7 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
               <div className="input-glass flex items-center rounded-lg px-md h-12 w-full gap-sm">
                 <span className="material-symbols-outlined text-outline">person</span>
                 <input
-                  className="bg-transparent border-none focus:ring-0 w-full font-body-lg text-body-lg text-on-surface placeholder-outline-variant outline-none"
+                  className="bg-transparent border-none focus:ring-0 w-full font-body-lg text-body-lg text-on-surface placeholder-outline outline-none"
                   id="name"
                   placeholder="Juan Pérez"
                   type="text"
@@ -119,7 +119,7 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
             <div className="input-glass flex items-center rounded-lg px-md h-12 w-full gap-sm">
               <span className="material-symbols-outlined text-outline">mail</span>
               <input
-                className="bg-transparent border-none focus:ring-0 w-full font-body-lg text-body-lg text-on-surface placeholder-outline-variant outline-none"
+                className="bg-transparent border-none focus:ring-0 w-full font-body-lg text-body-lg text-on-surface placeholder-outline outline-none"
                 id="email"
                 placeholder="ejemplo@correo.com"
                 type="email"
@@ -137,7 +137,7 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
             <div className="input-glass flex items-center rounded-lg px-md h-12 w-full gap-sm relative">
               <span className="material-symbols-outlined text-outline">lock</span>
               <input
-                className="bg-transparent border-none focus:ring-0 w-full font-body-lg text-body-lg text-on-surface placeholder-outline-variant outline-none pr-10"
+                className="bg-transparent border-none focus:ring-0 w-full font-body-lg text-body-lg text-on-surface placeholder-outline outline-none pr-10"
                 id="password"
                 placeholder="••••••••"
                 type={showPassword ? 'text' : 'password'}
