@@ -6,7 +6,10 @@ import { useUserRole, useRoleLabel, SUPER_ADMIN_EMAIL } from '../hooks/useUserRo
 import { invokeFunction } from '../lib/insforge';
 
 export function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') return window.innerWidth <= 820;
+    return false;
+  });
   const [condoImgFailed, setCondoImgFailed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
