@@ -434,6 +434,7 @@ table {
 .dashboard table th,
 .dashboard table td {
   overflow-wrap: break-word;
+  white-space: normal;
   padding: 0.45rem 0.3rem;
   font-size: 0.78rem;
 }
@@ -457,7 +458,7 @@ table {
 .dashboard table td:last-child {
   width: 13%;
   text-align: right;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .dashboard table td .condo-card-actions {
@@ -466,6 +467,7 @@ table {
   margin-top: 0;
   padding-top: 0;
   border-top: none;
+  flex-wrap: wrap;
 }
 
 .dashboard table td .icon-btn {
@@ -974,8 +976,8 @@ html.dark .sidebar-link.active { background: #2a2a2a; color: #90caf9; }
   min-height: 100vh;
   background: #f8f9ff;
   flex: 1;
-  width: calc(100% - 260px);
-  max-width: calc(100% - 260px);
+  width: auto;
+  max-width: 100%;
   padding: 10px;
   box-sizing: border-box;
   min-width: 0;
@@ -983,8 +985,8 @@ html.dark .sidebar-link.active { background: #2a2a2a; color: #90caf9; }
 
 .sidebar.collapsed ~ .app-layout {
   margin-left: 64px;
-  width: calc(100% - 64px);
-  max-width: calc(100% - 64px);
+  width: auto;
+  max-width: 100%;
 }
 
 .structure-manager { padding: 1rem 0; width: 100%; max-width: 100%; }
