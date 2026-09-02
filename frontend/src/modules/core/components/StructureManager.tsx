@@ -89,7 +89,7 @@ export function StructureManager({ section = 'towers' }: { section?: 'towers' | 
       <div className="header">
         <h2>Estructura del Condominio</h2>
         <button onClick={() => { setShowTowerForm(!showTowerForm); setExpandedTower(null); }}>
-          <span className="material-symbols-outlined">add_business</span> Agregar Torre
+          <span className="material-symbols-outlined">add_business</span> Adicionar
         </button>
       </div>
 
@@ -102,7 +102,7 @@ export function StructureManager({ section = 'towers' }: { section?: 'towers' | 
       {towers.length === 0 ? (
         <div className="empty-state">
           <p>No hay torres registradas.</p>
-          <button onClick={() => setShowTowerForm(true)}><span className="material-symbols-outlined">add_business</span> Crear primera torre</button>
+          <button onClick={() => setShowTowerForm(true)}><span className="material-symbols-outlined">add_business</span> Adicionar</button>
         </div>
       ) : (
         <div className="tower-list">
@@ -132,7 +132,7 @@ export function StructureManager({ section = 'towers' }: { section?: 'towers' | 
                     {floorForm.open && floorForm.towerId === tower.id ? (
                       <div className="inline-add">
                         <input type="number" value={floorForm.floorNumber} onChange={e => setFloorForm({ ...floorForm, floorNumber: e.target.value })} placeholder="N° piso" />
-                        <button onClick={handleAddFloor}><span className="material-symbols-outlined">check</span> Agregar</button>
+                        <button onClick={handleAddFloor}><span className="material-symbols-outlined">check</span> Adicionar</button>
                         <button onClick={() => setFloorForm({ towerId: '', open: false, floorNumber: '' })}><span className="material-symbols-outlined">close</span></button>
                       </div>
                     ) : (

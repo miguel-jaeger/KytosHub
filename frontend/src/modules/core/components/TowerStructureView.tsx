@@ -211,7 +211,7 @@ function DepartmentModal({
           <div className="residents-list">
             <div className="residents-header">
               <h4>Residentes</h4>
-              <button onClick={() => setShowForm(true)}>+ Agregar</button>
+              <button onClick={() => setShowForm(true)}>+ Adicionar</button>
             </div>
 
             {residentsLoading ? (
@@ -335,7 +335,7 @@ function DepartmentModal({
               <div className="form-actions">
                 <button type="button" onClick={() => setShowForm(false)}>Cancelar</button>
                 <button type="submit" disabled={submitting}>
-                  {submitting ? 'Guardando...' : 'Agregar'}
+                  {submitting ? 'Guardando...' : 'Adicionar'}
                 </button>
               </div>
             </form>

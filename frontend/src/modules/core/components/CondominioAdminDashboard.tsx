@@ -92,7 +92,7 @@ export function CondominioAdminDashboard() {
     <div className="dashboard">
       <div className="header">
         <h2>Usuarios - {condominium.name}</h2>
-        <button onClick={() => setShowAddForm(true)}><span className="material-symbols-outlined">person_add</span> Agregar Usuario</button>
+        <button onClick={() => setShowAddForm(true)}><span className="material-symbols-outlined">person_add</span> Adicionar</button>
       </div>
 
       <div className="filter-bar">

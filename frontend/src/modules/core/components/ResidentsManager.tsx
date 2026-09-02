@@ -53,7 +53,7 @@ export function ResidentsManager({ departmentId }: { departmentId?: string }) {
     <div className="residents-manager">
       <div className="header">
         <h2>Residentes</h2>
-        <button onClick={() => { resetForm(); setShowForm(true); }}>Agregar Residente</button>
+        <button onClick={() => { resetForm(); setShowForm(true); }}>Adicionar</button>
       </div>
 
       {showForm && (
@@ -63,7 +63,7 @@ export function ResidentsManager({ departmentId }: { departmentId?: string }) {
           <div className="form-group"><label>Documento</label><select value={formData.document_type} onChange={e => setFormData({ ...formData, document_type: e.target.value as Resident['document_type'] })}><option value="DNI">DNI</option><option value="CE">CE</option><option value="PASAPORTE">Pasaporte</option></select></div>
           <div className="form-group"><label>Número</label><input type="text" value={formData.document_number} onChange={e => setFormData({ ...formData, document_number: e.target.value })} required /></div>
           <div className="form-group"><label>Relación</label><select value={formData.relationship_type} onChange={e => setFormData({ ...formData, relationship_type: e.target.value as Resident['relationship_type'] })}><option value="PROPIETARIO">Propietario</option><option value="FAMILIAR">Familiar</option><option value="INQUILINO">Inquilino</option></select></div>
-          <div className="form-actions"><button type="button" onClick={() => setShowForm(false)}>Cancelar</button><button type="submit" disabled={submitting}>{submitting ? 'Guardando...' : 'Agregar'}</button></div>
+          <div className="form-actions"><button type="button" onClick={() => setShowForm(false)}>Cancelar</button><button type="submit" disabled={submitting}>{submitting ? 'Guardando...' : 'Adicionar'}</button></div>
         </form>
       )}
 
