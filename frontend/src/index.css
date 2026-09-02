@@ -181,8 +181,8 @@ header h1 {
 }
 
 .action-card {
-  background: #1a1a1a;
-  border: 1px solid #333;
+  background: #fff;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
   padding: 1.5rem;
   text-decoration: none;
@@ -201,11 +201,11 @@ header h1 {
 
 .action-card p {
   margin: 0;
-  color: #888;
+  color: #76777d;
 }
 
 .wizard-container {
-  background: #1a1a1a;
+  background: #fff;
   border-radius: 8px;
   
 }
@@ -263,7 +263,7 @@ header h1 {
 }
 
 .wizard-summary {
-  background: #242424;
+  background: #f8f9ff;
   padding: 1rem;
   border-radius: 4px;
   margin-top: 1rem;
@@ -312,7 +312,7 @@ button:disabled {
 }
 
 .residents-manager {
-  background: #1a1a1a;
+  background: #fff;
   border-radius: 8px;
   
 }
@@ -329,7 +329,7 @@ button:disabled {
 }
 
 .form-modal {
-  background: #242424;
+  background: #f8f9ff;
   padding: 1.5rem;
   border-radius: 8px;
   margin-bottom: 1.5rem;
@@ -368,12 +368,12 @@ th, td {
 }
 
 th {
-  background: #242424;
+  background: #f8f9ff;
   color: #ccc;
 }
 
 tr:hover {
-  background: #242424;
+  background: #f8f9ff;
 }
 
 .error {
@@ -412,7 +412,7 @@ tr:hover {
 }
 
 .tower-structure {
-  background: #1a1a1a;
+  background: #fff;
   border-radius: 8px;
   
 }
@@ -429,13 +429,13 @@ tr:hover {
 }
 
 .tower-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: 1rem;
 }
 
 .tower-card {
-  background: #242424;
+  background: #f8f9ff;
   border: 1px solid #333;
   border-radius: 8px;
   overflow: hidden;
@@ -451,7 +451,7 @@ tr:hover {
 }
 
 .tower-header:hover {
-  background: #2a2a2a;
+  background: #f8f9ff;
 }
 
 .tower-icon {
@@ -465,18 +465,18 @@ tr:hover {
 
 .tower-info h3 {
   margin: 0;
-  color: #fff;
+  color: #0b1c30;
 }
 
 .tower-code {
-  color: #888;
+  color: #76777d;
   font-size: 0.85rem;
 }
 
 .tower-stats {
   display: flex;
   gap: 1rem;
-  color: #888;
+  color: #76777d;
   font-size: 0.9rem;
 }
 
@@ -498,7 +498,7 @@ tr:hover {
 }
 
 .floor-header:hover {
-  background: #2a2a2a;
+  background: #f8f9ff;
 }
 
 .floor-icon {
@@ -513,7 +513,7 @@ tr:hover {
 }
 
 .floor-count {
-  color: #888;
+  color: #76777d;
   font-size: 0.85rem;
 }
 
@@ -525,8 +525,8 @@ tr:hover {
 }
 
 .department-card {
-  background: #1a1a1a;
-  border: 1px solid #333;
+  background: #fff;
+  border: 1px solid #e5e7eb;
   border-radius: 6px;
   padding: 0.75rem;
   display: flex;
@@ -535,7 +535,7 @@ tr:hover {
 }
 
 .department-number {
-  color: #fff;
+  color: #0b1c30;
   font-weight: 500;
 }
 
@@ -563,13 +563,13 @@ tr:hover {
 
 .empty-state {
   text-align: center;
-  color: #888;
+  color: #76777d;
   padding: 3rem;
 }
 
 .loading-message {
   text-align: center;
-  color: #888;
+  color: #76777d;
   padding: 3rem;
 }
 
@@ -593,22 +593,25 @@ tr:hover {
 }
 
 .setup-wizard {
-  max-width: 720px;
-  
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .condo-registration {
-  background: #1a1a1a;
+  background: #fff;
   border-radius: 8px;
-  
+  border: 1px solid #e5e7eb;
+  padding: 1.5rem;
 }
 
 .condo-registration h2 {
   margin: 0 0 0.25rem 0;
+  color: #0b1c30;
 }
 
 .form-hint {
-  color: #888;
+  color: #76777d;
   margin: 0 0 1.5rem 0;
   font-size: 0.9rem;
 }
@@ -620,13 +623,13 @@ tr:hover {
 }
 
 .condo-form small {
-  color: #888;
+  color: #76777d;
   display: block;
   margin-top: 0.35rem;
 }
 
 .condo-form code {
-  background: #242424;
+  background: #f8f9ff;
   padding: 0.1rem 0.35rem;
   border-radius: 4px;
 }
@@ -656,7 +659,7 @@ tr:hover {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  color: #888;
+  color: #76777d;
 }
 
 .image-placeholder .material-symbols-outlined {
@@ -810,7 +813,9 @@ tr:hover {
   margin-left: 64px;
 }
 
-.structure-manager { padding: 1rem 0; }
+.structure-manager { padding: 1rem 0; width: 100%; max-width: 100%; }
+.structure-manager .tower-list { width: 100%; max-width: 100%; }
+.structure-manager .tower-card { width: 100%; max-width: 100%; }
 .structure-manager .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
 .structure-manager .header h2 { margin: 0; }
 
@@ -837,3 +842,100 @@ tr:hover {
 
 button .material-symbols-outlined { font-size: 16px; vertical-align: middle; }
 .btn-danger .material-symbols-outlined, .btn-edit .material-symbols-outlined { font-size: 16px; }
+
+/* Dark mode overrides */
+html.dark body { background-color: #1a1a1a; color: #e5e7eb; }
+html.dark .app-layout { background: #121212; }
+html.dark .sidebar { background: #1e1e1e; border-right-color: #333; }
+html.dark .sidebar-logo-text, html.dark .sidebar-link, html.dark .sidebar-condominium { color: #e5e7eb; }
+html.dark .sidebar-link:hover, html.dark .sidebar-link.active { background: #2a2a2a; color: #90caf9; }
+html.dark .sidebar-user { color: #aaa; }
+html.dark .dashboard h2, html.dark .dashboard h1, html.dark .header h2 { color: #e5e7eb; }
+html.dark .action-card { background: #1e1e1e; border-color: #333; }
+html.dark .action-card h3 { color: #90caf9; }
+html.dark .action-card p { color: #aaa; }
+html.dark .tower-card, html.dark .department-card, html.dark .wizard-container,
+html.dark .tower-structure, html.dark .residents-manager, html.dark .condo-registration { background: #1e1e1e; border-color: #333; }
+html.dark .tower-card h3, html.dark .department-number, html.dark .tower-info h3, html.dark .floor-label { color: #e5e7eb; }
+html.dark .tower-code, html.dark .floor-count, html.dark .tower-stats, html.dark .dept-residents { color: #aaa; }
+html.dark .tower-header:hover, html.dark .floor-header:hover { background: #2a2a2a; }
+html.dark .form-modal, html.dark .modal-content { background: #1e1e1e; }
+html.dark .modal-content h3, html.dark .modal-content h4, html.dark .residents-table th, html.dark .residents-table td { color: #e5e7eb; }
+html.dark .form-group label { color: #ccc; }
+html.dark .form-group input, html.dark .form-group select, html.dark .form-group textarea,
+html.dark .search-bar input { background: #2a2a2a; color: #e5e7eb; border-color: #444; }
+html.dark th { background: #2a2a2a; color: #ccc; }
+html.dark td { border-bottom-color: #333; color: #e5e7eb; }
+html.dark tr:hover { background: #2a2a2a; }
+html.dark .empty-state, html.dark .loading-message { color: #aaa; }
+html.dark .profile-card, html.dark .password-card, html.dark .theme-card { background: #1e1e1e; border-color: #333; }
+html.dark .profile-card h3, html.dark .password-card h3, html.dark .theme-card h3 { color: #e5e7eb; }
+
+.profile-page { padding: 1rem 0; }
+
+.profile-card {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.avatar-section { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
+
+.avatar-circle {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: #f0f4ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 2px solid #c6c6cd;
+}
+
+.avatar-circle img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-circle .material-symbols-outlined { font-size: 48px; color: #76777d; }
+
+.avatar-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  color: #006c49;
+  font-size: 0.85rem;
+  background: #e8f5ec;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+}
+
+.profile-info h3 { margin: 0 0 0.25rem; color: #0b1c30; }
+.profile-info p { margin: 0; color: #76777d; }
+
+.theme-card, .password-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.theme-card h3, .password-card h3 { margin: 0 0 0.75rem; color: #0b1c30; }
+.theme-card p { color: #76777d; }
+
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #006c49;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
