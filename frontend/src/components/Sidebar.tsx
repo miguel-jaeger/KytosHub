@@ -14,8 +14,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { path: '/', icon: 'dashboard', label: 'Inicio' },
   { path: '/admin/condominiums', icon: 'apartment', label: 'Condominios', requiresAdmin: true },
-  { path: '/setup', icon: 'settings', label: 'Configurar', requiresCondo: true },
-  { path: '/admin/users', icon: 'group', label: 'Usuarios', requiresCondo: true },
+  { path: '/setup', icon: 'account_tree', label: 'Estructura', requiresCondo: true },
   { path: '/profile', icon: 'account_circle', label: 'Mi Perfil' },
 ];
 
@@ -26,6 +25,7 @@ export function Sidebar() {
   const { condominium } = useCondominium();
 
   const isSuperAdmin = user?.email === 'miguel.jaeger@gmail.com';
+  const displayRole = isSuperAdmin ? 'Super Admin' : (user as { role?: string } | null)?.role || 'Residente';
 
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
@@ -62,8 +62,13 @@ export function Sidebar() {
       </nav>
 
       <div className="sidebar-footer">
-        {!collapsed && user && (
-          <span className="sidebar-user">{user.email}</span>
+        {user && (
+          <div className="sidebar-user">
+            <div className="sidebar-user-info">
+              <span className="sidebar-user-name">{user.name || user.email}</span>
+              <span className="sidebar-user-role">{displayRole}</span>
+            </div>
+          </div>
         )}
         <button className="sidebar-logout" onClick={signOut} title="Cerrar sesión">
           <span className="material-symbols-outlined">logout</span>

@@ -43,29 +43,24 @@ function AppShell() {
 }
 
 function Dashboard() {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.email === 'miguel.jaeger@gmail.com';
+
   return (
     <div className="dashboard">
       <h2>Panel de Control</h2>
       <div className="quick-actions">
-        <Link to="/setup" className="action-card">
-          <span className="material-symbols-outlined">account_tree</span>
-          <h3>Estructura y Condominio</h3>
-          <p>Torres, pisos y departamentos del condominio</p>
-        </Link>
-        <Link to="/admin/condominiums" className="action-card">
-          <span className="material-symbols-outlined">apartment</span>
-          <h3>Administrar Condominios</h3>
-          <p>Ver, registrar y gestionar condominios</p>
-        </Link>
+        {isSuperAdmin && (
+          <Link to="/admin/condominiums" className="action-card">
+            <span className="material-symbols-outlined">apartment</span>
+            <h3>Administrar Condominios</h3>
+            <p>Ver, registrar y gestionar condominios</p>
+          </Link>
+        )}
         <Link to="/admin/users" className="action-card">
           <span className="material-symbols-outlined">group</span>
           <h3>Gestionar Usuarios</h3>
           <p>Administrar roles y accesos del condominio</p>
-        </Link>
-        <Link to="/profile" className="action-card">
-          <span className="material-symbols-outlined">account_circle</span>
-          <h3>Mi Perfil</h3>
-          <p>Cambiar contraseña, foto y tema</p>
         </Link>
       </div>
     </div>
