@@ -1246,3 +1246,7 @@ html.dark .condo-card-actions { border-top-color: #333; }
 
 .modal-close:hover { background: #f1f5f9; color: #0b1c30; border-radius: 6px; }
 
+
+.tower-list { padding: 0 10px; }
+.tower-card { margin: 0 2px; }
+
