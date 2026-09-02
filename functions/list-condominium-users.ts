@@ -42,7 +42,7 @@ export default async function(req: Request): Promise<Response> {
 
         let query = client.database
           .from('tenant_users')
-          .select('id, user_id, role, status, created_at, users_global(email, is_superadmin)')
+          .select('id, user_id, role, status, created_at')
           .eq('tenant_id', tenantId);
 
         if (role) {
@@ -53,8 +53,23 @@ export default async function(req: Request): Promise<Response> {
 
         if (error) throw error;
 
+        // Resolve emails from auth.users
+        const enrichedUsers = [];
+        for (const u of users || []) {
+          let email = '';
+          try {
+            const { data: authUser } = await client.database
+              .from('auth.users' as never)
+              .select('email')
+              .eq('id', u.user_id)
+              .single();
+            email = authUser?.email || '';
+          } catch {}
+          enrichedUsers.push({ ...u, email });
+        }
+
         return new Response(
-          JSON.stringify({ success: true, data: users, error: null }),
+          JSON.stringify({ success: true, data: enrichedUsers, error: null }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }

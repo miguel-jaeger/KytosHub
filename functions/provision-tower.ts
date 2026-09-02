@@ -2,6 +2,7 @@ import { createAdminClient } from 'npm:@insforge/sdk';
 
 interface ProvisionTowerRequest {
   schema_name?: string;
+  tenant_id?: string;
   tower_name: string;
   tower_code: string;
   floors_count: number;
@@ -143,6 +144,17 @@ export default async function(req: Request): Promise<Response> {
 
     if (deptsError) {
       throw deptsError;
+    }
+
+    // Update cached counts in tenants
+    if (body.tenant_id) {
+      const { count: floors } = await db.from('floors').select('*', { count: 'exact', head: true });
+      const { count: depts } = await db.from('departments').select('*', { count: 'exact', head: true });
+      await client.database.from('tenants').update({
+        towers_count: (await client.database.from('tenants').select('towers_count').eq('id', body.tenant_id).single()).data?.towers_count + 1,
+        floors_count: floors || 0,
+        departments_count: depts || 0
+      }).eq('id', body.tenant_id);
     }
 
     const response: ProvisionTowerResponse = {

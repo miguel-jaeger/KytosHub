@@ -11,38 +11,30 @@ export function useTowerStructure() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchStructure = useCallback(async () => {
-    if (!schemaName) {
-      setError('No hay un condominio activo');
-      setLoading(false);
-      return;
-    }
+    if (!schemaName) { setTowers([]); setLoading(false); return; }
     try {
       setLoading(true);
       setError(null);
-      const { data, error: fnError } = await invokeFunction<ApiResponse<TowerNode[]>>(`tower-structure?schema_name=${encodeURIComponent(schemaName)}`);
-
+      const { data, error: fnError } = await invokeFunction<ApiResponse<TowerNode[]>>('tower-structure', {
+        method: 'POST',
+        body: { action: 'list', schema_name: schemaName }
+      });
       if (fnError) throw fnError;
-
       if (data?.success && data.data) {
         setTowers(data.data);
       } else {
+        setTowers([]);
         setError(data?.error?.message || 'Error al cargar la estructura');
       }
     } catch (err) {
+      setTowers([]);
       setError(err instanceof Error ? err.message : 'Error de conexión');
     } finally {
       setLoading(false);
     }
   }, [schemaName]);
 
-  useEffect(() => {
-    fetchStructure();
-  }, [fetchStructure]);
+  useEffect(() => { fetchStructure(); }, [fetchStructure]);
 
-  return {
-    towers,
-    loading,
-    error,
-    refresh: fetchStructure
-  };
+  return { towers, loading, error, refresh: fetchStructure };
 }

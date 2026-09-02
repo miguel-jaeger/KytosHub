@@ -97,7 +97,7 @@ export function SetupWizard() {
   return (
     <div className="setup-wizard">
       <div className="wizard-steps">
-        <span className="done">1. Datos del condominio</span>
+<span className="done">1. Datos del condominio</span>
         <span className="active">2. Estructura</span>
       </div>
       <StructureManager section={section as 'towers' | 'floors' | 'departments' | 'residents'} />

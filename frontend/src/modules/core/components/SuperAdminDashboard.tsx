@@ -96,7 +96,17 @@ export function SuperAdminDashboard() {
         <div className="condominiums-grid">
           {condominiums.map(c => (
             <div key={c.id} className="condominium-card">
-              {c.image_url && !(editingId === c.id) && <img src={c.image_url} alt={c.name} className="condo-img" />}
+              {editingId !== c.id && (
+                <div className="condo-thumb">
+                  {c.image_url ? (
+                    <img src={c.image_url} alt={c.name} />
+                  ) : (
+                    <div className="condo-thumb-placeholder">
+                      <span className="material-symbols-outlined">apartment</span>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="condo-info">
                 {editingId === c.id ? (
                   <div className="condo-edit-form">
