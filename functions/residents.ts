@@ -32,7 +32,20 @@ export default async function(req: Request): Promise<Response> {
         if (body.department_id) q = q.eq('department_id', body.department_id);
         const { data, error } = await q.order('created_at', { ascending: false });
         if (error) throw error;
-        return ok(corsHeaders, data || []);
+        const residents = data || [];
+        if (residents.length === 0) return ok(corsHeaders, []);
+        const deptIds = [...new Set(residents.map((r: { department_id: string }) => r.department_id))];
+        const { data: depts } = await db.from('departments').select('id, department_number, tower_id').in('id', deptIds);
+        const towerIds = [...new Set((depts || []).map((d: { tower_id: string }) => d.tower_id))];
+        const { data: towers } = towerIds.length ? await db.from('towers').select('id, name, code').in('id', towerIds) : { data: [] } as { data: { id: string; name: string; code: string }[] };
+        const deptMap = new Map((depts || []).map((d: { id: string; department_number: string; tower_id: string }) => [d.id, d]));
+        const towerMap = new Map((towers || []).map((t: { id: string; name: string; code: string }) => [t.id, t]));
+        const enriched = residents.map((r: Record<string, unknown>) => {
+          const dept = deptMap.get(r.department_id as string) as { department_number: string; tower_id: string } | undefined;
+          const tower = dept ? towerMap.get(dept.tower_id) as { name: string; code: string } | undefined : undefined;
+          return { ...r, departments: dept ? { department_number: dept.department_number, towers: tower ? { name: tower.name, code: tower.code } : undefined } : undefined };
+        });
+        return ok(corsHeaders, enriched);
       }
 
       case 'create': {

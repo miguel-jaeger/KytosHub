@@ -1,7 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCondominiums } from '../hooks/useCondominiums';
 import { useCondominium } from '../../../contexts/CondominiumContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import { invokeFunction } from '../../../lib/insforge';
 
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '';
@@ -9,7 +11,23 @@ const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '';
 export function SuperAdminDashboard() {
   const { condominiums, loading, error, search, setSearch, updateCondominium, deleteCondominium } = useCondominiums();
   const { setCondominium } = useCondominium();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [allowedIds, setAllowedIds] = useState<string[] | null>(null);
+  const isSuperAdmin = user?.email === 'miguel.jaeger@gmail.com';
+
+  useEffect(() => {
+    if (!user || isSuperAdmin) { setAllowedIds(null); return; }
+    invokeFunction<{ success: boolean; data: { tenant_id: string }[] | null }>('list-condominium-users', {
+      method: 'POST',
+      body: { action: 'list-by-user', user_id: user.id }
+    }).then(({ data }) => {
+      if (data?.success && data.data) setAllowedIds(data.data.map(d => d.tenant_id));
+      else setAllowedIds([]);
+    }).catch(() => setAllowedIds([]));
+  }, [user, isSuperAdmin]);
+
+  const visibleCondominiums = allowedIds === null ? condominiums : condominiums.filter(c => allowedIds.includes(c.id));
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState({ name: '', address: '', admin_phone: '' });
@@ -93,18 +111,18 @@ export function SuperAdminDashboard() {
         </div>
         <div className="condo-count">
           <span className="material-symbols-outlined">apartment</span>
-          {condominiums.length} condominio{condominiums.length !== 1 ? 's' : ''} registrado{condominiums.length !== 1 ? 's' : ''}
+          {visibleCondominiums.length} condominio{visibleCondominiums.length !== 1 ? 's' : ''} registrado{visibleCondominiums.length !== 1 ? 's' : ''}
         </div>
       </div>
 
-      {condominiums.length === 0 ? (
+      {visibleCondominiums.length === 0 ? (
         <div className="empty-state">
           <p>{search ? 'No se encontraron condominios.' : 'No hay condominios registrados.'}</p>
           {!search && <p>Use el botón "Adicionar" para registrar uno.</p>}
         </div>
       ) : (
         <div className="condominiums-grid">
-          {condominiums.map(c => (
+          {visibleCondominiums.map(c => (
             <div key={c.id} className="condominium-card">
               {editingId !== c.id && (
                 <div className="condo-thumb">
