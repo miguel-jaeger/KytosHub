@@ -34,6 +34,7 @@ export function SuperAdminDashboard() {
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
 
   const startEdit = (c: { id: string; name: string; address: string | null; admin_phone: string | null }) => {
     setEditingId(c.id);
@@ -126,8 +127,8 @@ export function SuperAdminDashboard() {
             <div key={c.id} className="condominium-card">
               {editingId !== c.id && (
                 <div className="condo-thumb">
-                  {c.image_url ? (
-                    <img src={c.image_url} alt={c.name} />
+                  {c.image_url && !failedImages[c.id] ? (
+                    <img src={c.image_url} alt={c.name} onError={() => setFailedImages(prev => ({ ...prev, [c.id]: true }))} />
                   ) : (
                     <div className="condo-thumb-placeholder">
                       <span className="material-symbols-outlined">apartment</span>
@@ -158,9 +159,9 @@ export function SuperAdminDashboard() {
                             <div className="image-preview">
                               <img src={URL.createObjectURL(editImageFile)} alt="Nueva imagen" />
                             </div>
-                          ) : c.image_url ? (
+                          ) : c.image_url && !failedImages[c.id] ? (
                             <div className="image-preview">
-                              <img src={c.image_url} alt={c.name} />
+                              <img src={c.image_url} alt={c.name} onError={() => setFailedImages(prev => ({ ...prev, [c.id]: true }))} />
                             </div>
                           ) : (
                             <div className="image-placeholder">

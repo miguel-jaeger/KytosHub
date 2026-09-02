@@ -19,6 +19,7 @@ const navItems: NavItem[] = [
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const [condoImgFailed, setCondoImgFailed] = useState(false);
   const location = useLocation();
   const { user, signOut } = useAuth();
   const { condominium } = useCondominium();
@@ -37,7 +38,7 @@ export function Sidebar() {
 
       {!collapsed && condominium && (
         <div className="sidebar-condominium">
-          {condominium.image_url && <img src={condominium.image_url} alt={condominium.name} />}
+          {condominium.image_url && !condoImgFailed && <img src={condominium.image_url} alt={condominium.name} onError={() => setCondoImgFailed(true)} />}
           <span>{condominium.name}</span>
         </div>
       )}

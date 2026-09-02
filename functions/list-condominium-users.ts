@@ -55,7 +55,7 @@ export default async function(req: Request): Promise<Response> {
           .select('id, user_id, role, status, created_at')
           .eq('tenant_id', tenantId);
 
-        if (role) {
+        if (role && role !== 'RESIDENT') {
           query = query.eq('role', role);
         }
 
@@ -66,11 +66,45 @@ export default async function(req: Request): Promise<Response> {
         const enrichedUsers = [];
         for (const u of users || []) {
           let email = '';
+          let name = '';
           try {
-            const { data: ug } = await client.database.from('users_global').select('email').eq('id', u.user_id).single();
+            const { data: ug } = await client.database.from('users_global').select('email, name').eq('id', u.user_id).single();
             email = (ug as { email?: string })?.email || '';
+            name = (ug as { name?: string })?.name || '';
           } catch {}
-          enrichedUsers.push({ ...u, email });
+          enrichedUsers.push({ ...u, email, name });
+        }
+
+        // Include residents from the tenant schema so the users view is populated
+        if (!role || role === 'RESIDENT') {
+          let residents: Array<Record<string, unknown>> = [];
+          try {
+            const { data: tenantRow } = await client.database.from('tenants').select('schema_name').eq('id', tenantId).single();
+            const schemaName = (tenantRow as { schema_name?: string } | null)?.schema_name;
+            if (schemaName) {
+              const db = client.database.schema(schemaName);
+              const rq = db.from('residents').select('id, full_name, email, user_id, relationship_type, created_at').not('email', 'is', null);
+              const { data: resData, error: resError } = await rq.order('created_at');
+              if (!resError) residents = (resData || []) as Array<Record<string, unknown>>;
+            }
+          } catch {}
+
+          for (const r of residents) {
+            const rEmail = String((r as { email?: string })?.email || '').toLowerCase();
+            if (!rEmail) continue;
+            const exists = enrichedUsers.some((u: { email?: string }) => String(u.email || '').toLowerCase() === rEmail);
+            if (!exists) {
+              enrichedUsers.push({
+                id: r.id,
+                user_id: (r as { user_id?: string })?.user_id || null,
+                role: 'RESIDENT',
+                status: 'ACTIVE',
+                created_at: r.created_at,
+                email: (r as { email?: string })?.email || '',
+                name: (r as { full_name?: string })?.full_name || ''
+              });
+            }
+          }
         }
 
         return new Response(

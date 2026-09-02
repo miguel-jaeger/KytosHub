@@ -10,6 +10,7 @@ interface TenantUser {
   role: string;
   status: string;
   created_at: string;
+  name?: string;
   users_global?: { email: string; is_superadmin: boolean } | null;
 }
 
@@ -175,6 +176,7 @@ export function CondominioAdminDashboard() {
         <table>
           <thead>
             <tr>
+              <th>Nombre</th>
               <th>Email</th>
               <th>Rol</th>
               <th>Estado</th>
@@ -183,11 +185,12 @@ export function CondominioAdminDashboard() {
           </thead>
           <tbody>
             {users.map(u => (
-              <tr key={u.id}>
+              <tr key={`${u.id}-${u.user_id}`}>
+                <td>{u.name || '-'}</td>
                 <td>{(u as unknown as { email?: string }).email || u.users_global?.email || '-'}</td>
                 <td>{ROLE_LABELS[u.role] || u.role}</td>
                 <td><span className={`status-badge ${u.status === 'ACTIVE' ? 'status-occupied' : 'status-vacant'}`}>{u.status}</span></td>
-                <td>{new Date(u.created_at).toLocaleDateString('es-PE')}</td>
+                <td>{u.created_at ? new Date(u.created_at).toLocaleDateString('es-PE') : '-'}</td>
               </tr>
             ))}
           </tbody>
