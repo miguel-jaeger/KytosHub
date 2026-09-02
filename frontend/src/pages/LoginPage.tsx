@@ -62,49 +62,45 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
 
   if (verificationPending) {
     return (
-      <div className="min-h-screen bg-surface flex items-center justify-center p-5">
-        <div className="w-full max-w-[400px] bg-surface-container-lowest rounded-xl shadow-lg p-6 flex flex-col gap-4 text-center">
-          <span className="material-symbols-outlined fill text-[40px] text-secondary mx-auto">mark_email_read</span>
-          <h1 className="text-2xl font-bold">Verifica tu correo</h1>
-          <p className="text-on-surface-variant">
-            Hemos enviado un código de 6 dígitos a <strong>{email}</strong>. Revisa tu bandeja de entrada para completar el registro.
+      <div className="min-h-screen bg-surface flex flex-col justify-center items-center p-container-margin md:p-xl">
+        <main className="w-full max-w-[400px] bg-surface-container-lowest rounded-xl shadow-[0px_4px_20px_rgba(15,23,42,0.05)] p-lg flex flex-col gap-lg text-center">
+          <span className="material-symbols-outlined fill text-secondary text-[40px] mx-auto">mark_email_read</span>
+          <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Verifica tu correo</h1>
+          <p className="font-body-lg text-body-lg text-on-surface-variant">
+            Enviamos un código de 6 dígitos a <strong>{email}</strong>. Revisa tu bandeja de entrada para completar el registro.
           </p>
           <button
             onClick={() => setVerificationPending(false)}
-            className="h-12 w-full rounded-lg font-semibold bg-primary-container text-on-primary hover:opacity-90"
+            className="btn-shadow h-12 w-full bg-primary-container text-on-primary rounded-lg font-headline-md text-headline-md flex items-center justify-center hover:opacity-90 transition-opacity"
           >
             Volver al inicio de sesión
           </button>
-        </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col justify-center items-center p-5 md:p-8">
-      <main className="w-full max-w-[400px] bg-surface-container-lowest rounded-xl shadow-[0px_4px_20px_rgba(15,23,42,0.05)] p-6 flex flex-col gap-8">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <div className="w-16 h-16 rounded-full bg-primary-container flex items-center justify-center mb-2">
-            <span className="material-symbols-outlined fill text-on-primary text-[32px]" data-icon="apartment">
-              apartment
-            </span>
+    <div className="min-h-screen bg-surface flex flex-col justify-center items-center p-container-margin md:p-xl">
+      <main className="w-full max-w-[400px] bg-surface-container-lowest rounded-xl shadow-[0px_4px_20px_rgba(15,23,42,0.05)] p-lg flex flex-col gap-xl">
+        <div className="flex flex-col items-center gap-sm text-center">
+          <div className="w-16 h-16 rounded-full bg-primary-container flex items-center justify-center mb-sm">
+            <span className="material-symbols-outlined fill text-on-primary text-[32px]">apartment</span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold text-on-surface">Bienvenido a KytosHub</h1>
-          <p className="text-base text-on-surface-variant">Gestiona tu condominio con facilidad</p>
+          <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Bienvenido a KytosHub</h1>
+          <p className="font-body-lg text-body-lg text-on-surface-variant">Gestiona tu condominio con facilidad</p>
         </div>
 
-        <form className="flex flex-col gap-6 w-full" onSubmit={handleSubmit}>
+        <form className="flex flex-col gap-lg w-full" onSubmit={handleSubmit}>
           {mode === 'register' && (
-            <div className="flex flex-col gap-2">
-              <label className="text-sm text-on-surface-variant" htmlFor="name">
+            <div className="flex flex-col gap-sm">
+              <label className="font-body-sm text-body-sm text-on-surface-variant" htmlFor="name">
                 Nombre Completo
               </label>
-              <div className="input-glass flex items-center rounded-lg px-4 h-12 w-full gap-2">
-                <span className="material-symbols-outlined text-outline" data-icon="person">
-                  person
-                </span>
+              <div className="input-glass flex items-center rounded-lg px-md h-12 w-full gap-sm">
+                <span className="material-symbols-outlined text-outline">person</span>
                 <input
-                  className="bg-transparent border-none focus:ring-0 w-full text-base text-on-surface placeholder-outline-variant outline-none"
+                  className="bg-transparent border-none focus:ring-0 w-full font-body-lg text-body-lg text-on-surface placeholder-outline-variant outline-none"
                   id="name"
                   placeholder="Juan Pérez"
                   type="text"
@@ -116,16 +112,14 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
             </div>
           )}
 
-          <div className="flex flex-col gap-2">
-            <label className="text-sm text-on-surface-variant" htmlFor="email">
+          <div className="flex flex-col gap-sm">
+            <label className="font-body-sm text-body-sm text-on-surface-variant" htmlFor="email">
               Correo Electrónico
             </label>
-            <div className="input-glass flex items-center rounded-lg px-4 h-12 w-full gap-2">
-              <span className="material-symbols-outlined text-outline" data-icon="mail">
-                mail
-              </span>
+            <div className="input-glass flex items-center rounded-lg px-md h-12 w-full gap-sm">
+              <span className="material-symbols-outlined text-outline">mail</span>
               <input
-                className="bg-transparent border-none focus:ring-0 w-full text-base text-on-surface placeholder-outline-variant outline-none"
+                className="bg-transparent border-none focus:ring-0 w-full font-body-lg text-body-lg text-on-surface placeholder-outline-variant outline-none"
                 id="email"
                 placeholder="ejemplo@correo.com"
                 type="email"
@@ -136,16 +130,14 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
             </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <label className="text-sm text-on-surface-variant" htmlFor="password">
+          <div className="flex flex-col gap-sm">
+            <label className="font-body-sm text-body-sm text-on-surface-variant" htmlFor="password">
               Contraseña
             </label>
-            <div className="input-glass flex items-center rounded-lg px-4 h-12 w-full gap-2 relative">
-              <span className="material-symbols-outlined text-outline" data-icon="lock">
-                lock
-              </span>
+            <div className="input-glass flex items-center rounded-lg px-md h-12 w-full gap-sm relative">
+              <span className="material-symbols-outlined text-outline">lock</span>
               <input
-                className="bg-transparent border-none focus:ring-0 w-full text-base text-on-surface placeholder-outline-variant outline-none pr-10"
+                className="bg-transparent border-none focus:ring-0 w-full font-body-lg text-body-lg text-on-surface placeholder-outline-variant outline-none pr-10"
                 id="password"
                 placeholder="••••••••"
                 type={showPassword ? 'text' : 'password'}
@@ -154,19 +146,17 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
                 required
               />
               <button
-                className="absolute right-4 text-outline hover:text-on-surface transition-colors"
+                className="absolute right-md text-outline hover:text-on-surface transition-colors"
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 aria-label="Mostrar contraseña"
               >
-                <span className="material-symbols-outlined" data-icon={showPassword ? 'visibility_off' : 'visibility'}>
-                  {showPassword ? 'visibility_off' : 'visibility'}
-                </span>
+                <span className="material-symbols-outlined">{showPassword ? 'visibility_off' : 'visibility'}</span>
               </button>
             </div>
             {mode === 'login' && (
-              <div className="flex justify-end mt-1">
-                <a className="text-sm text-secondary hover:underline" href="#">
+              <div className="flex justify-end mt-xs">
+                <a className="font-body-sm text-body-sm text-secondary hover:underline" href="#">
                   Olvidé mi contraseña
                 </a>
               </div>
@@ -174,45 +164,41 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
           </div>
 
           {error && (
-            <div className="bg-error-container text-error p-3 rounded-lg text-sm" role="alert">
+            <div className="bg-error-container text-on-error-container p-md rounded-lg font-body-sm text-body-sm" role="alert">
               {error}
             </div>
           )}
 
-          <div className="flex flex-col gap-4 mt-1">
+          <div className="flex flex-col gap-md mt-sm">
             <button
-              className="btn-shadow h-12 w-full bg-primary-container text-on-primary rounded-lg font-semibold flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="btn-shadow h-12 w-full bg-primary-container text-on-primary rounded-lg font-headline-md text-headline-md flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-50"
               type="submit"
               disabled={submitting || loading}
             >
-              <span className="material-symbols-outlined mr-2" data-icon={mode === 'login' ? 'login' : 'person_add'}>
-                {mode === 'login' ? 'login' : 'person_add'}
-              </span>
+              <span className="material-symbols-outlined mr-sm">{mode === 'login' ? 'login' : 'person_add'}</span>
               {submitting ? 'Procesando...' : mode === 'login' ? 'Iniciar Sesión' : 'Crear cuenta'}
             </button>
             <button
-              className="btn-shadow h-12 w-full bg-secondary text-on-secondary rounded-lg font-semibold flex items-center justify-center hover:opacity-90 transition-opacity"
+              className="btn-shadow h-12 w-full bg-secondary text-on-secondary rounded-lg font-headline-md text-headline-md flex items-center justify-center hover:opacity-90 transition-opacity"
               type="button"
               onClick={switchMode}
             >
-              <span className="material-symbols-outlined mr-2" data-icon="switch_account">
-                switch_account
-              </span>
+              <span className="material-symbols-outlined mr-sm">switch_account</span>
               {mode === 'login' ? 'Crear cuenta' : 'Ya tengo una cuenta'}
             </button>
           </div>
         </form>
 
-        <div className="flex flex-col gap-4 w-full">
-          <div className="flex items-center gap-4 w-full">
+        <div className="flex flex-col gap-md w-full">
+          <div className="flex items-center gap-md w-full">
             <div className="h-px bg-outline-variant flex-1"></div>
-            <span className="text-xs font-semibold tracking-widest text-on-surface-variant">O inicia sesión con</span>
+            <span className="font-label-caps text-label-caps text-on-surface-variant">O inicia sesión con</span>
             <div className="h-px bg-outline-variant flex-1"></div>
           </div>
 
-          <div className="flex gap-4 w-full">
+          <div className="flex gap-md w-full">
             <button
-              className="btn-shadow flex-1 h-12 bg-surface-container-lowest border border-outline-variant rounded-lg flex items-center justify-center hover:bg-surface-container-low transition-colors gap-2"
+              className="btn-shadow flex-1 h-12 bg-surface-container-lowest border border-outline-variant rounded-lg flex items-center justify-center hover:bg-surface-container-low transition-colors gap-sm"
               type="button"
               onClick={handleGoogle}
               disabled={submitting}
@@ -223,7 +209,20 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
                 <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
                 <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
               </svg>
-              <span className="text-sm font-medium text-on-surface">Google</span>
+              <span className="font-numeric-data text-numeric-data text-on-surface">Google</span>
+            </button>
+            <button
+              className="btn-shadow flex-1 h-12 bg-surface-container-lowest border border-outline-variant rounded-lg flex items-center justify-center hover:bg-surface-container-low transition-colors gap-sm"
+              type="button"
+              onClick={() => setError('El inicio de sesión con Apple estará disponible próximamente.')}
+            >
+              <svg className="w-5 h-5" viewBox="0 0 384 512" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"
+                />
+              </svg>
+              <span className="font-numeric-data text-numeric-data text-on-surface">Apple</span>
             </button>
           </div>
         </div>
