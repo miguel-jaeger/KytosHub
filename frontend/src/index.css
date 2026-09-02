@@ -180,6 +180,38 @@ header h1 {
   margin-top: 1rem;
 }
 
+.welcome-card {
+  margin-top: 1rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 2.5rem 2rem;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+.welcome-card .material-symbols-outlined {
+  font-size: 44px;
+  color: #006c49;
+}
+
+.welcome-card h3 {
+  margin: 0.5rem 0 0.5rem;
+  color: #0b1c30;
+}
+
+.welcome-card p {
+  margin: 0;
+  color: #76777d;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+html.dark .welcome-card { background: #1e1e1e; border-color: #333; }
+html.dark .welcome-card h3 { color: #e5e7eb; }
+html.dark .welcome-card p { color: #aaa; }
+
 .action-card {
   background: #fff;
   border: 1px solid #e5e7eb;
