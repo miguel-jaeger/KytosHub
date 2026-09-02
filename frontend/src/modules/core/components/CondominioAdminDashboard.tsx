@@ -13,6 +13,7 @@ interface TenantUser {
   created_at: string;
   name?: string;
   email?: string;
+  tenant_name?: string;
   source?: 'tenant_user' | 'resident';
   users_global?: { email: string; is_superadmin: boolean } | null;
 }
@@ -41,6 +42,7 @@ export function CondominioAdminDashboard() {
   const [newUser, setNewUser] = useState({ email: '', name: '', role: 'RESIDENT', tenant_id: '' });
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState<number | 'all'>(10);
+  const [viewAllCondos, setViewAllCondos] = useState(isSuperAdmin);
 
   const [condoSearch, setCondoSearch] = useState(condominium?.name || '');
   const [condoDropdownOpen, setCondoDropdownOpen] = useState(false);
@@ -60,13 +62,15 @@ export function CondominioAdminDashboard() {
   const [submitting, setSubmitting] = useState(false);
 
   const fetchUsers = async () => {
-    if (!condominium) return;
     try {
       setLoading(true);
       setError(null);
+      const body = viewAllCondos
+        ? { action: 'list-all' }
+        : { action: 'list', tenant_id: condominium?.tenant_id };
       const { data, error: fnError } = await invokeFunction<{ success: boolean; data: TenantUser[] | null; error: { message: string } | null }>('list-condominium-users', {
         method: 'POST',
-        body: { action: 'list', tenant_id: condominium.tenant_id }
+        body
       });
 
       if (fnError) throw fnError;
@@ -86,7 +90,13 @@ export function CondominioAdminDashboard() {
 
   useEffect(() => {
     fetchUsers();
-  }, [condominium]);
+  }, [condominium, viewAllCondos]);
+
+  const selectAllCondos = () => {
+    setViewAllCondos(true);
+    setCondoSearch('');
+    setCondoDropdownOpen(false);
+  };
 
   const filteredUsers = users.filter(u => {
     const q = searchTerm.trim().toLowerCase();
@@ -207,12 +217,36 @@ export function CondominioAdminDashboard() {
     }
   };
 
+  const handleResetPassword = async (u: TenantUser) => {
+    if (!u.user_id) {
+      setError('Este residente no tiene cuenta de acceso vinculada.');
+      return;
+    }
+    if (!confirm(`¿Restablecer la contraseña de "${u.name || u.email}" a 12345678?`)) return;
+    try {
+      const { data, error: fnError } = await invokeFunction<{ success: boolean; data?: { default_password?: string; reset?: boolean } | null; error: { message: string } | null }>('list-condominium-users', {
+        method: 'POST',
+        body: { action: 'reset-password', user_id: u.user_id }
+      });
+
+      if (fnError) throw fnError;
+      if (!data?.success) {
+        setError(data?.error?.message || 'Error al restablecer contraseña');
+        return;
+      }
+      alert(`Contraseña restablecida. Nueva contraseña: ${data.data?.default_password || '12345678'}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error de conexión');
+    }
+  };
+
   useEffect(() => {
-    setCondoSearch(condominium?.name || '');
+    if (!viewAllCondos) setCondoSearch(condominium?.name || '');
     setCondoDropdownOpen(false);
-  }, [condominium]);
+  }, [condominium, viewAllCondos]);
 
   const selectCondo = (c: { id: string; name: string; slug: string; short_name: string | null; schema_name: string; image_url: string | null }) => {
+    setViewAllCondos(false);
     setCondominium({
       tenant_id: c.id,
       name: c.name,
@@ -258,8 +292,8 @@ export function CondominioAdminDashboard() {
   return (
     <div className="dashboard">
       <div className="header">
-        <h2>Usuarios - {condominium?.name || 'Seleccione un condominio'}</h2>
-        {condominium && <button onClick={openAddForm}><span className="material-symbols-outlined">person_add</span> Adicionar</button>}
+        <h2>Usuarios {viewAllCondos ? '- Todos los condominios' : condominium ? `- ${condominium.name}` : ''}</h2>
+        {condominium && !viewAllCondos && <button onClick={openAddForm}><span className="material-symbols-outlined">person_add</span> Adicionar</button>}
       </div>
       <div className="condo-search-panel">
         {isSuperAdmin && condominiums.length > 0 && (
@@ -268,18 +302,22 @@ export function CondominioAdminDashboard() {
             <input
               type="text"
               value={condoSearch}
-              placeholder="Buscar condominio..."
+              placeholder="Buscar condominio o ver todos..."
               onFocus={() => setCondoDropdownOpen(true)}
               onChange={(e) => { setCondoSearch(e.target.value); setCondoDropdownOpen(true); }}
               style={{ width: '100%', padding: '0.7rem 0.75rem 0.7rem 2.6rem', border: '1px solid #c6c6cd', borderRadius: '8px', background: '#f8f9ff', color: '#0b1c30' }}
             />
             {condoDropdownOpen && (
               <div className="condo-picker-dropdown">
+                <button type="button" className={`condo-picker-item ${viewAllCondos ? 'selected' : ''}`} onClick={selectAllCondos}>
+                  <span className="material-symbols-outlined">public</span>
+                  <span>Todos los condominios</span>
+                </button>
                 {filteredCondos.length === 0 ? (
                   <div className="condo-picker-empty">Sin resultados</div>
                 ) : (
                   filteredCondos.map(c => (
-                    <button key={c.id} type="button" className={`condo-picker-item ${c.id === condominium?.tenant_id ? 'selected' : ''}`} onClick={() => selectCondo(c)}>
+                    <button key={c.id} type="button" className={`condo-picker-item ${!viewAllCondos && c.id === condominium?.tenant_id ? 'selected' : ''}`} onClick={() => selectCondo(c)}>
                       <span className="material-symbols-outlined">apartment</span>
                       <span>{c.name}</span>
                     </button>
@@ -412,6 +450,7 @@ export function CondominioAdminDashboard() {
           <table>
             <thead>
               <tr>
+                {viewAllCondos && <th>Condominio</th>}
                 <th>Nombre</th>
                 <th>Email</th>
                 <th>Rol</th>
@@ -423,6 +462,7 @@ export function CondominioAdminDashboard() {
             <tbody>
               {pagedUsers.map(u => (
                 <tr key={`${u.id}-${u.user_id}`}>
+                  {viewAllCondos && <td>{u.tenant_name || '-'}</td>}
                   <td>{u.name || '-'}</td>
                   <td>{u.email || u.users_global?.email || '-'}</td>
                   <td>{ROLE_LABELS[u.role] || u.role}</td>
@@ -432,6 +472,9 @@ export function CondominioAdminDashboard() {
                     <div className="condo-card-actions" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none', justifyContent: 'flex-start' }}>
                       <button className="icon-btn" onClick={() => startEdit(u)} title="Editar usuario">
                         <span className="material-symbols-outlined">edit</span>
+                      </button>
+                      <button className="icon-btn" onClick={() => handleResetPassword(u)} title="Restablecer contraseña (12345678)">
+                        <span className="material-symbols-outlined">key</span>
                       </button>
                       <button className="icon-btn danger" onClick={() => handleDeleteUser(u)} title="Eliminar usuario">
                         <span className="material-symbols-outlined">delete</span>

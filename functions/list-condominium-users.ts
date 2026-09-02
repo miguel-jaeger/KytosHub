@@ -42,6 +42,76 @@ export default async function(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ success: true, data: data || [], error: null }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    if (action === 'list-all') {
+        const { data: tenants, error: tenantsError } = await client.database.from('tenants').select('id, name, schema_name');
+        if (tenantsError) throw tenantsError;
+
+        const allUsers: Array<Record<string, unknown>> = [];
+        for (const t of tenants || []) {
+          const tenantIdForQuery = (t as { id: string }).id;
+          const schemaNameForQuery = (t as { schema_name?: string })?.schema_name;
+
+          let query = client.database
+            .from('tenant_users')
+            .select('id, user_id, role, status, created_at')
+            .eq('tenant_id', tenantIdForQuery);
+
+          if (role && role !== 'RESIDENT') {
+            query = query.eq('role', role);
+          }
+
+          const { data: users, error } = await query.order('created_at');
+          if (error) throw error;
+
+          for (const u of users || []) {
+            let email = '';
+            let name = '';
+            try {
+              const { data: ug } = await client.database.from('users_global').select('email, name').eq('id', u.user_id).single();
+              email = (ug as { email?: string })?.email || '';
+              name = (ug as { name?: string })?.name || '';
+            } catch {}
+            allUsers.push({ ...u, tenant_id: tenantIdForQuery, tenant_name: (t as { name: string }).name, email, name, source: 'tenant_user' });
+          }
+
+          if (!role || role === 'RESIDENT') {
+            try {
+              if (schemaNameForQuery) {
+                const db = client.database.schema(schemaNameForQuery);
+                const rq = db.from('residents').select('id, full_name, email, user_id, relationship_type, created_at').not('email', 'is', null);
+                const { data: resData, error: resError } = await rq.order('created_at');
+                if (!resError) {
+                  for (const r of (resData || []) as Array<Record<string, unknown>>) {
+                    const rEmail = String((r as { email?: string })?.email || '').toLowerCase();
+                    if (!rEmail) continue;
+                    const exists = allUsers.some((u: { email?: string }) => String(u.email || '').toLowerCase() === rEmail);
+                    if (!exists) {
+                      allUsers.push({
+                        id: r.id,
+                        user_id: (r as { user_id?: string })?.user_id || null,
+                        tenant_id: tenantIdForQuery,
+                        tenant_name: (t as { name: string }).name,
+                        role: 'RESIDENT',
+                        status: 'ACTIVE',
+                        created_at: r.created_at,
+                        email: (r as { email?: string })?.email || '',
+                        name: (r as { full_name?: string })?.full_name || '',
+                        source: 'resident'
+                      });
+                    }
+                  }
+                }
+              }
+            } catch {}
+          }
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, data: allUsers, error: null }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
     if (action === 'list' || req.method === 'GET') {
         if (!tenantId) {
           return new Response(
@@ -298,6 +368,37 @@ export default async function(req: Request): Promise<Response> {
           JSON.stringify({ success: true, data: null, error: null }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
+      }
+
+      case 'reset-password': {
+        const userId = body.user_id as string;
+
+        if (!userId) {
+          return new Response(
+            JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere user_id' } }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        try {
+          const { data, error } = await client.database.rpc('admin_reset_password', {
+            p_user_id: userId,
+            p_password: '12345678'
+          });
+
+          if (error) throw error;
+
+          return new Response(
+            JSON.stringify({ success: true, data: { user_id: userId, default_password: '12345678', reset: data === true }, error: null }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } catch (rpcErr) {
+          console.error('reset-password error:', rpcErr);
+          return new Response(
+            JSON.stringify({ success: false, data: null, error: { code: 'RESET_FAILED', message: 'No se pudo restablecer la contraseña' } }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
 
       default:
