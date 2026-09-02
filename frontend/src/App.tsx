@@ -96,7 +96,7 @@ function Dashboard() {
         <div className="welcome-card">
           <span className="material-symbols-outlined">waving_hand</span>
           <h3>¡Bienvenido{user?.name ? `, ${user.name}` : ''}!</h3>
-          <p>Gracias por usar KytosHub. Pronto podrás gestionar tu condominio desde esta app.</p>
+          <p>Bienvenido a KytosHub. Pronto podrás acceder a las funcionalidades disponibles en tu condominio.</p>
         </div>
       ) : (
         <div className="quick-actions">
