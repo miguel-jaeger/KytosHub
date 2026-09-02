@@ -1,10 +1,25 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useProfile } from '../hooks/useProfile';
 import { useTheme } from '../hooks/useTheme';
+import { invokeFunction } from '../lib/insforge';
+import { useAuth } from '../contexts/AuthContext';
+
+const ROLE_LABELS: Record<string, string> = {
+  SUPER_ADMIN: 'Super Admin',
+  ADMIN: 'Administrador',
+  SECURITY_AGENT: 'Agente de Seguridad',
+  RESIDENT: 'Residente',
+  VISITOR: 'Visitante'
+};
+
+const SUPER_ADMIN_EMAIL = 'miguel.jaeger@gmail.com';
 
 export function ProfilePage() {
   const { user, loading, error, success, changePassword, uploadAvatar } = useProfile();
+  const { user: authUser } = useAuth();
   const { theme, toggleTheme } = useTheme();
+
+  const [role, setRole] = useState<string | null>(null);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -16,6 +31,25 @@ export function ProfilePage() {
     const url = (user as { avatar_url?: string } | null)?.avatar_url || null;
     if (url) setAvatarPreview(url);
   }, [user]);
+
+  useEffect(() => {
+    if (authUser?.email === SUPER_ADMIN_EMAIL) {
+      setRole('SUPER_ADMIN');
+      return;
+    }
+    if (!authUser) return;
+    invokeFunction<{ success: boolean; data: { role: string; status: string }[] | null }>('list-condominium-users', {
+      method: 'POST',
+      body: { action: 'list-by-user', user_id: authUser.id }
+    }).then(({ data }) => {
+      if (data?.success && data.data) {
+        const active = data.data.find(x => x.status === 'ACTIVE');
+        setRole(active?.role || null);
+      } else {
+        setRole(null);
+      }
+    }).catch(() => setRole(null));
+  }, [authUser]);
 
   const handlePassword = async (e: FormEvent) => {
     e.preventDefault();
@@ -67,6 +101,7 @@ export function ProfilePage() {
         <div className="profile-info">
           <h3>{user?.name || user?.email}</h3>
           <p>{user?.email}</p>
+          {role && <span className={`profile-role-badge role-${(role || '').toLowerCase()}`}>{ROLE_LABELS[role] || role}</span>}
         </div>
       </div>
 
