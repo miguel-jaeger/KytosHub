@@ -147,9 +147,15 @@ export default async function(req: Request): Promise<Response> {
     }
 
     // Update cached counts in tenants
-    await client.database.rpc('refresh_tenant_counts', { p_tenant_id: body.tenant_id }).catch(() => {
-      // Fallback: direct update if RPC not available
-    });
+    if (body.tenant_id) {
+      const { count: floors } = await db.from('floors').select('*', { count: 'exact', head: true });
+      const { count: depts } = await db.from('departments').select('*', { count: 'exact', head: true });
+      await client.database.from('tenants').update({
+        towers_count: (await client.database.from('tenants').select('towers_count').eq('id', body.tenant_id).single()).data?.towers_count + 1,
+        floors_count: floors || 0,
+        departments_count: depts || 0
+      }).eq('id', body.tenant_id);
+    }
 
     const response: ProvisionTowerResponse = {
       success: true,

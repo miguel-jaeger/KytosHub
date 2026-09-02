@@ -44,7 +44,7 @@ export function useTowers() {
 
     const { data, error: fnError } = await invokeFunction<{ success: boolean; data: ProvisionTowerResult | null; error: { code: string; message: string } | null }>('provision-tower', {
       method: 'POST',
-      body: { ...tower, schema_name: schemaName }
+      body: { ...tower, schema_name: schemaName, tenant_id: condominium?.tenant_id }
     });
 
     if (fnError) throw fnError;
