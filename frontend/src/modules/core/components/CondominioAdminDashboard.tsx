@@ -536,7 +536,7 @@ export function CondominioAdminDashboard() {
       ) : filteredUsers.length === 0 ? (
         <div className="empty-state"><p>No hay usuarios registrados en este condominio.</p></div>
       ) : (
-        <>
+        <div className="users-table-wrap">
           <table>
             <thead>
               <tr>
@@ -582,7 +582,7 @@ export function CondominioAdminDashboard() {
             onPerPageChange={(n) => setPerPage(n)}
             itemLabel="usuario"
           />
-        </>
+        </div>
       )}
     </div>
   );
