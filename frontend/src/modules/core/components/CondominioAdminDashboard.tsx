@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import { useCondominium } from '../../../contexts/CondominiumContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useCondominiums } from '../hooks/useCondominiums';
 
 interface TenantUser {
   id: string;
@@ -20,7 +22,10 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export function CondominioAdminDashboard() {
-  const { condominium } = useCondominium();
+  const { condominium, setCondominium } = useCondominium();
+  const { user } = useAuth();
+  const { condominiums } = useCondominiums();
+  const isSuperAdmin = user?.email === 'miguel.jaeger@gmail.com';
   const [users, setUsers] = useState<TenantUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +92,7 @@ export function CondominioAdminDashboard() {
     }
   };
 
-  if (!condominium) return <div className="empty-state"><p>No hay condominio seleccionado.</p></div>;
+  if (!condominium) return <div className="empty-state"><p>No hay condominio seleccionado.</p>{isSuperAdmin && <p>Seleccione un condominio desde <strong>Condominios</strong>.</p>}</div>;
 
   return (
     <div className="dashboard">
@@ -95,6 +100,17 @@ export function CondominioAdminDashboard() {
         <h2>Usuarios - {condominium.name}</h2>
         <button onClick={() => setShowAddForm(true)}><span className="material-symbols-outlined">person_add</span> Adicionar</button>
       </div>
+      {isSuperAdmin && condominiums.length > 0 && (
+        <div className="filter-bar">
+          <label>Condominio:</label>
+          <select value={condominium.tenant_id} onChange={e => {
+            const c = condominiums.find(x => x.id === e.target.value);
+            if (c) setCondominium({ tenant_id: c.id, name: c.name, slug: c.slug, short_name: c.short_name || c.slug, schema_name: c.schema_name, image_url: c.image_url });
+          }}>
+            {condominiums.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+      )}
 
       <div className="filter-bar">
         <label>Filtrar por rol:</label>
