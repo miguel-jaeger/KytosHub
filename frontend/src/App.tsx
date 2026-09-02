@@ -69,11 +69,18 @@ function Dashboard() {
   );
 }
 
+function RedirectIfAuthed() {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-lg text-on-surface-variant">Cargando...</div>;
+  if (user) return <Navigate to="/" replace />;
+  return <LoginPage />;
+}
+
 function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/login" element={<RedirectIfAuthed />} />
         <Route
           path="/*"
           element={

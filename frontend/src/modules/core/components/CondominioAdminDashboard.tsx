@@ -92,6 +92,29 @@ export function CondominioAdminDashboard() {
     fetchUsers();
   }, [condominium, viewAllCondos]);
 
+  useEffect(() => {
+    if (isSuperAdmin || !user || condominium) return;
+    invokeFunction<{ success: boolean; data: { tenant_id: string }[] | null }>('list-condominium-users', {
+      method: 'POST',
+      body: { action: 'list-by-user', user_id: user.id }
+    }).then(({ data }) => {
+      const first = data?.data?.[0]?.tenant_id;
+      if (!first) return;
+      const c = condominiums.find(x => x.id === first);
+      if (c) {
+        setCondominium({
+          tenant_id: c.id,
+          name: c.name,
+          slug: c.slug,
+          short_name: c.short_name || c.slug,
+          schema_name: c.schema_name,
+          image_url: c.image_url
+        });
+        setCondoSearch(c.name);
+      }
+    }).catch(() => {});
+  }, [isSuperAdmin, user, condominium, condominiums]);
+
   const selectAllCondos = () => {
     setViewAllCondos(true);
     setCondoSearch('');
