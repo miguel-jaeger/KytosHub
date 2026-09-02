@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useProfile } from '../hooks/useProfile';
 import { useTheme } from '../hooks/useTheme';
 
@@ -10,9 +10,12 @@ export function ProfilePage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passError, setPassError] = useState<string | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(
-    (user as { avatar_url?: string } | null)?.avatar_url || null
-  );
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    const url = (user as { avatar_url?: string } | null)?.avatar_url || null;
+    if (url) setAvatarPreview(url);
+  }, [user]);
 
   const handlePassword = async (e: FormEvent) => {
     e.preventDefault();

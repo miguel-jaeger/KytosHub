@@ -15,6 +15,7 @@ interface AuthContextValue {
   signUp: (email: string, password: string, name: string) => Promise<{ error: string | null; requireVerification: boolean }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  updateAvatar: (url: string) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -96,8 +97,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const updateAvatar = useCallback((url: string) => {
+    setUser(prev => prev ? { ...prev, avatar_url: url } : prev);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithPassword, signUp, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signInWithPassword, signUp, signInWithGoogle, signOut, updateAvatar }}>
       {children}
     </AuthContext.Provider>
   );

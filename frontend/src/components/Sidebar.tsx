@@ -15,7 +15,6 @@ const navItems: NavItem[] = [
   { path: '/', icon: 'dashboard', label: 'Inicio' },
   { path: '/admin/condominiums', icon: 'apartment', label: 'Condominios', requiresAdmin: true },
   { path: '/setup', icon: 'account_tree', label: 'Estructura', requiresCondo: true },
-  { path: '/profile', icon: 'account_circle', label: 'Mi Perfil' },
 ];
 
 export function Sidebar() {
@@ -63,12 +62,19 @@ export function Sidebar() {
 
       <div className="sidebar-footer">
         {user && (
-          <div className="sidebar-user">
-            <div className="sidebar-user-info">
-              <span className="sidebar-user-name">{user.name || user.email}</span>
-              <span className="sidebar-user-role">{displayRole}</span>
-            </div>
-          </div>
+          <Link to="/profile" className="sidebar-user" title="Ir a Mi Perfil">
+            {user.avatar_url ? (
+              <img src={user.avatar_url} alt="avatar" className="sidebar-avatar" />
+            ) : (
+              <span className="material-symbols-outlined sidebar-avatar-icon">account_circle</span>
+            )}
+            {!collapsed && (
+              <div className="sidebar-user-info">
+                <span className="sidebar-user-name">{user.name || user.email}</span>
+                <span className="sidebar-user-role">{displayRole}</span>
+              </div>
+            )}
+          </Link>
         )}
         <button className="sidebar-logout" onClick={signOut} title="Cerrar sesión">
           <span className="material-symbols-outlined">logout</span>

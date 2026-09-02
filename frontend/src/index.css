@@ -430,8 +430,10 @@ tr:hover {
 
 .tower-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1rem;
+  width: 100%;
+  max-width: 100%;
 }
 
 .tower-card {
@@ -1208,3 +1210,49 @@ html.dark .condo-card-actions { border-top-color: #333; }
 .password-card, .theme-card, .profile-card, .resident-form, .condo-edit-form {
   padding: 0.75rem;
 }
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 28, 48, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.15);
+  width: 100%;
+  max-width: 640px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; }
+.modal-header h3 { margin: 0; color: #0b1c30; }
+.modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #76777d; }
+.residents-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.residents-table { width: 100%; border-collapse: collapse; }
+.residents-table th, .residents-table td { padding: 0.6rem; border-bottom: 1px solid #e5e7eb; text-align: left; font-size: 0.9rem; }
+.residents-table th { background: #f8f9ff; color: #45464d; }
+.empty-text { color: #76777d; font-style: italic; }
+.resident-form { background: #f8f9ff; padding: 1rem; border-radius: 8px; border: 1px solid #e5e7eb; }
+.resident-form .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+.modal-close:hover { background: #f1f5f9; color: #0b1c30; border-radius: 6px; }
+
+
+.tower-list { padding: 0 10px; }
+.tower-card { margin: 0 2px; }
+
+
+.sidebar-user { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; padding: 0.4rem; border-radius: 8px; margin-bottom: 0.5rem; }
+.sidebar-user:hover { background: #f1f5f9; }
+.sidebar-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+.sidebar-avatar-icon { font-size: 32px; color: #76777d; }
+

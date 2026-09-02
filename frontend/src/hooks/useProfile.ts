@@ -6,7 +6,7 @@ const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '';
 
 export function useProfile() {
-  const { user } = useAuth();
+  const { user, updateAvatar } = useAuth() as ReturnType<typeof useAuth> & { updateAvatar: (url: string) => void };
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -45,7 +45,11 @@ export function useProfile() {
       const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: 'POST', body: fd });
       if (!res.ok) throw new Error('No se pudo subir la imagen');
       const data = await res.json();
-      return data.secure_url as string;
+      const url = data.secure_url as string;
+      const { insforge } = await import('../lib/insforge');
+      await insforge.auth.setProfile({ avatar_url: url });
+      updateAvatar(url);
+      return url;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al subir imagen');
       return null;

@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
+import { useTheme } from './hooks/useTheme';
 import { Sidebar } from './components/Sidebar';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
@@ -26,6 +27,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AppShell() {
+  useTheme();
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar />
