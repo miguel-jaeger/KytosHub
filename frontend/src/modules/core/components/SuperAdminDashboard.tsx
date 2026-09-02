@@ -11,7 +11,7 @@ const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '';
 
 export function SuperAdminDashboard() {
   const { condominiums, loading, error, search, setSearch, updateCondominium, deleteCondominium } = useCondominiums();
-  const { setCondominium } = useCondominium();
+  const { setCondominium, clearCondominium } = useCondominium();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [allowedIds, setAllowedIds] = useState<string[] | null>(null);
@@ -94,6 +94,11 @@ export function SuperAdminDashboard() {
     navigate(`/setup?section=${section}`);
   };
 
+  const openAddCondo = () => {
+    clearCondominium();
+    navigate('/setup');
+  };
+
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`¿Eliminar "${name}" y todos sus datos asociados?`)) return;
     try { await deleteCondominium(id); } catch (err) { alert((err as Error).message); }
@@ -106,7 +111,7 @@ export function SuperAdminDashboard() {
     <div className="dashboard">
       <div className="header">
         <h2>Administrar Condominios</h2>
-        <button onClick={() => navigate('/setup')} className="btn-add-condo">
+        <button onClick={openAddCondo} className="btn-add-condo">
           <span className="material-symbols-outlined">add_business</span> Adicionar
         </button>
       </div>
@@ -193,21 +198,21 @@ export function SuperAdminDashboard() {
                     <span className={`status-badge ${c.status === 'ACTIVE' ? 'status-occupied' : 'status-vacant'}`}>{c.status}</span>
 
                     <div className="condo-counts">
-                      <button className="count-link" onClick={() => openSection(c, 'towers')} title="Gestionar torres">
+                      <button className="count-link" onClick={() => openSection(c, 'towers')} title="Torres">
                         <span className="material-symbols-outlined">apartment</span>
-                        <span>{c.towers_count ?? 0} torres</span>
+                        <span>{c.towers_count ?? 0}</span>
                       </button>
-                      <button className="count-link" onClick={() => openSection(c, 'floors')} title="Gestionar pisos">
+                      <button className="count-link" onClick={() => openSection(c, 'floors')} title="Pisos">
                         <span className="material-symbols-outlined">layers</span>
-                        <span>{c.floors_count ?? 0} pisos</span>
+                        <span>{c.floors_count ?? 0}</span>
                       </button>
-                      <button className="count-link" onClick={() => openSection(c, 'departments')} title="Gestionar departamentos">
+                      <button className="count-link" onClick={() => openSection(c, 'departments')} title="Departamentos">
                         <span className="material-symbols-outlined">door_front</span>
-                        <span>{c.departments_count ?? 0} deptos</span>
+                        <span>{c.departments_count ?? 0}</span>
                       </button>
-                      <button className="count-link" onClick={() => openSection(c, 'residents')} title="Gestionar residentes">
+                      <button className="count-link" onClick={() => openSection(c, 'residents')} title="Residentes">
                         <span className="material-symbols-outlined">group</span>
-                        <span>{c.residents_count ?? 0} residentes</span>
+                        <span>{c.residents_count ?? 0}</span>
                       </button>
                     </div>
 

@@ -14,7 +14,6 @@ interface NavItem {
 const navItems: NavItem[] = [
   { path: '/', icon: 'dashboard', label: 'Inicio' },
   { path: '/admin/condominiums', icon: 'apartment', label: 'Condominios', requiresAdmin: true },
-  { path: '/setup', icon: 'account_tree', label: 'Estructura', requiresCondo: true },
 ];
 
 export function Sidebar() {
