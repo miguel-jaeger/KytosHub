@@ -1,6 +1,6 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
-import { useCondominium } from './contexts/CondominiumContext';
+import { Sidebar } from './components/Sidebar';
 import { LoginPage } from './pages/LoginPage';
 import { TowerStructureView } from './modules/core/components/TowerStructureView';
 import { SetupWizard } from './modules/core/components/SetupWizard';
@@ -9,7 +9,6 @@ import { CondominioAdminDashboard } from './modules/core/components/CondominioAd
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  const location = useLocation();
 
   if (loading) {
     return (
@@ -20,49 +19,17 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;
 }
 
 function AppShell() {
-  const { user, signOut } = useAuth();
-  const { condominium } = useCondominium();
-  const navigate = useNavigate();
-
-  const isSuperAdmin = user?.email === 'miguel.jaeger@gmail.com';
-
   return (
-    <div className="app">
-      <header>
-        <h1>KytosHub - Gestión de Condominios</h1>
-        {condominium && (
-          <div className="active-condominium">
-            {condominium.image_url && <img src={condominium.image_url} alt={condominium.name} />}
-            <span>{condominium.name}</span>
-          </div>
-        )}
-        <nav className="main-nav">
-          <Link to="/">Inicio</Link>
-          {isSuperAdmin && <Link to="/admin/condominiums">Condominios</Link>}
-          {condominium && <Link to="/structure">Estructura</Link>}
-          {condominium && <Link to="/setup">Configurar Condominio</Link>}
-          {condominium && <Link to="/admin/users">Usuarios</Link>}
-        </nav>
-        {user && (
-          <button
-            className="logout-btn"
-            onClick={async () => {
-              await signOut();
-              navigate('/login');
-            }}
-          >
-            Cerrar sesión ({user.email})
-          </button>
-        )}
-      </header>
-      <main>
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <Sidebar />
+      <div className="app-layout">
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/admin/condominiums" element={<SuperAdminDashboard />} />
@@ -70,37 +37,31 @@ function AppShell() {
           <Route path="/structure" element={<TowerStructureView />} />
           <Route path="/setup" element={<SetupWizard />} />
         </Routes>
-      </main>
+      </div>
     </div>
   );
 }
 
 function Dashboard() {
-  const { user } = useAuth();
-  const isSuperAdmin = user?.email === 'miguel.jaeger@gmail.com';
-
   return (
     <div className="dashboard">
       <h2>Panel de Control</h2>
       <div className="quick-actions">
-        {isSuperAdmin && (
-          <Link to="/admin/condominiums" className="action-card">
-            <h3>Administrar Condominios</h3>
-            <p>Ver, editar y gestionar todos los condominios</p>
-          </Link>
-        )}
-        <Link to="/structure" className="action-card">
+        <a href="/structure" className="action-card">
+          <span className="material-symbols-outlined">account_tree</span>
           <h3>Ver Estructura</h3>
           <p>Torres, pisos y departamentos del condominio</p>
-        </Link>
-        <Link to="/setup" className="action-card">
+        </a>
+        <a href="/setup" className="action-card">
+          <span className="material-symbols-outlined">settings</span>
           <h3>Configurar Condominio</h3>
           <p>Registrar condominio y crear su estructura inicial</p>
-        </Link>
-        <Link to="/admin/users" className="action-card">
+        </a>
+        <a href="/admin/users" className="action-card">
+          <span className="material-symbols-outlined">group</span>
           <h3>Gestionar Usuarios</h3>
           <p>Administrar roles y accesos del condominio</p>
-        </Link>
+        </a>
       </div>
     </div>
   );

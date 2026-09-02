@@ -21,15 +21,6 @@
   --color-inverse-on-surface: #eaf1ff;
   --color-on-surface-variant: #45464d;
   --color-tertiary-fixed-dim: #c4c7c9;
-  --color-secondary-container: #6cf8bb;
-  --color-background: #f8f9ff;
-  --color-surface-container-lowest: #ffffff;
-  --color-on-primary-container: #7c839b;
-  --color-on-surface: #0b1c30;
-  --color-on-primary-fixed-variant: #3f465c;
-  --color-primary-container: #131b2e;
-  --color-secondary-fixed-dim: #4edea3;
-  --color-tertiary-fixed: #e0e3e5;
   --color-on-tertiary-fixed-variant: #444749;
   --color-on-tertiary: #ffffff;
   --color-tertiary-container: #191c1e;
@@ -158,11 +149,7 @@ body {
   min-height: 100vh;
 }
 
-.app {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-}
+.app { padding: 0; margin: 0; }
 
 header {
   text-align: center;
@@ -211,7 +198,7 @@ header h1 {
 .wizard-container {
   background: #f8f9ff;
   border-radius: 8px;
-  padding: 2rem;
+  
 }
 
 .wizard-header h2 {
@@ -318,7 +305,7 @@ button:disabled {
 .residents-manager {
   background: #f8f9ff;
   border-radius: 8px;
-  padding: 2rem;
+  
 }
 
 .residents-manager .header {
@@ -418,7 +405,7 @@ tr:hover {
 .tower-structure {
   background: #f8f9ff;
   border-radius: 8px;
-  padding: 2rem;
+  
 }
 
 .tower-structure .header {
@@ -598,13 +585,13 @@ tr:hover {
 
 .setup-wizard {
   max-width: 720px;
-  margin: 0 auto;
+  
 }
 
 .condo-registration {
   background: #f8f9ff;
   border-radius: 8px;
-  padding: 2rem;
+  
 }
 
 .condo-registration h2 {
@@ -956,4 +943,151 @@ tr:hover {
 .count-item .material-symbols-outlined {
   font-size: 16px;
   color: #646cff;
+}
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 260px;
+  background: #fff;
+  border-right: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.sidebar.collapsed {
+  width: 64px;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+  min-height: 60px;
+}
+
+.sidebar-logo-text {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #0b1c30;
+}
+
+.sidebar-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #76777d;
+  padding: 0.25rem;
+  border-radius: 4px;
+}
+
+.sidebar-toggle:hover {
+  background: #f8f9ff;
+}
+
+.sidebar-condominium {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.85rem;
+  color: #0b1c30;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.sidebar-condominium img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.sidebar-nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0;
+  overflow-y: auto;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  color: #45464d;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.sidebar-link:hover {
+  background: #eff4ff;
+  color: #006c49;
+}
+
+.sidebar-link.active {
+  background: #eff4ff;
+  color: #006c49;
+  font-weight: 600;
+  border-right: 3px solid #006c49;
+}
+
+.sidebar-link .material-symbols-outlined {
+  font-size: 22px;
+}
+
+.sidebar-footer {
+  border-top: 1px solid #e5e7eb;
+  padding: 0.75rem 1.25rem;
+}
+
+.sidebar-user {
+  display: block;
+  font-size: 0.75rem;
+  color: #76777d;
+  margin-bottom: 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-logout {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  background: none;
+  border: none;
+  color: #ba1a1a;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  font-size: 0.85rem;
+  border-radius: 4px;
+}
+
+.sidebar-logout:hover {
+  background: rgba(186, 26, 26, 0.05);
+}
+
+.app-layout {
+  margin-left: 260px;
+  transition: margin-left 0.3s ease;
+  min-height: 100vh;
+  background: #f8f9ff;
+}
+
+.sidebar.collapsed + .app-layout,
+.sidebar.collapsed ~ .app-layout {
+  margin-left: 64px;
+
 }
