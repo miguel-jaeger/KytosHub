@@ -202,6 +202,7 @@ export function DepartmentModal({
               {error && <div className="error-message">{error}</div>}
 
               <div className="form-actions">
+                <button type="button" onClick={() => setShowForm(false)}>Cerrar</button>
                 <button type="submit" disabled={submitting}>{submitting ? 'Guardando...' : 'Adicionar'}</button>
               </div>
             </form>
