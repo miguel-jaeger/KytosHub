@@ -34,6 +34,14 @@ export default async function(req: Request): Promise<Response> {
     const role = (body.role as string) || url.searchParams.get('role');
     const action = (body.action as string) || (req.method === 'GET' ? 'list' : '');
 
+    if (action === 'list-by-user') {
+      const userId = body.user_id as string;
+      if (!userId) return new Response(JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'user_id requerido' } }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      const { data, error } = await client.database.from('tenant_users').select('tenant_id, role, status').eq('user_id', userId).eq('status', 'ACTIVE');
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true, data: data || [], error: null }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     if (action === 'list' || req.method === 'GET') {
         if (!tenantId) {
           return new Response(
@@ -89,16 +97,18 @@ export default async function(req: Request): Promise<Response> {
           redirectTo: 'https://kytos-hub.vercel.app'
         });
 
-        let userId: string | null = null;
-        if (!signUpError && signUpData?.user?.id) {
-          userId = signUpData.user.id;
-
-          await client.database.from('users_global').insert([{
-            id: userId,
-            email: reqBody.email,
-            password_hash: 'oauth',
-            is_superadmin: false
-          }]);
+        let userId: string | null = signUpData?.user?.id || null;
+        if (!userId && !signUpError) {
+          try {
+            const { data: found } = await client.database.from('auth.users' as never).select('id').eq('email', reqBody.email).single() as { data: { id?: string } | null };
+            if (found?.id) {
+              userId = found.id;
+              await client.database.from('auth.users' as never).update({ email_verified: true } as never).eq('id', userId);
+            }
+          } catch {}
+        }
+        if (userId) {
+          try { await client.database.from('users_global').insert([{ id: userId, email: reqBody.email, password_hash: 'oauth', is_superadmin: false }]); } catch {}
         }
 
         if (userId) {
