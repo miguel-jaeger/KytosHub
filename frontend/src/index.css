@@ -196,7 +196,7 @@ header h1 {
 
 .action-card h3 {
   margin: 0 0 0.5rem 0;
-  color: #646cff;
+  color: #0b1c30;
 }
 
 .action-card p {
@@ -207,7 +207,8 @@ header h1 {
 .wizard-container {
   background: #fff;
   border-radius: 8px;
-  
+  border: 1px solid #e5e7eb;
+  padding: 1.5rem;
 }
 
 .wizard-header h2 {
@@ -267,6 +268,7 @@ header h1 {
   padding: 1rem;
   border-radius: 4px;
   margin-top: 1rem;
+  color: #0b1c30;
 }
 
 .wizard-actions {
@@ -326,7 +328,8 @@ button:disabled {
 .residents-manager {
   background: #fff;
   border-radius: 8px;
-  
+  border: 1px solid #e5e7eb;
+  padding: 1.5rem;
 }
 
 .residents-manager .header {
@@ -338,6 +341,7 @@ button:disabled {
 
 .residents-manager h2 {
   margin: 0;
+  color: #0b1c30;
 }
 
 .form-modal {
@@ -345,10 +349,12 @@ button:disabled {
   padding: 1.5rem;
   border-radius: 8px;
   margin-bottom: 1.5rem;
+  border: 1px solid #e5e7eb;
 }
 
 .form-modal h3 {
   margin: 0 0 1rem 0;
+  color: #0b1c30;
 }
 
 .form-group.checkbox {
@@ -376,12 +382,13 @@ table {
 th, td {
   padding: 0.75rem;
   text-align: left;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid #e5e7eb;
+  color: #0b1c30;
 }
 
 th {
   background: #f8f9ff;
-  color: #ccc;
+  color: #45464d;
 }
 
 tr:hover {
@@ -426,7 +433,8 @@ tr:hover {
 .tower-structure {
   background: #fff;
   border-radius: 8px;
-  
+  border: 1px solid #e5e7eb;
+  padding: 1.5rem;
 }
 
 .tower-structure .header {
@@ -449,8 +457,8 @@ tr:hover {
 }
 
 .tower-card {
-  background: #f8f9ff;
-  border: 1px solid #333;
+  background: #fff;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
   overflow: hidden;
 }
@@ -503,11 +511,11 @@ tr:hover {
 }
 
 .floor-list {
-  border-top: 1px solid #333;
+  border-top: 1px solid #e5e7eb;
 }
 
 .floor-card {
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .floor-header {
@@ -530,7 +538,7 @@ tr:hover {
 
 .floor-label {
   flex: 1;
-  color: #ccc;
+  color: #0b1c30;
   font-weight: 500;
 }
 
@@ -547,7 +555,7 @@ tr:hover {
 }
 
 .department-card {
-  background: #fff;
+  background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   padding: 0.75rem;
@@ -651,9 +659,10 @@ tr:hover {
 }
 
 .condo-form code {
-  background: #f8f9ff;
+  background: #e5e7eb;
   padding: 0.1rem 0.35rem;
   border-radius: 4px;
+  color: #0b1c30;
 }
 
 .image-uploader {
@@ -674,7 +683,7 @@ tr:hover {
   width: 100%;
   max-width: 360px;
   height: 180px;
-  border: 2px dashed #444;
+  border: 2px dashed #c6c6cd;
   border-radius: 8px;
   display: flex;
   flex-direction: column;
