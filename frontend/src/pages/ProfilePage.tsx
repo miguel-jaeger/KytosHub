@@ -109,10 +109,14 @@ export function ProfilePage() {
       <div className="theme-card">
         <h3>Tema</h3>
         <p>Selecciona el modo de visualización de la aplicación.</p>
-        <button onClick={toggleTheme} className="theme-toggle-btn">
-          <span className="material-symbols-outlined">{theme === 'light' ? 'dark_mode' : 'light_mode'}</span>
-          {theme === 'light' ? 'Activar modo oscuro' : 'Activar modo claro'}
-        </button>
+        <div className="theme-switch-row">
+          <span className="material-symbols-outlined">light_mode</span>
+          <label className="theme-switch">
+            <input type="checkbox" checked={theme === 'dark'} onChange={toggleTheme} />
+            <span className="theme-switch-track" aria-hidden="true"></span>
+          </label>
+          <span className="material-symbols-outlined">dark_mode</span>
+        </div>
       </div>
 
       <div className="password-card">

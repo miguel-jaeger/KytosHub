@@ -1100,18 +1100,64 @@ html.dark .profile-role-badge.role-visitor { background: #2a2a2a; border-color: 
 .theme-card h3, .password-card h3 { margin: 0 0 0.75rem; color: #0b1c30; }
 .theme-card p { color: #76777d; }
 
-.theme-toggle-btn {
-  display: inline-flex;
+.theme-switch-row {
+  display: flex;
   align-items: center;
-  gap: 0.5rem;
-  background: #006c49;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 0.6rem 1rem;
-  cursor: pointer;
-  font-size: 0.9rem;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
 }
+
+.theme-switch-row .material-symbols-outlined {
+  font-size: 22px;
+  color: #76777d;
+}
+
+.theme-switch {
+  position: relative;
+  display: inline-block;
+  width: 52px;
+  height: 28px;
+}
+
+.theme-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.theme-switch-track {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: #c6c6cd;
+  border-radius: 28px;
+  transition: background 0.2s;
+}
+
+.theme-switch-track::before {
+  content: '';
+  position: absolute;
+  height: 22px;
+  width: 22px;
+  left: 3px;
+  bottom: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.theme-switch input:checked + .theme-switch-track {
+  background: #006c49;
+}
+
+.theme-switch input:checked + .theme-switch-track::before {
+  transform: translateX(24px);
+}
+
+html.dark .theme-switch-row .material-symbols-outlined { color: #aaa; }
+html.dark .theme-switch-track { background: #444; }
+html.dark .theme-switch input:checked + .theme-switch-track { background: #006c49; }
 
 /* Structure section tabs */
 .struct-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
