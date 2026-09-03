@@ -87,21 +87,41 @@ export function DepartmentModal({
 
   const assignResident = async (r: Resident) => {
     if (!schemaName) return;
-    const hadDept = !!r.department_id;
+    const hadDept = !!r.department_id && r.department_id !== departmentId;
     setAssigningId(r.id);
     setError(null);
     setMessage(null);
     try {
       const { invokeFunction } = await import('../../../lib/insforge');
-      const { data, error: fnError } = await invokeFunction<{ success: boolean; error: { message: string } | null }>('residents', {
-        method: 'POST',
-        body: { action: 'update', id: r.id, schema_name: schemaName, department_id: departmentId }
-      });
-      if (fnError) throw fnError;
-      if (!data?.success) { setError(data?.error?.message || 'No se pudo asignar el residente'); return; }
-      setMessage(hadDept
-        ? `"${r.full_name}" cambió al Dpto ${department.department_number}.`
-        : `"${r.full_name}" fue asignado al Dpto ${department.department_number}.`);
+      if (hadDept) {
+        // Resident belongs to another department: add a copy here so it can live in both
+        const { data, error: fnError } = await invokeFunction<{ success: boolean; data?: Resident | null; error: { message: string } | null }>('residents', {
+          method: 'POST',
+          body: {
+            action: 'create',
+            schema_name: schemaName,
+            department_id: departmentId,
+            full_name: r.full_name,
+            document_type: r.document_type,
+            document_number: r.document_number,
+            relationship_type: r.relationship_type,
+            is_primary_contact: r.is_primary_contact || false,
+            email: r.email || null,
+            phone: r.phone || null
+          }
+        });
+        if (fnError) throw fnError;
+        if (!data?.success) { setError(data?.error?.message || 'No se pudo asignar el residente'); return; }
+        setMessage(`"${r.full_name}" fue agregado al Dpto ${department.department_number} (conserva su otro departamento).`);
+      } else {
+        const { data, error: fnError } = await invokeFunction<{ success: boolean; error: { message: string } | null }>('residents', {
+          method: 'POST',
+          body: { action: 'update', id: r.id, schema_name: schemaName, department_id: departmentId }
+        });
+        if (fnError) throw fnError;
+        if (!data?.success) { setError(data?.error?.message || 'No se pudo asignar el residente'); return; }
+        setMessage(`"${r.full_name}" fue asignado al Dpto ${department.department_number}.`);
+      }
       setSearchTerm('');
       setSearchResults([]);
       setShowSearch(false);
@@ -230,7 +250,7 @@ export function DepartmentModal({
                           </td>
                           <td>
                             <button className="btn-primary" onClick={() => assignResident(r)} disabled={assigningId === r.id}>
-                              {assigningId === r.id ? '...' : r.department_id ? 'Cambiar' : 'Asignar'}
+                              {assigningId === r.id ? '...' : r.department_id ? 'Agregar aquí' : 'Asignar'}
                             </button>
                           </td>
                         </tr>
