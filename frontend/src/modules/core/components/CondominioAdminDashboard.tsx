@@ -71,6 +71,7 @@ export function CondominioAdminDashboard() {
 
   const fetchUsers = async () => {
     try {
+      if (!viewAllCondos && !condominium) return;
       setLoading(true);
       setError(null);
       const body = viewAllCondos
