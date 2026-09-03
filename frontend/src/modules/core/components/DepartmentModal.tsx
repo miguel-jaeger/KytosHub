@@ -62,17 +62,24 @@ export function DepartmentModal({
     phone: ''
   });
 
-  const doSearch = async (term: string) => {
-    if (!schemaName || !term.trim()) { setSearchResults([]); return; }
+  const doSearch = async () => {
+    if (!schemaName) { setSearchResults([]); return; }
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) { setSearchResults([]); return; }
     setSearching(true);
     try {
       const { invokeFunction } = await import('../../../lib/insforge');
       const { data, error: fnError } = await invokeFunction<{ success: boolean; data: Resident[] | null; error: { message: string } | null }>('residents', {
         method: 'POST',
-        body: { action: 'list', schema_name: schemaName, search: term.trim() }
+        body: { action: 'list', schema_name: schemaName }
       });
       if (fnError) throw fnError;
-      setSearchResults(data?.success ? (data.data || []) : []);
+      const all = (data?.success ? (data.data || []) : []) as Resident[];
+      setSearchResults(all.filter(r =>
+        (r.full_name || '').toLowerCase().includes(term) ||
+        (r.document_number || '').toLowerCase().includes(term) ||
+        (r.email || '').toLowerCase().includes(term)
+      ));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al buscar residentes');
     } finally {
@@ -81,8 +88,9 @@ export function DepartmentModal({
   };
 
   useEffect(() => {
-    const t = setTimeout(() => { doSearch(searchTerm); }, 300);
+    const t = setTimeout(doSearch, 250);
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, schemaName]);
 
   const assignResident = async (r: Resident) => {
