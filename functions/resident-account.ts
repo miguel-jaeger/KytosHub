@@ -37,47 +37,49 @@ export default async function(req: Request): Promise<Response> {
           return bad(corsHeaders, 'email y full_name son requeridos');
         }
 
-        // Check if user already exists
-        const { data: existing } = await client.database
-          .from('users_global')
-          .select('id')
-          .eq('email', email)
-          .single()
-          .catch(() => ({ data: null }));
-
-        if (existing) {
-          return bad(corsHeaders, 'Ya existe un usuario con ese correo');
-        }
+        let userId: string | null = null;
 
         const { data: signUpData, error: signUpError } = await client.auth.signUp({
           email,
           password: DEFAULT_PASSWORD,
           name: full_name,
-          redirectTo: 'https://kytos-hub.vercel.app'
+          redirectTo: 'https://kytos-hub.vercel.app',
+          autoConfirm: true
         });
 
-        const userId = signUpData?.user?.id || signUpData?.accessToken ? null : (signUpData as unknown as { user?: { id?: string } })?.user?.id;
+        userId = signUpData?.user?.id || null;
+
+        if (!userId) {
+          userId = await resolveUserIdByEmail(email);
+        }
 
         if (signUpError && !userId) {
-          console.error('signUp error:', signUpError);
-          return new Response(
-            JSON.stringify({ success: false, data: null, error: { code: 'SIGNUP_FAILED', message: signUpError.message } }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+          // User may already exist in auth.users; resolve by email
+          const resolved = await resolveUserIdByEmail(email);
+          if (resolved) {
+            userId = resolved;
+          } else {
+            console.error('signUp error:', signUpError);
+            return new Response(
+              JSON.stringify({ success: false, data: null, error: { code: 'SIGNUP_FAILED', message: signUpError.message } }),
+              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
         }
 
         if (userId) {
-          // Insert into users_global and mark as verified
-          await client.database.from('users_global').insert([{
+          // Insert into users_global
+          const { error: ugInsertError } = await client.database.from('users_global').insert([{
             id: userId,
             email,
+            name: full_name,
             password_hash: DEFAULT_PASSWORD,
             is_superadmin: false
-          }]).onConflict('id').ignore();
+          }]);
 
-          try {
-            await client.database.from('auth.users').update({ email_verified: true }).eq('id', userId);
-          } catch {}
+          if (ugInsertError && !String(ugInsertError).includes('duplicate')) {
+            console.error('users_global insert error:', ugInsertError);
+          }
         }
 
         return new Response(
@@ -163,4 +165,22 @@ function bad(cors: Record<string, string>, msg: string): Response {
     JSON.stringify({ success: false, data: null, error: { code: 'BAD_REQUEST', message: msg } }),
     { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }
   );
+}
+
+async function resolveUserIdByEmail(email: string): Promise<string | null> {
+  const baseUrl = Deno.env.get('INSFORGE_BASE_URL');
+  const apiKey = Deno.env.get('INSFORGE_API_KEY');
+  if (!baseUrl || !apiKey) return null;
+
+  try {
+    const res = await fetch(`${baseUrl}/api/auth/users?search=${encodeURIComponent(email)}`, {
+      headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' }
+    });
+    if (!res.ok) return null;
+    const json = await res.json() as { data?: { id: string; email: string }[] };
+    const match = (json.data || []).find(u => String(u.email).toLowerCase() === email);
+    return match?.id || null;
+  } catch {
+    return null;
+  }
 }

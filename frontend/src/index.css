@@ -1774,39 +1774,8 @@ html.dark .resident-search input { background: #2a2a2a; border-color: #444; colo
     padding-bottom: 76px;
   }
 
-  .sidebar-logout {
+.sidebar-logout {
     padding: 0.5rem 0.75rem;
-  }
-}
-
-@media (max-width: 600px) {
-  .dashboard {
-    padding: 0.5rem;
-  }
-
-  .header {
-    align-items: flex-start;
-  }
-
-  .header h2 {
-    font-size: 1.05rem;
-  }
-
-  .condo-search-panel {
-    padding: 0.75rem;
-  }
-
-  .condominiums-grid,
-  .quick-actions {
-    grid-template-columns: 1fr;
-  }
-
-  .quick-actions {
-    gap: 0.75rem;
-  }
-
-  .welcome-card {
-    padding: 1.5rem 1rem;
   }
 
   .users-card-grid {
@@ -1839,6 +1808,37 @@ html.dark .resident-search input { background: #2a2a2a; border-color: #444; colo
   .avatar-upload-btn {
     padding: 0.5rem 0.9rem;
     font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .dashboard {
+    padding: 0.5rem;
+  }
+
+  .header {
+    align-items: flex-start;
+  }
+
+  .header h2 {
+    font-size: 1.05rem;
+  }
+
+  .condo-search-panel {
+    padding: 0.75rem;
+  }
+
+  .condominiums-grid,
+  .quick-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-actions {
+    gap: 0.75rem;
+  }
+
+  .welcome-card {
+    padding: 1.5rem 1rem;
   }
 
   .pagination-bar {
