@@ -1688,7 +1688,69 @@ html.dark .resident-search input { background: #2a2a2a; border-color: #444; colo
 .residents-table th, .residents-table td { padding: 0.6rem; border-bottom: 1px solid #e5e7eb; text-align: left; font-size: 0.9rem; }
 .residents-table th { background: #f8f9ff; color: #45464d; }
 .empty-text { color: #76777d; font-style: italic; }
-.resident-form { background: #f8f9ff; padding: 1rem; border-radius: 8px; border: 1px solid #e5e7eb; }
+.resident-row-actions {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.residents-desktop { width: 100%; }
+
+.residents-mobile-grid {
+  display: none;
+  gap: 0.75rem;
+}
+
+.resident-grid-card {
+  background: #f8f9ff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.resident-grid-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.resident-grid-name {
+  font-weight: 600;
+  color: #0b1c30;
+  font-size: 0.9rem;
+}
+
+.resident-grid-meta {
+  color: #76777d;
+  font-size: 0.8rem;
+}
+
+.resident-grid-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.resident-grid-line {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: #0b1c30;
+}
+
+.resident-grid-label {
+  color: #76777d;
+  font-weight: 600;
+  min-width: 70px;
+}
+
+html.dark .resident-grid-card { background: #1e1e1e; border-color: #333; }
+html.dark .resident-grid-name { color: #e5e7eb; }
+html.dark .resident-grid-label { color: #aaa; }
 .resident-form .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 
 .modal-close:hover { background: #f1f5f9; color: #0b1c30; border-radius: 6px; }
@@ -1849,6 +1911,44 @@ html.dark .resident-search input { background: #2a2a2a; border-color: #444; colo
 
   .welcome-card {
     padding: 1.5rem 1rem;
+  }
+
+  .residents-desktop {
+    display: none;
+  }
+
+  .residents-mobile-grid {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .resident-search .residents-table,
+  .resident-search .residents-table tbody,
+  .resident-search .residents-table tr,
+  .resident-search .residents-table td,
+  .resident-search .residents-table th {
+    display: block;
+    width: 100%;
+  }
+
+  .resident-search .residents-table thead {
+    display: none;
+  }
+
+  .resident-search .residents-table tr {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .resident-search .residents-table td {
+    border: none;
+    padding: 0.15rem 0;
+  }
+
+  .resident-search .residents-table td:last-child {
+    text-align: left;
   }
 
   .pagination-bar {

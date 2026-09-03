@@ -31,6 +31,8 @@ export function DepartmentModal({
   const [showForm, setShowForm] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [editingResident, setEditingResident] = useState<Resident | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<Resident[]>([]);
@@ -227,6 +229,41 @@ export function DepartmentModal({
     try { await deleteResident(id); } catch (err) { alert((err as Error).message); }
   };
 
+  const updateEditField = <K extends keyof Resident>(key: K, value: Resident[K]) => {
+    setEditingResident(prev => prev ? { ...prev, [key]: value } : prev);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingResident) return;
+    setSavingEdit(true);
+    setError(null);
+    try {
+      const { invokeFunction } = await import('../../../lib/insforge');
+      const updates: Partial<Resident> = {
+        full_name: editingResident.full_name,
+        document_type: editingResident.document_type,
+        document_number: editingResident.document_number,
+        relationship_type: editingResident.relationship_type,
+        is_primary_contact: editingResident.is_primary_contact,
+        email: editingResident.email || null,
+        phone: editingResident.phone || null
+      };
+      const { data, error: fnError } = await invokeFunction<{ success: boolean; error: { message: string } | null }>('residents', {
+        method: 'POST',
+        body: { action: 'update', id: editingResident.id, schema_name: schemaName, ...updates }
+      });
+      if (fnError) throw fnError;
+      if (!data?.success) { setError(data?.error?.message || 'No se pudo actualizar el residente'); return; }
+      setEditingResident(null);
+      await fetchResidents();
+      setAllCondoResidents([]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error de conexión');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -318,28 +355,56 @@ export function DepartmentModal({
             ) : residents.length === 0 ? (
               <p className="empty-text">No hay residentes en este departamento.</p>
             ) : (
-              <table className="residents-table">
-                <thead>
-                  <tr>
-                    <th>Nombre</th>
-                    <th>Documento</th>
-                    <th>Tipo</th>
-                    <th>Contacto</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pagedResidents.map(r => (
-                    <tr key={r.id}>
-                      <td>{r.full_name}{r.is_primary_contact ? ' ★' : ''}</td>
-                      <td>{r.document_type} {r.document_number}</td>
-                      <td>{relLabel[r.relationship_type]}</td>
-                      <td>{r.email || r.phone || '-'}</td>
-                      <td><button className="btn-danger" onClick={() => handleDelete(r.id)} title="Eliminar"><span className="material-symbols-outlined">delete</span></button></td>
+              <>
+                {/* Desktop table */}
+                <table className="residents-table residents-desktop">
+                  <thead>
+                    <tr>
+                      <th>Nombre</th>
+                      <th>Documento</th>
+                      <th>Tipo</th>
+                      <th>Contacto</th>
+                      <th></th>
                     </tr>
+                  </thead>
+                  <tbody>
+                    {pagedResidents.map(r => (
+                      <tr key={r.id}>
+                        <td>{r.full_name}{r.is_primary_contact ? ' ★' : ''}</td>
+                        <td>{r.document_type} {r.document_number}</td>
+                        <td>{relLabel[r.relationship_type]}</td>
+                        <td>{r.email || r.phone || '-'}</td>
+                        <td>
+                          <div className="resident-row-actions">
+                            <button className="btn-edit" onClick={() => setEditingResident(r)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
+                            <button className="btn-danger" onClick={() => handleDelete(r.id)} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Mobile grid */}
+                <div className="residents-mobile-grid">
+                  {pagedResidents.map(r => (
+                    <div key={r.id} className="resident-grid-card">
+                      <div className="resident-grid-main">
+                        <span className="resident-grid-name">{r.full_name}{r.is_primary_contact ? ' ★' : ''}</span>
+                        <span className="resident-grid-meta">{r.document_type} {r.document_number}</span>
+                      </div>
+                      <div className="resident-grid-fields">
+                        <div className="resident-grid-line"><span className="resident-grid-label">Tipo</span><span>{relLabel[r.relationship_type]}</span></div>
+                        <div className="resident-grid-line"><span className="resident-grid-label">Contacto</span><span>{r.email || r.phone || '-'}</span></div>
+                      </div>
+                      <div className="resident-row-actions">
+                        <button className="btn-edit" onClick={() => setEditingResident(r)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
+                        <button className="btn-danger" onClick={() => handleDelete(r.id)} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
+                </div>
+              </>
             )}
             {residents.length > 0 && (
               <PaginationBar
@@ -352,6 +417,66 @@ export function DepartmentModal({
               />
             )}
           </div>
+
+          {editingResident && (
+            <form className="resident-form" onSubmit={(e) => { e.preventDefault(); handleSaveEdit(); }}>
+              <h4>Editar Residente</h4>
+
+              <div className="form-group">
+                <label>Nombre completo</label>
+                <input type="text" value={editingResident.full_name} onChange={(e) => updateEditField('full_name', e.target.value)} required />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Tipo de documento</label>
+                  <select value={editingResident.document_type} onChange={(e) => updateEditField('document_type', e.target.value as Resident['document_type'])}>
+                    <option value="DNI">DNI</option>
+                    <option value="CE">CE</option>
+                    <option value="PASAPORTE">Pasaporte</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Número de documento</label>
+                  <input type="text" value={editingResident.document_number} onChange={(e) => updateEditField('document_number', e.target.value)} required />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Relación</label>
+                  <select value={editingResident.relationship_type} onChange={(e) => updateEditField('relationship_type', e.target.value as Resident['relationship_type'])}>
+                    <option value="PROPIETARIO">Propietario</option>
+                    <option value="FAMILIAR">Familiar</option>
+                    <option value="INQUILINO">Inquilino</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Teléfono</label>
+                  <input type="text" value={editingResident.phone || ''} onChange={(e) => updateEditField('phone', e.target.value)} placeholder="+51 999 888 777" />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Email</label>
+                <input type="email" value={editingResident.email || ''} onChange={(e) => updateEditField('email', e.target.value)} placeholder="correo@ejemplo.com" />
+              </div>
+
+              <div className="form-group checkbox">
+                <label>
+                  <input type="checkbox" checked={editingResident.is_primary_contact} onChange={(e) => updateEditField('is_primary_contact', e.target.checked)} />
+                  Contacto principal
+                </label>
+              </div>
+
+              {error && <div className="error-message">{error}</div>}
+
+              <div className="form-actions">
+                <button type="button" className="btn-cancel" onClick={() => setEditingResident(null)}>Cancelar</button>
+                <button type="submit" disabled={savingEdit}>{savingEdit ? 'Guardando...' : 'Guardar'}</button>
+              </div>
+            </form>
+          )}
 
           {showForm && (
             <form className="resident-form" onSubmit={handleSubmit}>
