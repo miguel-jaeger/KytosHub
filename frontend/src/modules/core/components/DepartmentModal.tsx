@@ -34,6 +34,7 @@ export function DepartmentModal({
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<Resident[]>([]);
+  const [allCondoResidents, setAllCondoResidents] = useState<Resident[]>([]);
   const [searching, setSearching] = useState(false);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -75,23 +76,44 @@ export function DepartmentModal({
       });
       if (fnError) throw fnError;
       const all = (data?.success ? (data.data || []) : []) as Resident[];
-      setSearchResults(all.filter(r =>
-        (r.full_name || '').toLowerCase().includes(term) ||
-        (r.document_number || '').toLowerCase().includes(term) ||
-        (r.email || '').toLowerCase().includes(term)
-      ));
+      setAllCondoResidents(all);
+      applySearch(all);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al buscar residentes');
-    } finally {
       setSearching(false);
     }
   };
 
+  const applySearch = (pool: Resident[]) => {
+    const term = searchTerm.trim().toLowerCase();
+    setSearchResults(pool.filter(r =>
+      (r.full_name || '').toLowerCase().includes(term) ||
+      (r.document_number || '').toLowerCase().includes(term) ||
+      (r.email || '').toLowerCase().includes(term)
+    ));
+    setSearching(false);
+  };
+
   useEffect(() => {
-    const t = setTimeout(doSearch, 250);
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) { setSearchResults([]); return; }
+    if (allCondoResidents.length > 0) {
+      applySearch(allCondoResidents);
+    } else {
+      const t = setTimeout(doSearch, 250);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, schemaName, allCondoResidents]);
+
+  // Preload all condominium residents when the search panel opens
+  useEffect(() => {
+    if (!showSearch || !schemaName || allCondoResidents.length > 0) return;
+    if (searchTerm) return;
+    const t = setTimeout(doSearch, 0);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, schemaName]);
+  }, [showSearch, schemaName]);
 
   const assignResident = async (r: Resident) => {
     if (!schemaName) return;
