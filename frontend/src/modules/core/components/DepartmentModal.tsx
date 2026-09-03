@@ -117,14 +117,21 @@ export function DepartmentModal({
 
   const assignResident = async (r: Resident) => {
     if (!schemaName) return;
-    const hadDept = !!r.department_id && r.department_id !== departmentId;
     setAssigningId(r.id);
     setError(null);
     setMessage(null);
     try {
       const { invokeFunction } = await import('../../../lib/insforge');
-      if (hadDept) {
-        // Resident belongs to another department: add a copy here so it can live in both
+
+      if (r.department_id === departmentId) {
+        // Already in this department: nothing to do
+        setMessage(`"${r.full_name}" ya está en el Dpto ${department.department_number}.`);
+        await fetchResidents();
+        return;
+      }
+
+      if (r.department_id) {
+        // Belongs to another department: add a copy here so it can live in both
         const { data, error: fnError } = await invokeFunction<{ success: boolean; data?: Resident | null; error: { message: string } | null }>('residents', {
           method: 'POST',
           body: {
@@ -144,6 +151,7 @@ export function DepartmentModal({
         if (!data?.success) { setError(data?.error?.message || 'No se pudo asignar el residente'); return; }
         setMessage(`"${r.full_name}" fue agregado al Dpto ${department.department_number} (conserva su otro departamento).`);
       } else {
+        // No department yet: assign it
         const { data, error: fnError } = await invokeFunction<{ success: boolean; error: { message: string } | null }>('residents', {
           method: 'POST',
           body: { action: 'update', id: r.id, schema_name: schemaName, department_id: departmentId }
@@ -152,9 +160,11 @@ export function DepartmentModal({
         if (!data?.success) { setError(data?.error?.message || 'No se pudo asignar el residente'); return; }
         setMessage(`"${r.full_name}" fue asignado al Dpto ${department.department_number}.`);
       }
+
       setSearchTerm('');
       setSearchResults([]);
       setShowSearch(false);
+      setAllCondoResidents([]);
       await fetchResidents();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error de conexión');
@@ -279,8 +289,8 @@ export function DepartmentModal({
                               : <span className="status-badge status-vacant">Sin asignar</span>}
                           </td>
                           <td>
-                            <button className="btn-primary" onClick={() => assignResident(r)} disabled={assigningId === r.id}>
-                              {assigningId === r.id ? '...' : r.department_id ? 'Agregar aquí' : 'Asignar'}
+                            <button className="btn-primary" onClick={() => assignResident(r)} disabled={assigningId === r.id || r.department_id === departmentId}>
+                              {assigningId === r.id ? '...' : r.department_id === departmentId ? 'Ya está aquí' : r.department_id ? 'Agregar aquí' : 'Asignar'}
                             </button>
                           </td>
                         </tr>
