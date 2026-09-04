@@ -361,7 +361,7 @@ export function DepartmentModal({
                                   <option value="PASAPORTE">Pasaporte</option>
                                 </select>
                                 {linkForm.document_number.trim() ? (
-                                  <input type="text" value={linkForm.document_number} readOnly title="Documento del usuario" style={{ fontSize: '0.8em', padding: '2px', width: '90px', background: '#f0f0f0', cursor: 'not-allowed' }} />
+                                  <span title="Documento del usuario" style={{ fontSize: '0.85em', fontWeight: 600, padding: '2px 4px' }}>{linkForm.document_number}</span>
                                 ) : (
                                   <input type="text" value={linkForm.document_number} onChange={e => setLinkForm({ ...linkForm, document_number: e.target.value })} placeholder="N° doc" style={{ fontSize: '0.8em', padding: '2px', width: '90px' }} />
                                 )}
@@ -370,8 +370,8 @@ export function DepartmentModal({
                                   <option value="FAMILIAR">Familiar</option>
                                   <option value="INQUILINO">Inquilino</option>
                                 </select>
-                                <button className="btn-primary" onClick={() => { setLinkUserTarget(null); assignResident(r, linkForm); }} disabled={assigningId === (r.id ?? r.user_id ?? r.full_name)}>OK</button>
-                                <button className="btn-cancel" onClick={() => setLinkUserTarget(null)} style={{ fontSize: '0.8em' }}>X</button>
+                                <button className="btn-primary" onClick={() => { setLinkUserTarget(null); assignResident(r, linkForm); }} disabled={!linkForm.document_number.trim() || assigningId === (r.id ?? r.user_id ?? r.full_name)} style={{ fontSize: '0.8em', padding: '2px 6px', lineHeight: 1.2 }}>OK</button>
+                                <button className="btn-cancel" onClick={() => setLinkUserTarget(null)} title="Cancelar" style={{ fontSize: '0.8em', padding: '2px 6px', lineHeight: 1.2 }}>✕</button>
                               </div>
                             ) : (
                             <button className="btn-primary" onClick={() => {
