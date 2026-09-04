@@ -371,7 +371,14 @@ export function DepartmentModal({
                               </div>
                             ) : (
                             <button className="btn-primary" onClick={() => {
-                              if (isGlobal) { setLinkUserTarget(r); setLinkForm({ document_type: 'DNI', document_number: '', relationship_type: 'PROPIETARIO' }); }
+                              if (isGlobal) {
+                                setLinkUserTarget(r);
+                                setLinkForm({
+                                  document_type: (r.document_type as Resident['document_type']) || 'DNI',
+                                  document_number: r.document_number || '',
+                                  relationship_type: 'PROPIETARIO'
+                                });
+                              }
                               else { assignResident(r); }
                             }} disabled={assigningId === (r.id ?? r.user_id ?? r.full_name) || r.department_id === departmentId}>
                               {assigningId === (r.id ?? r.user_id ?? r.full_name) ? '...' : r.department_id === departmentId ? 'Ya está aquí' : r.department_id ? 'Agregar aquí' : 'Asignar'}

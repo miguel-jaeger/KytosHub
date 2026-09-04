@@ -70,8 +70,8 @@ export default async function(req: Request): Promise<Response> {
           if (body.all_users) {
             // Super admin: search across ALL global users (users_global), not only this condominium's
             try {
-              const { data: allUsers } = await client.database.from('users_global').select('id, email, name');
-              for (const ug of (allUsers || []) as Array<{ id: string; email?: string; name?: string }>) {
+              const { data: allUsers } = await client.database.from('users_global').select('id, email, name, document_type, document_number, phone');
+              for (const ug of (allUsers || []) as Array<{ id: string; email?: string; name?: string; document_type?: string; document_number?: string; phone?: string }>) {
                 const existing = residents.find((r: Record<string, unknown>) => r.user_id === ug.id);
                 if (existing) continue;
                 const email = String(ug.email || '').toLowerCase();
@@ -84,9 +84,9 @@ export default async function(req: Request): Promise<Response> {
                   role: null,
                   full_name: ug.name || email.split('@')[0] || 'Usuario',
                   email: ug.email || null,
-                  phone: null,
-                  document_type: null,
-                  document_number: '',
+                  phone: ug.phone || null,
+                  document_type: ug.document_type || null,
+                  document_number: ug.document_number || '',
                   relationship_type: null,
                   is_primary_contact: false,
                   departments: undefined,
@@ -102,10 +102,16 @@ export default async function(req: Request): Promise<Response> {
               if (existing) continue;
               let email = '';
               let name = '';
+              let docType = '';
+              let docNumber = '';
+              let phone = '';
               try {
-                const { data: ug } = await client.database.from('users_global').select('email, name').eq('id', tu.user_id).single();
+                const { data: ug } = await client.database.from('users_global').select('email, name, document_type, document_number, phone').eq('id', tu.user_id).single();
                 email = String((ug as { email?: string } | null)?.email || '');
                 name = String((ug as { name?: string } | null)?.name || '');
+                docType = String((ug as { document_type?: string } | null)?.document_type || '');
+                docNumber = String((ug as { document_number?: string } | null)?.document_number || '');
+                phone = String((ug as { phone?: string } | null)?.phone || '');
               } catch {}
               if (email && existingEmails.has(email.toLowerCase())) continue;
               if (email) existingEmails.add(email.toLowerCase());
@@ -116,9 +122,9 @@ export default async function(req: Request): Promise<Response> {
                 role: tu.role,
                 full_name: name || email.split('@')[0] || 'Usuario',
                 email: email || null,
-                phone: null,
-                document_type: null,
-                document_number: '',
+                phone: phone || null,
+                document_type: docType || null,
+                document_number: docNumber,
                 relationship_type: null,
                 is_primary_contact: false,
                 departments: undefined,
