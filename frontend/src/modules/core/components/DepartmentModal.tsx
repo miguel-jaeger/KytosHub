@@ -72,8 +72,6 @@ export function DepartmentModal({
 
   const doSearch = async () => {
     if (!schemaName) { setSearchResults([]); return; }
-    const term = searchTerm.trim().toLowerCase();
-    if (!term) { setSearchResults([]); return; }
     setSearching(true);
     try {
       const { invokeFunction } = await import('../../../lib/insforge');
@@ -84,9 +82,9 @@ export function DepartmentModal({
       if (fnError) throw fnError;
       const all = (data?.success ? (data.data || []) : []) as SearchResident[];
       setAllCondoResidents(all);
-      applySearch(all);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al buscar residentes');
+    } finally {
       setSearching(false);
     }
   };
@@ -98,29 +96,27 @@ export function DepartmentModal({
       (r.document_number || '').toLowerCase().includes(term) ||
       (r.email || '').toLowerCase().includes(term)
     ));
-    setSearching(false);
   };
 
+  // Preload the condominium resident pool once when the search panel opens
+  useEffect(() => {
+    if (!showSearch) return;
+    if (allCondoResidents.length > 0) return;
+    doSearch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showSearch, schemaName]);
+
+  // Filter in memory on each keystroke (no server round-trips)
   useEffect(() => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) { setSearchResults([]); return; }
     if (allCondoResidents.length > 0) {
       applySearch(allCondoResidents);
     } else {
-      const t = setTimeout(doSearch, 250);
-      return () => clearTimeout(t);
+      doSearch();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, schemaName, allCondoResidents]);
-
-  // Preload all condominium residents when the search panel opens
-  useEffect(() => {
-    if (!showSearch || !schemaName || allCondoResidents.length > 0) return;
-    if (searchTerm) return;
-    const t = setTimeout(doSearch, 0);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showSearch, schemaName]);
+  }, [searchTerm]);
 
   const assignResident = async (r: Resident) => {
     if (!schemaName) return;

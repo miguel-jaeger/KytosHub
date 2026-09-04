@@ -141,6 +141,16 @@ export default async function(req: Request): Promise<Response> {
         if (!body.department_id || !body.full_name || !body.document_type || !body.document_number || !body.relationship_type) {
           return bad(corsHeaders, 'department_id, full_name, document_type, document_number, relationship_type son requeridos');
         }
+        // Idempotent: if a resident with the same document already exists in this department, return it
+        let existing: unknown = null;
+        try {
+          const { data: ed } = await db.from('residents').select('*').eq('department_id', body.department_id).eq('document_number', String(body.document_number).trim()).single();
+          existing = ed;
+        } catch {}
+        if (existing) {
+          return ok(corsHeaders, existing);
+        }
+
         const { data, error } = await db.from('residents').insert([{
           department_id: body.department_id,
           full_name: String(body.full_name).trim(),
@@ -149,7 +159,8 @@ export default async function(req: Request): Promise<Response> {
           relationship_type: body.relationship_type,
           is_primary_contact: body.is_primary_contact || false,
           email: body.email || null,
-          phone: body.phone || null
+          phone: body.phone || null,
+          user_id: body.user_id || null
         }]).select().single();
         if (error) throw error;
         return new Response(JSON.stringify({ success: true, data, error: null }), { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
