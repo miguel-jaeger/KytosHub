@@ -26,10 +26,12 @@ export default async function(req: Request): Promise<Response> {
     switch (action) {
       case 'create': {
         // Creates an auth account for a proprietor resident
-        const { email, full_name, document_number, relationship_type } = body as {
+        const { email, full_name, document_type, document_number, phone, relationship_type } = body as {
           email?: string;
           full_name?: string;
+          document_type?: string;
           document_number?: string;
+          phone?: string;
           relationship_type?: string;
         };
 
@@ -69,16 +71,30 @@ export default async function(req: Request): Promise<Response> {
 
         if (userId) {
           // Insert into users_global
-          const { error: ugInsertError } = await client.database.from('users_global').insert([{
+          const ugPayload: Record<string, unknown> = {
             id: userId,
             email,
             name: full_name,
             password_hash: DEFAULT_PASSWORD,
             is_superadmin: false
-          }]);
+          };
+          if (document_type) ugPayload.document_type = document_type;
+          if (document_number) ugPayload.document_number = document_number;
+          if (phone) ugPayload.phone = phone;
+
+          const { error: ugInsertError } = await client.database.from('users_global').insert([ugPayload]);
 
           if (ugInsertError && !String(ugInsertError).includes('duplicate')) {
             console.error('users_global insert error:', ugInsertError);
+          } else if (ugInsertError) {
+            // User already exists: update their profile with the resident data
+            try {
+              const ugUpdate: Record<string, unknown> = { name: full_name };
+              if (document_type) ugUpdate.document_type = document_type;
+              if (document_number) ugUpdate.document_number = document_number;
+              if (phone) ugUpdate.phone = phone;
+              await client.database.from('users_global').update(ugUpdate).eq('id', userId);
+            } catch (e2) { console.error('users_global update fallback error:', e2); }
           }
         }
 

@@ -236,6 +236,15 @@ export default async function(req: Request): Promise<Response> {
           user_id
         }]).select().single();
         if (error) throw error;
+
+        // Sync users_global with the document used for this resident so data is consistent everywhere
+        try {
+          const ugSync: Record<string, unknown> = { name: fullName };
+          if (finalDocType) ugSync.document_type = finalDocType;
+          if (finalDocNumber) ugSync.document_number = finalDocNumber;
+          await client.database.from('users_global').update(ugSync).eq('id', user_id);
+        } catch (e) { console.error('users_global link sync error:', e); }
+
         await refreshTenantCounts();
         return new Response(JSON.stringify({ success: true, data, error: null }), { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }

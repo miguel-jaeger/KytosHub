@@ -233,7 +233,15 @@ export default async function(req: Request): Promise<Response> {
             .insert([ugPayload]);
 
           if (ugError) {
+            // User already exists: update their profile instead of failing silently
             console.error('users_global insert error:', ugError);
+            try {
+              const ugUpdate: Record<string, unknown> = { name: reqBody.name };
+              if (reqBody.document_type) ugUpdate.document_type = reqBody.document_type;
+              if (reqBody.document_number) ugUpdate.document_number = reqBody.document_number;
+              if (reqBody.phone) ugUpdate.phone = reqBody.phone;
+              await client.database.from('users_global').update(ugUpdate).eq('id', userId);
+            } catch (e2) { console.error('users_global update fallback error:', e2); }
           }
         }
 
@@ -285,6 +293,8 @@ export default async function(req: Request): Promise<Response> {
           if (body.name) updates.full_name = body.name;
           if (body.email) updates.email = body.email;
           if (body.phone) updates.phone = body.phone;
+          if (body.document_type) updates.document_type = body.document_type;
+          if (body.document_number) updates.document_number = body.document_number;
 
           const { data, error } = await client.database.schema(schemaName)
             .from('residents')
@@ -294,6 +304,19 @@ export default async function(req: Request): Promise<Response> {
             .single();
 
           if (error) throw error;
+
+          // Keep users_global in sync when this resident is linked to an account
+          if ((data as { user_id?: string } | null)?.user_id) {
+            try {
+              const ugUpdate: Record<string, unknown> = {};
+              if (body.name) ugUpdate.name = body.name;
+              if (body.email) ugUpdate.email = body.email;
+              if (body.document_type) ugUpdate.document_type = body.document_type;
+              if (body.document_number) ugUpdate.document_number = body.document_number;
+              if (body.phone) ugUpdate.phone = body.phone;
+              await client.database.from('users_global').update(ugUpdate).eq('id', (data as { user_id: string }).user_id);
+            } catch (e) { console.error('users_global resident sync error:', e); }
+          }
 
           // Move resident to another condominium if requested
           const newTenantId = body.new_tenant_id as string | undefined;
@@ -337,11 +360,15 @@ export default async function(req: Request): Promise<Response> {
         if (error) throw error;
 
         if (tu?.user_id) {
-          if (body.email || body.name) {
+          const hasProfileUpdate = body.email || body.name || body.document_type || body.document_number || body.phone;
+          if (hasProfileUpdate) {
             try {
               const ugUpdate: Record<string, unknown> = {};
               if (body.email) ugUpdate.email = body.email;
               if (body.name) ugUpdate.name = body.name;
+              if (body.document_type) ugUpdate.document_type = body.document_type;
+              if (body.document_number) ugUpdate.document_number = body.document_number;
+              if (body.phone) ugUpdate.phone = body.phone;
               await client.database.from('users_global').update(ugUpdate).eq('id', tu.user_id);
             } catch (e) { console.error('users_global update error:', e); }
           }

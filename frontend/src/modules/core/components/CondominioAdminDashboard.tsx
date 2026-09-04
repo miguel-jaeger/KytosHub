@@ -206,7 +206,10 @@ export function CondominioAdminDashboard() {
         id: editingUser.id,
         source: editingUser.source || 'tenant_user',
         name: editingUser.name,
-        email: editingUser.email
+        email: editingUser.email,
+        document_type: editingUser.document_type || editingUser.users_global?.document_type || null,
+        document_number: editingUser.document_number || editingUser.users_global?.document_number || null,
+        phone: editingUser.phone || editingUser.users_global?.phone || null
       };
       if (editingUser.source === 'resident') {
         body.schema_name = editOriginalSchema;
@@ -522,6 +525,24 @@ export function CondominioAdminDashboard() {
           <div className="form-group">
             <label>Email</label>
             <input type="email" value={editingUser.email || ''} onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })} />
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Tipo de documento</label>
+              <select value={editingUser.document_type || editingUser.users_global?.document_type || 'DNI'} onChange={(e) => setEditingUser({ ...editingUser, document_type: e.target.value })}>
+                <option value="DNI">DNI</option>
+                <option value="CE">CE</option>
+                <option value="PASAPORTE">Pasaporte</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Número de documento</label>
+              <input type="text" value={editingUser.document_number || editingUser.users_global?.document_number || ''} onChange={(e) => setEditingUser({ ...editingUser, document_number: e.target.value })} placeholder="12345678" />
+            </div>
+          </div>
+          <div className="form-group">
+            <label>Teléfono</label>
+            <input type="text" value={editingUser.phone || editingUser.users_global?.phone || ''} onChange={(e) => setEditingUser({ ...editingUser, phone: e.target.value })} placeholder="+51 999 888 777" />
           </div>
           <div className="form-group">
             <label>Fecha de registro</label>

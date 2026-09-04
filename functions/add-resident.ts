@@ -75,12 +75,20 @@ export default async function(req: Request): Promise<Response> {
       if (!signUpError && signUpData?.user?.id) {
         userId = signUpData.user.id;
 
-        await client.database.from('users_global').insert([{
+        const ugPayload: Record<string, unknown> = {
           id: userId,
           email: body.email,
           password_hash: 'oauth',
           is_superadmin: false
-        }]);
+        };
+        if (body.document_type) ugPayload.document_type = body.document_type;
+        if (body.document_number) ugPayload.document_number = body.document_number;
+        if (body.phone) ugPayload.phone = body.phone;
+
+        const { error: ugError } = await client.database.from('users_global').insert([ugPayload]);
+        if (ugError && !String(ugError).includes('duplicate')) {
+          console.error('users_global insert error:', ugError);
+        }
       }
     }
 

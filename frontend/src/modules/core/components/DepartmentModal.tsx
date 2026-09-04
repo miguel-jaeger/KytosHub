@@ -221,7 +221,7 @@ export function DepartmentModal({
       if (isOwner && formData.email.trim()) {
         const { data: acctRes, error: acctErr } = await invokeFunction<{ success: boolean; data?: { default_password?: string }; error?: { message?: string } }>('resident-account', {
           method: 'POST',
-          body: { action: 'create', email: formData.email, full_name: formData.full_name, document_number: formData.document_number, relationship_type: formData.relationship_type }
+          body: { action: 'create', email: formData.email, full_name: formData.full_name, document_type: formData.document_type, document_number: formData.document_number, phone: formData.phone, relationship_type: formData.relationship_type }
         });
         if (acctErr) {
           setError((acctErr as Error).message);
