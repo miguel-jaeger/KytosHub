@@ -89,11 +89,11 @@ export default async function(req: Request): Promise<Response> {
 
         // Include global condominium users (from tenant_users + users_global) that are not yet residents
         let merged = enriched;
+        const found: Array<Record<string, unknown>> = [];
         if (body.include_users) {
           const existingEmails = new Set(
             (residents as Array<{ email?: string | null }>).map(r => String(r.email || '').toLowerCase()).filter(Boolean)
           );
-          const found: Array<Record<string, unknown>> = [];
 
           if (body.all_users) {
             // Super admin: search across ALL global users (users_global), not only this condominium's
@@ -160,8 +160,8 @@ export default async function(req: Request): Promise<Response> {
               });
             }
           }
-          merged = [...enriched, ...found];
         }
+        merged = [...enriched, ...found];
 
         // Fill in the real document for users that only have it in their resident records
         const docMissing = (found as Array<Record<string, unknown>>).filter(f => !String(f.document_number || '')).map(f => String(f.user_id || '')).filter(Boolean);
