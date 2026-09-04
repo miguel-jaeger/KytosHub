@@ -120,7 +120,8 @@ export function DepartmentModal({
 
   const assignResident = async (r: Resident) => {
     if (!schemaName) return;
-    setAssigningId(r.id);
+    const assignKey = r.id ?? r.user_id ?? r.full_name;
+    setAssigningId(assignKey);
     setError(null);
     setMessage(null);
     try {
@@ -339,8 +340,8 @@ export function DepartmentModal({
                               : <span className="status-badge status-vacant">Sin asignar</span>}
                           </td>
                           <td>
-                            <button className="btn-primary" onClick={() => assignResident(r)} disabled={assigningId === r.id || r.department_id === departmentId}>
-                              {assigningId === r.id ? '...' : r.department_id === departmentId ? 'Ya está aquí' : r.department_id ? 'Agregar aquí' : 'Asignar'}
+                            <button className="btn-primary" onClick={() => assignResident(r)} disabled={assigningId === (r.id ?? r.user_id ?? r.full_name) || r.department_id === departmentId}>
+                              {assigningId === (r.id ?? r.user_id ?? r.full_name) ? '...' : r.department_id === departmentId ? 'Ya está aquí' : r.department_id ? 'Agregar aquí' : 'Asignar'}
                             </button>
                           </td>
                         </tr>
