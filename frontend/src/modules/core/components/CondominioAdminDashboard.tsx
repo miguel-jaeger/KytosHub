@@ -47,7 +47,6 @@ export function CondominioAdminDashboard() {
   const [newUser, setNewUser] = useState({ email: '', name: '', role: 'RESIDENT', tenant_id: '', document_type: 'DNI', document_number: '', phone: '' });
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState<number | 'all'>(10);
-  const [viewAllCondos, setViewAllCondos] = useState(isSuperAdmin);
 
   const [condoSearch, setCondoSearch] = useState(condominium?.name || '');
   const [condoDropdownOpen, setCondoDropdownOpen] = useState(false);
@@ -74,12 +73,10 @@ export function CondominioAdminDashboard() {
 
   const fetchUsers = async () => {
     try {
-      if (!viewAllCondos && !condominium) return;
+      if (!condominium?.tenant_id) { setUsers([]); setLoading(false); return; }
       setLoading(true);
       setError(null);
-      const body = viewAllCondos
-        ? { action: 'list-all' }
-        : { action: 'list', tenant_id: condominium?.tenant_id };
+      const body = { action: 'list', tenant_id: condominium?.tenant_id };
       const { data, error: fnError } = await invokeFunction<{ success: boolean; data: TenantUser[] | null; error: { message: string } | null }>('list-condominium-users', {
         method: 'POST',
         body
@@ -102,7 +99,7 @@ export function CondominioAdminDashboard() {
 
   useEffect(() => {
     fetchUsers();
-  }, [condominium, viewAllCondos]);
+  }, [condominium?.tenant_id]);
 
   useEffect(() => {
     if (isSuperAdmin || !user || condominium) return;
@@ -127,12 +124,6 @@ export function CondominioAdminDashboard() {
     }).catch(() => {});
   }, [isSuperAdmin, user, condominium, condominiums]);
 
-  const selectAllCondos = () => {
-    setViewAllCondos(true);
-    setCondoSearch('');
-    setCondoDropdownOpen(false);
-  };
-
   const filteredUsers = users.filter(u => {
     const q = searchTerm.trim().toLowerCase();
     const email = (u.email || u.users_global?.email || '').toLowerCase();
@@ -145,13 +136,14 @@ export function CondominioAdminDashboard() {
   const { slice: pagedUsers } = paginate(filteredUsers, page, perPage === 'all' ? filteredUsers.length : perPage);
 
   const handleAddUser = async () => {
-    if (!condominium) return;
+    const isGlobalSuper = newUser.role === 'SUPER_ADMIN' && !newUser.tenant_id && isSuperAdmin;
+    if (!condominium && !isGlobalSuper) { setError('Seleccione un condominio'); return; }
     setSubmitting(true);
     try {
       const { data, error: fnError } = await invokeFunction<{ success: boolean; data: { user_id: string; email: string; role: string } | null; error: { message: string } | null }>('list-condominium-users', {
         method: 'POST',
         body: {
-          tenant_id: newUser.tenant_id || condominium.tenant_id,
+          tenant_id: newUser.tenant_id || (isGlobalSuper ? '' : condominium?.tenant_id),
           email: newUser.email,
           name: newUser.name,
           role: newUser.role,
@@ -290,12 +282,11 @@ export function CondominioAdminDashboard() {
   };
 
   useEffect(() => {
-    if (!viewAllCondos) setCondoSearch(condominium?.name || '');
+    setCondoSearch(condominium?.name || '');
     setCondoDropdownOpen(false);
-  }, [condominium, viewAllCondos]);
+  }, [condominium]);
 
   const selectCondo = (c: { id: string; name: string; slug: string; short_name: string | null; schema_name: string; image_url: string | null }) => {
-    setViewAllCondos(false);
     setCondominium({
       tenant_id: c.id,
       name: c.name,
@@ -359,7 +350,7 @@ export function CondominioAdminDashboard() {
   return (
     <div className="dashboard">
       <div className="header">
-        <h2>Usuarios {viewAllCondos ? '- Todos los condominios' : condominium ? `- ${condominium.name}` : ''}</h2>
+        <h2>Usuarios {condominium ? `- ${condominium.name}` : ''}</h2>
         <button onClick={openAddForm}><span className="material-symbols-outlined">person_add</span> Adicionar</button>
       </div>
       <div className="condo-search-panel">
@@ -369,22 +360,18 @@ export function CondominioAdminDashboard() {
             <input
               type="text"
               value={condoSearch}
-              placeholder="Buscar condominio o ver todos..."
+              placeholder="Seleccionar condominio..."
               onFocus={() => setCondoDropdownOpen(true)}
               onChange={(e) => { setCondoSearch(e.target.value); setCondoDropdownOpen(true); }}
               style={{ width: '100%', padding: '0.7rem 0.75rem 0.7rem 2.6rem', border: '1px solid #c6c6cd', borderRadius: '8px', background: '#f8f9ff', color: '#0b1c30' }}
             />
             {condoDropdownOpen && (
               <div className="condo-picker-dropdown">
-                <button type="button" className={`condo-picker-item ${viewAllCondos ? 'selected' : ''}`} onClick={selectAllCondos}>
-                  <span className="material-symbols-outlined">public</span>
-                  <span>Todos los condominios</span>
-                </button>
                 {filteredCondos.length === 0 ? (
                   <div className="condo-picker-empty">Sin resultados</div>
                 ) : (
                   filteredCondos.map(c => (
-                    <button key={c.id} type="button" className={`condo-picker-item ${!viewAllCondos && c.id === condominium?.tenant_id ? 'selected' : ''}`} onClick={() => selectCondo(c)}>
+                    <button key={c.id} type="button" className={`condo-picker-item ${c.id === condominium?.tenant_id ? 'selected' : ''}`} onClick={() => selectCondo(c)}>
                       <span className="material-symbols-outlined">apartment</span>
                       <span>{c.name}</span>
                     </button>
@@ -415,18 +402,24 @@ export function CondominioAdminDashboard() {
           <h3>Agregar Usuario</h3>
           {isSuperAdmin && (
             <div className="form-group">
-              <label>Condominio</label>
+              <label>Condominio {newUser.role === 'SUPER_ADMIN' ? '(opcional si es Super Admin global)' : ''}</label>
               <div className="search-bar condo-picker" ref={addCondoDropdownRef}>
                 <input
                   type="text"
                   value={addCondoSearch}
-                  placeholder="Buscar condominio..."
+                  placeholder={newUser.role === 'SUPER_ADMIN' ? "Buscar condominio o dejar vacío..." : "Buscar condominio..."}
                   style={{ paddingLeft: '0.75rem' }}
                   onFocus={() => setAddCondoDropdownOpen(true)}
                   onChange={(e) => { setAddCondoSearch(e.target.value); setAddCondoDropdownOpen(true); }}
                 />
                 {addCondoDropdownOpen && (
                   <div className="condo-picker-dropdown">
+                    {newUser.role === 'SUPER_ADMIN' && (
+                      <button type="button" className={`condo-picker-item ${!newUser.tenant_id ? 'selected' : ''}`} onClick={() => { setNewUser(prev => ({ ...prev, tenant_id: '' })); setAddCondoSearch(''); setAddCondoDropdownOpen(false); }}>
+                        <span className="material-symbols-outlined">public</span>
+                        <span>Super Admin global (sin condominio)</span>
+                      </button>
+                    )}
                     {filteredAddCondos.length === 0 ? (
                       <div className="condo-picker-empty">Sin resultados</div>
                     ) : (
@@ -450,6 +443,18 @@ export function CondominioAdminDashboard() {
             <label>Email</label>
             <input type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} placeholder="correo@ejemplo.com" required />
           </div>
+          <div className="form-group">
+            <label>Rol</label>
+            <select value={newUser.role} onChange={(e) => {
+              const role = e.target.value;
+              setNewUser({ ...newUser, role });
+              if (role === 'SUPER_ADMIN' && isSuperAdmin) { setNewUser(prev => ({ ...prev, role, tenant_id: '' })); setAddCondoSearch(''); }
+            }}>
+              {Object.entries(ROLE_LABELS).map(([key, label]) => (
+                (!isSuperAdmin && key === 'SUPER_ADMIN') ? null : <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+          </div>
           <div className="form-row">
             <div className="form-group">
               <label>Tipo de documento</label>
@@ -467,14 +472,6 @@ export function CondominioAdminDashboard() {
           <div className="form-group">
             <label>Teléfono</label>
             <input type="text" value={newUser.phone} onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })} placeholder="+51 999 888 777" />
-          </div>
-          <div className="form-group">
-            <label>Rol</label>
-            <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}>
-              {Object.entries(ROLE_LABELS).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
-              ))}
-            </select>
           </div>
           <small>Se creará una cuenta con contraseña: <code>12345678</code></small>
           <div className="form-actions">
@@ -554,7 +551,7 @@ export function CondominioAdminDashboard() {
                 <label>Rol</label>
                 <select value={editingUser.role} onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}>
                   {Object.entries(ROLE_LABELS).map(([key, label]) => (
-                    <option key={key} value={key}>{label}</option>
+                    (!isSuperAdmin && key === 'SUPER_ADMIN') ? null : <option key={key} value={key}>{label}</option>
                   ))}
                 </select>
               </div>
@@ -594,7 +591,6 @@ export function CondominioAdminDashboard() {
                   <div className="user-card-line"><span className="user-card-label">Correo</span><span>{u.email || u.users_global?.email || '-'}</span></div>
                   {(u.document_type || u.document_number) && <div className="user-card-line"><span className="user-card-label">Documento</span><span>{u.document_type || ''} {u.document_number || ''}</span></div>}
                   {u.phone && <div className="user-card-line"><span className="user-card-label">Teléfono</span><span>{u.phone}</span></div>}
-                  {viewAllCondos && <div className="user-card-line"><span className="user-card-label">Condominio</span><span>{u.tenant_name || '-'}</span></div>}
                   <div className="user-card-line"><span className="user-card-label">Rol</span><span>{ROLE_LABELS[u.role] || u.role}</span></div>
                   <div className="user-card-line"><span className="user-card-label">Estado</span><span className={`status-badge ${u.status === 'ACTIVE' ? 'status-occupied' : 'status-vacant'}`}>{u.status}</span></div>
                 </div>
@@ -616,7 +612,6 @@ export function CondominioAdminDashboard() {
           <table>
             <thead>
               <tr>
-                {viewAllCondos && <th>Condominio</th>}
                 <th>Nombre</th>
                 <th className="users-email-cell">Email</th>
                 <th>Rol</th>
@@ -627,7 +622,6 @@ export function CondominioAdminDashboard() {
             <tbody>
               {pagedUsers.map(u => (
                 <tr key={`${u.id}-${u.user_id}`}>
-                  {viewAllCondos && <td>{u.tenant_name || '-'}</td>}
                   <td>{u.name || '-'}</td>
                   <td className="users-email-cell">{u.email || u.users_global?.email || '-'}</td>
                   <td>{ROLE_LABELS[u.role] || u.role}</td>

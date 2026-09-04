@@ -193,15 +193,23 @@ export default async function(req: Request): Promise<Response> {
       case 'POST':
       case 'create': {
         const reqBody = body as unknown as AddUserRequest;
-        if (!reqBody.tenant_id || !reqBody.email || !reqBody.name || !reqBody.role) {
+        const email = String(reqBody.email).trim().toLowerCase();
+        const defaultPassword = '12345678';
+        const isGlobalSuperAdmin = reqBody.role === 'SUPER_ADMIN' && !reqBody.tenant_id;
+
+        if (!reqBody.email || !reqBody.name || !reqBody.role) {
           return new Response(
-            JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Campos requeridos: tenant_id, email, name, role' } }),
+            JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Campos requeridos: email, name, role' } }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
 
-        const email = String(reqBody.email).trim().toLowerCase();
-        const defaultPassword = '12345678';
+        if (!isGlobalSuperAdmin && !reqBody.tenant_id) {
+          return new Response(
+            JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere un condominio (tenant_id) para este rol' } }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
 
         let userId: string | null = null;
 
@@ -224,7 +232,7 @@ export default async function(req: Request): Promise<Response> {
         }
 
         if (userId) {
-          const ugPayload: Record<string, unknown> = { id: userId, email, name: reqBody.name, password_hash: defaultPassword, is_superadmin: false };
+          const ugPayload: Record<string, unknown> = { id: userId, email, name: reqBody.name, password_hash: defaultPassword, is_superadmin: isGlobalSuperAdmin };
           if (reqBody.document_type) ugPayload.document_type = reqBody.document_type;
           if (reqBody.document_number) ugPayload.document_number = reqBody.document_number;
           if (reqBody.phone) ugPayload.phone = reqBody.phone;
@@ -236,7 +244,7 @@ export default async function(req: Request): Promise<Response> {
             // User already exists: update their profile instead of failing silently
             console.error('users_global insert error:', ugError);
             try {
-              const ugUpdate: Record<string, unknown> = { name: reqBody.name };
+              const ugUpdate: Record<string, unknown> = { name: reqBody.name, is_superadmin: isGlobalSuperAdmin };
               if (reqBody.document_type) ugUpdate.document_type = reqBody.document_type;
               if (reqBody.document_number) ugUpdate.document_number = reqBody.document_number;
               if (reqBody.phone) ugUpdate.phone = reqBody.phone;
@@ -245,7 +253,7 @@ export default async function(req: Request): Promise<Response> {
           }
         }
 
-        if (userId) {
+        if (userId && reqBody.tenant_id) {
           const { data: tu, error: tuError } = await client.database
             .from('tenant_users')
             .insert([{
@@ -259,6 +267,13 @@ export default async function(req: Request): Promise<Response> {
 
           return new Response(
             JSON.stringify({ success: true, data: { tenant_user_id: tu?.id ?? null, user_id: userId, email, role: reqBody.role }, error: null }),
+            { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (userId && isGlobalSuperAdmin) {
+          return new Response(
+            JSON.stringify({ success: true, data: { tenant_user_id: null, user_id: userId, email, role: reqBody.role, global: true }, error: null }),
             { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
