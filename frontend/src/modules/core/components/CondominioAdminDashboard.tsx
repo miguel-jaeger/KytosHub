@@ -17,7 +17,10 @@ interface TenantUser {
   tenant_name?: string;
   schema_name?: string;
   source?: 'tenant_user' | 'resident';
-  users_global?: { email: string; is_superadmin: boolean } | null;
+  users_global?: { email: string; is_superadmin: boolean; document_type?: string; document_number?: string; phone?: string } | null;
+  document_type?: string;
+  document_number?: string;
+  phone?: string;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -41,7 +44,7 @@ export function CondominioAdminDashboard() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingUser, setEditingUser] = useState<TenantUser | null>(null);
-  const [newUser, setNewUser] = useState({ email: '', name: '', role: 'RESIDENT', tenant_id: '' });
+  const [newUser, setNewUser] = useState({ email: '', name: '', role: 'RESIDENT', tenant_id: '', document_type: 'DNI', document_number: '', phone: '' });
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState<number | 'all'>(10);
   const [viewAllCondos, setViewAllCondos] = useState(isSuperAdmin);
@@ -63,7 +66,7 @@ export function CondominioAdminDashboard() {
   const openAddForm = () => {
     const initial = condominium?.tenant_id || '';
     const initialName = condominiums.find(c => c.id === initial)?.name || '';
-    setNewUser({ email: '', name: '', role: 'RESIDENT', tenant_id: initial });
+    setNewUser({ email: '', name: '', role: 'RESIDENT', tenant_id: initial, document_type: 'DNI', document_number: '', phone: '' });
     setAddCondoSearch(initialName);
     setShowAddForm(true);
   };
@@ -151,7 +154,10 @@ export function CondominioAdminDashboard() {
           tenant_id: newUser.tenant_id || condominium.tenant_id,
           email: newUser.email,
           name: newUser.name,
-          role: newUser.role
+          role: newUser.role,
+          document_type: newUser.document_type,
+          document_number: newUser.document_number,
+          phone: newUser.phone
         }
       });
 
@@ -159,7 +165,7 @@ export function CondominioAdminDashboard() {
 
       if (data?.success) {
         setShowAddForm(false);
-        setNewUser({ email: '', name: '', role: 'RESIDENT', tenant_id: '' });
+        setNewUser({ email: '', name: '', role: 'RESIDENT', tenant_id: '', document_type: 'DNI', document_number: '', phone: '' });
         setAddCondoSearch('');
         if (condominium && newUser.tenant_id && newUser.tenant_id !== condominium.tenant_id) {
           setCondominium({
@@ -441,6 +447,24 @@ export function CondominioAdminDashboard() {
             <label>Email</label>
             <input type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} placeholder="correo@ejemplo.com" required />
           </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Tipo de documento</label>
+              <select value={newUser.document_type} onChange={(e) => setNewUser({ ...newUser, document_type: e.target.value })}>
+                <option value="DNI">DNI</option>
+                <option value="CE">CE</option>
+                <option value="PASAPORTE">Pasaporte</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Número de documento</label>
+              <input type="text" value={newUser.document_number} onChange={(e) => setNewUser({ ...newUser, document_number: e.target.value })} placeholder="12345678" />
+            </div>
+          </div>
+          <div className="form-group">
+            <label>Teléfono</label>
+            <input type="text" value={newUser.phone} onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })} placeholder="+51 999 888 777" />
+          </div>
           <div className="form-group">
             <label>Rol</label>
             <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}>
@@ -547,6 +571,8 @@ export function CondominioAdminDashboard() {
                 <div className="user-card-info">
                   <div className="user-card-line"><span className="user-card-label">Nombre</span><span>{u.name || '-'}</span></div>
                   <div className="user-card-line"><span className="user-card-label">Correo</span><span>{u.email || u.users_global?.email || '-'}</span></div>
+                  {(u.document_type || u.document_number) && <div className="user-card-line"><span className="user-card-label">Documento</span><span>{u.document_type || ''} {u.document_number || ''}</span></div>}
+                  {u.phone && <div className="user-card-line"><span className="user-card-label">Teléfono</span><span>{u.phone}</span></div>}
                   {viewAllCondos && <div className="user-card-line"><span className="user-card-label">Condominio</span><span>{u.tenant_name || '-'}</span></div>}
                   <div className="user-card-line"><span className="user-card-label">Rol</span><span>{ROLE_LABELS[u.role] || u.role}</span></div>
                   <div className="user-card-line"><span className="user-card-label">Estado</span><span className={`status-badge ${u.status === 'ACTIVE' ? 'status-occupied' : 'status-vacant'}`}>{u.status}</span></div>
