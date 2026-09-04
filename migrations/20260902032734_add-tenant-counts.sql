@@ -2,10 +2,10 @@
 -- Sprint 1: towers_count, floors_count, departments_count, residents_count
 
 ALTER TABLE public.tenants
-    ADD COLUMN towers_count integer NOT NULL DEFAULT 0,
-    ADD COLUMN floors_count integer NOT NULL DEFAULT 0,
-    ADD COLUMN departments_count integer NOT NULL DEFAULT 0,
-    ADD COLUMN residents_count integer NOT NULL DEFAULT 0;
+    ADD COLUMN IF NOT EXISTS towers_count integer NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS floors_count integer NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS departments_count integer NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS residents_count integer NOT NULL DEFAULT 0;
 
 -- Function to refresh counts for a tenant from its schema
 CREATE OR REPLACE FUNCTION public.refresh_tenant_counts(p_tenant_id uuid)

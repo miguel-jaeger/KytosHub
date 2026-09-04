@@ -26,6 +26,15 @@ export default async function(req: Request): Promise<Response> {
     if (!schemaName) return bad(corsHeaders, 'schema_name es requerido');
     const db = client.database.schema(schemaName);
 
+    const refreshTenantCounts = async () => {
+      try {
+        const { data: tenant } = await client.database.from('tenants').select('id').eq('schema_name', schemaName).single();
+        if (tenant?.id) {
+          await client.database.rpc('refresh_tenant_counts', { p_tenant_id: tenant.id });
+        }
+      } catch {}
+    };
+
     switch (action) {
       case 'list': {
         let q = db.from('residents').select('*');
@@ -137,6 +146,7 @@ export default async function(req: Request): Promise<Response> {
           user_id
         }]).select().single();
         if (error) throw error;
+        await refreshTenantCounts();
         return new Response(JSON.stringify({ success: true, data, error: null }), { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
@@ -161,12 +171,13 @@ export default async function(req: Request): Promise<Response> {
           const errString = String((error as { message?: string })?.message || error);
           const dup = errString.match(/23505|duplicate key|unique constraint/i);
           if (dup) {
-            // Duplicate (same document + department): return success without duplicating
+            await refreshTenantCounts();
             return ok(corsHeaders, null);
           }
           throw error;
         }
 
+        await refreshTenantCounts();
         return new Response(JSON.stringify({ success: true, data, error: null }), { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
@@ -176,6 +187,7 @@ export default async function(req: Request): Promise<Response> {
         delete update.id; delete update.schema_name; delete update.action;
         const { data, error } = await db.from('residents').update(update).eq('id', body.id).select().single();
         if (error) throw error;
+        await refreshTenantCounts();
         return ok(corsHeaders, data);
       }
 
@@ -183,6 +195,7 @@ export default async function(req: Request): Promise<Response> {
         if (!body.id) return bad(corsHeaders, 'id es requerido');
         const { error } = await db.from('residents').delete().eq('id', body.id);
         if (error) throw error;
+        await refreshTenantCounts();
         return ok(corsHeaders, null);
       }
 

@@ -98,6 +98,11 @@ export default async function(req: Request): Promise<Response> {
       throw provisionError;
     }
 
+    // Attach auto-sync trigger for cached counts (residents, towers, floors, departments)
+    try {
+      await client.database.rpc('ensure_tenant_count_sync', { p_tenant_id: tenant.id });
+    } catch {};
+
     // Promote the registering user to SUPER_ADMIN of the tenant (if provided)
     if (body.owner_user_id) {
       await client.database.from('tenant_users').insert([

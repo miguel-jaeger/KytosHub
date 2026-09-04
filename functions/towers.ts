@@ -32,6 +32,15 @@ export default async function(req: Request): Promise<Response> {
 
     const db = client.database.schema(schemaName);
 
+    const refreshTenantCounts = async () => {
+      try {
+        const { data: tenant } = await client.database.from('tenants').select('id').eq('schema_name', schemaName).single();
+        if (tenant?.id) {
+          await client.database.rpc('refresh_tenant_counts', { p_tenant_id: tenant.id });
+        }
+      } catch {}
+    };
+
     switch (action) {
       case 'list': {
         const { data, error } = await db.from('towers').select('*').order('name');
@@ -63,6 +72,7 @@ export default async function(req: Request): Promise<Response> {
           departments_per_floor: body.departments_per_floor
         }]).select().single();
         if (error) throw error;
+        await refreshTenantCounts();
         return new Response(
           JSON.stringify({ success: true, data, error: null }),
           { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -83,6 +93,7 @@ export default async function(req: Request): Promise<Response> {
         if (!body.id) return bad(corsHeaders, 'id es requerido');
         const { error } = await db.from('towers').delete().eq('id', body.id);
         if (error) throw error;
+        await refreshTenantCounts();
         return new Response(
           JSON.stringify({ success: true, data: null, error: null }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

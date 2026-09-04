@@ -102,6 +102,13 @@ export default async function(req: Request): Promise<Response> {
 
     if (error) throw error;
 
+    try {
+      const { data: tenant } = await client.database.from('tenants').select('id').eq('schema_name', body.schema_name).single();
+      if (tenant?.id) {
+        await client.database.rpc('refresh_tenant_counts', { p_tenant_id: tenant.id });
+      }
+    } catch {}
+
     const response: {
       success: boolean;
       data: Record<string, unknown> | null;

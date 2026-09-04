@@ -37,6 +37,18 @@ export default async function(req: Request): Promise<Response> {
         const { data, error } = await query.order('name');
         if (error) throw error;
 
+        // Refresh cached counts so dashboards always show fresh numbers
+        const tenants = (data || []) as Array<Record<string, unknown>>;
+        for (const t of tenants) {
+          try {
+            const tenantId = t.id as string;
+            const tenantSchema = t.schema_name as string | undefined;
+            if (tenantId && tenantSchema) {
+              await client.database.rpc('refresh_tenant_counts', { p_tenant_id: tenantId });
+            }
+          } catch {}
+        }
+
         // If a single id was requested, return single object
         const result = body.id ? (data && data.length ? data[0] : null) : (data || []);
         return ok(corsHeaders, result);
