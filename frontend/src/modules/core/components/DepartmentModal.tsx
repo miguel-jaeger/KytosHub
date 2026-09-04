@@ -4,6 +4,11 @@ import { useCondominium } from '../../../contexts/CondominiumContext';
 import { PaginationBar, paginate } from '../../../components/Pagination';
 import type { Resident, DepartmentNode } from '../types';
 
+type SearchResident = Resident & {
+  global_user?: boolean;
+  role?: string;
+};
+
 const relLabel: Record<Resident['relationship_type'], string> = {
   PROPIETARIO: 'Propietario',
   FAMILIAR: 'Familiar',
@@ -35,8 +40,8 @@ export function DepartmentModal({
   const [savingEdit, setSavingEdit] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<Resident[]>([]);
-  const [allCondoResidents, setAllCondoResidents] = useState<Resident[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResident[]>([]);
+  const [allCondoResidents, setAllCondoResidents] = useState<SearchResident[]>([]);
   const [searching, setSearching] = useState(false);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -74,10 +79,10 @@ export function DepartmentModal({
       const { invokeFunction } = await import('../../../lib/insforge');
       const { data, error: fnError } = await invokeFunction<{ success: boolean; data: Resident[] | null; error: { message: string } | null }>('residents', {
         method: 'POST',
-        body: { action: 'list', schema_name: schemaName }
+        body: { action: 'list', schema_name: schemaName, include_users: true, tenant_id: condominium?.tenant_id }
       });
       if (fnError) throw fnError;
-      const all = (data?.success ? (data.data || []) : []) as Resident[];
+      const all = (data?.success ? (data.data || []) : []) as SearchResident[];
       setAllCondoResidents(all);
       applySearch(all);
     } catch (err) {
@@ -86,7 +91,7 @@ export function DepartmentModal({
     }
   };
 
-  const applySearch = (pool: Resident[]) => {
+  const applySearch = (pool: SearchResident[]) => {
     const term = searchTerm.trim().toLowerCase();
     setSearchResults(pool.filter(r =>
       (r.full_name || '').toLowerCase().includes(term) ||
@@ -125,14 +130,26 @@ export function DepartmentModal({
     try {
       const { invokeFunction } = await import('../../../lib/insforge');
 
-      if (r.department_id === departmentId) {
+      if (!r.id) {
+        // Global user without a resident row: link them to this department
+        const { data, error: fnError } = await invokeFunction<{ success: boolean; data?: Resident | null; error: { message: string } | null }>('residents', {
+          method: 'POST',
+          body: {
+            action: 'link-user',
+            schema_name: schemaName,
+            user_id: r.user_id,
+            department_id: departmentId
+          }
+        });
+        if (fnError) throw fnError;
+        if (!data?.success) { setError(data?.error?.message || 'No se pudo asignar el usuario'); return; }
+        setMessage(`"${r.full_name}" fue agregado al Dpto ${department.department_number}.`);
+      } else if (r.department_id === departmentId) {
         // Already in this department: nothing to do
         setMessage(`"${r.full_name}" ya está en el Dpto ${department.department_number}.`);
         await fetchResidents();
         return;
-      }
-
-      if (r.department_id) {
+      } else if (r.department_id) {
         // Belongs to another department: add a copy here so it can live in both
         const { data, error: fnError } = await invokeFunction<{ success: boolean; data?: Resident | null; error: { message: string } | null }>('residents', {
           method: 'POST',
@@ -317,9 +334,9 @@ export function DepartmentModal({
                     </thead>
                     <tbody>
                       {pagedSearchResults.map(r => (
-                        <tr key={r.id}>
+                        <tr key={r.id ?? `global-${r.user_id}`}>
                           <td>{r.full_name}</td>
-                          <td>{r.document_type} {r.document_number}</td>
+                          <td>{(r as unknown as { global_user?: boolean }).global_user ? 'Usuario del condominio' : `${r.document_type} ${r.document_number}`}</td>
                           <td>
                             {r.departments?.department_number
                               ? <>Dpto {r.departments.department_number}{r.departments.towers?.code ? ` (${r.departments.towers.code})` : ''}</>

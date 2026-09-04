@@ -36,10 +36,10 @@ export default async function(req: Request): Promise<Response> {
         }
         const { data, error } = await q.order('created_at', { ascending: false });
         if (error) throw error;
-        const residents = data || [];
-        if (residents.length === 0) return ok(corsHeaders, []);
+        const residents = (data || []) as Array<Record<string, unknown>>;
+        if (residents.length === 0 && !body.include_users) return ok(corsHeaders, []);
         const deptIds = [...new Set(residents.map((r: { department_id: string }) => r.department_id))];
-        const { data: depts } = await db.from('departments').select('id, department_number, tower_id').in('id', deptIds);
+        const { data: depts } = deptIds.length ? await db.from('departments').select('id, department_number, tower_id').in('id', deptIds) : { data: [] } as { data: { id: string; department_number: string; tower_id: string }[] };
         const towerIds = [...new Set((depts || []).map((d: { tower_id: string }) => d.tower_id))];
         const { data: towers } = towerIds.length ? await db.from('towers').select('id, name, code').in('id', towerIds) : { data: [] } as { data: { id: string; name: string; code: string }[] };
         const deptMap = new Map((depts || []).map((d: { id: string; department_number: string; tower_id: string }) => [d.id, d]));
@@ -49,7 +49,92 @@ export default async function(req: Request): Promise<Response> {
           const tower = dept ? towerMap.get(dept.tower_id) as { name: string; code: string } | undefined : undefined;
           return { ...r, departments: dept ? { department_number: dept.department_number, towers: tower ? { name: tower.name, code: tower.code } : undefined } : undefined };
         });
-        return ok(corsHeaders, enriched);
+
+        // Include global condominium users (from tenant_users + users_global) that are not yet residents
+        let merged = enriched;
+        if (body.include_users && body.tenant_id) {
+          const tenantId = body.tenant_id as string;
+          const { data: tuRows } = await client.database.from('tenant_users').select('user_id, role').eq('tenant_id', tenantId).eq('status', 'ACTIVE');
+          const existingEmails = new Set(
+            (residents as Array<{ email?: string | null }>).map(r => String(r.email || '').toLowerCase()).filter(Boolean)
+          );
+          const found: Array<Record<string, unknown>> = [];
+          for (const tu of (tuRows || []) as Array<{ user_id: string; role: string }>) {
+            const existing = residents.find((r: Record<string, unknown>) => r.user_id === tu.user_id);
+            if (existing) continue;
+            let email = '';
+            let name = '';
+            try {
+              const { data: ug } = await client.database.from('users_global').select('email, name').eq('id', tu.user_id).single();
+              email = String((ug as { email?: string } | null)?.email || '');
+              name = String((ug as { name?: string } | null)?.name || '');
+            } catch {}
+            if (email && existingEmails.has(email.toLowerCase())) continue;
+            if (email) existingEmails.add(email.toLowerCase());
+            found.push({
+              id: null,
+              user_id: tu.user_id,
+              global_user: true,
+              role: tu.role,
+              full_name: name || email.split('@')[0] || 'Usuario',
+              email: email || null,
+              phone: null,
+              document_type: null,
+              document_number: '',
+              relationship_type: null,
+              is_primary_contact: false,
+              departments: undefined,
+              created_at: null
+            });
+          }
+          merged = [...enriched, ...found];
+        }
+
+        return ok(corsHeaders, merged);
+      }
+
+      case 'link-user': {
+        // Attach an existing global user as a resident of the given department
+        const { user_id, department_id, relationship_type, is_primary_contact } = body as {
+          user_id?: string;
+          department_id?: string;
+          relationship_type?: string;
+          is_primary_contact?: boolean;
+        };
+        if (!user_id || !department_id) {
+          return bad(corsHeaders, 'user_id y department_id son requeridos');
+        }
+        let email = '';
+        let fullName = 'Usuario';
+        try {
+          const { data: ug } = await client.database.from('users_global').select('email, name').eq('id', user_id).single();
+          email = String((ug as { email?: string } | null)?.email || '');
+          fullName = (ug as { name?: string } | null)?.name || email.split('@')[0] || 'Usuario';
+        } catch {}
+
+        let existingDoc: unknown = null;
+        try {
+          const { data: ed } = await db.from('residents').select('id').eq('department_id', department_id).eq('user_id', user_id).single();
+          existingDoc = ed;
+        } catch {}
+        if (existingDoc) {
+          return ok(corsHeaders, existingDoc);
+        }
+
+        const documentNumber = `USR${user_id.replace(/-/g, '').slice(0, 12).toUpperCase()}`;
+        const { data, error } = await db.from('residents').insert([{
+          department_id,
+          full_name: fullName,
+          document_type: 'DNI',
+          document_number: documentNumber,
+          relationship_type: relationship_type || 'PROPIETARIO',
+          is_primary_contact: is_primary_contact || false,
+          email: email || null,
+          phone: null,
+          user_id
+        }]).select().single();
+        if (error) throw error;
+        return new Response(JSON.stringify({ success: true, data, error: null }), { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       case 'create': {
