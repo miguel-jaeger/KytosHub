@@ -61,40 +61,70 @@ export default async function(req: Request): Promise<Response> {
 
         // Include global condominium users (from tenant_users + users_global) that are not yet residents
         let merged = enriched;
-        if (body.include_users && body.tenant_id) {
-          const tenantId = body.tenant_id as string;
-          const { data: tuRows } = await client.database.from('tenant_users').select('user_id, role').eq('tenant_id', tenantId).eq('status', 'ACTIVE');
+        if (body.include_users) {
           const existingEmails = new Set(
             (residents as Array<{ email?: string | null }>).map(r => String(r.email || '').toLowerCase()).filter(Boolean)
           );
           const found: Array<Record<string, unknown>> = [];
-          for (const tu of (tuRows || []) as Array<{ user_id: string; role: string }>) {
-            const existing = residents.find((r: Record<string, unknown>) => r.user_id === tu.user_id);
-            if (existing) continue;
-            let email = '';
-            let name = '';
+
+          if (body.all_users) {
+            // Super admin: search across ALL global users (users_global), not only this condominium's
             try {
-              const { data: ug } = await client.database.from('users_global').select('email, name').eq('id', tu.user_id).single();
-              email = String((ug as { email?: string } | null)?.email || '');
-              name = String((ug as { name?: string } | null)?.name || '');
+              const { data: allUsers } = await client.database.from('users_global').select('id, email, name');
+              for (const ug of (allUsers || []) as Array<{ id: string; email?: string; name?: string }>) {
+                const existing = residents.find((r: Record<string, unknown>) => r.user_id === ug.id);
+                if (existing) continue;
+                const email = String(ug.email || '').toLowerCase();
+                if (email && existingEmails.has(email)) continue;
+                if (email) existingEmails.add(email);
+                found.push({
+                  id: null,
+                  user_id: ug.id,
+                  global_user: true,
+                  role: null,
+                  full_name: ug.name || email.split('@')[0] || 'Usuario',
+                  email: ug.email || null,
+                  phone: null,
+                  document_type: null,
+                  document_number: '',
+                  relationship_type: null,
+                  is_primary_contact: false,
+                  departments: undefined,
+                  created_at: null
+                });
+              }
             } catch {}
-            if (email && existingEmails.has(email.toLowerCase())) continue;
-            if (email) existingEmails.add(email.toLowerCase());
-            found.push({
-              id: null,
-              user_id: tu.user_id,
-              global_user: true,
-              role: tu.role,
-              full_name: name || email.split('@')[0] || 'Usuario',
-              email: email || null,
-              phone: null,
-              document_type: null,
-              document_number: '',
-              relationship_type: null,
-              is_primary_contact: false,
-              departments: undefined,
-              created_at: null
-            });
+          } else if (body.tenant_id) {
+            const tenantId = body.tenant_id as string;
+            const { data: tuRows } = await client.database.from('tenant_users').select('user_id, role').eq('tenant_id', tenantId).eq('status', 'ACTIVE');
+            for (const tu of (tuRows || []) as Array<{ user_id: string; role: string }>) {
+              const existing = residents.find((r: Record<string, unknown>) => r.user_id === tu.user_id);
+              if (existing) continue;
+              let email = '';
+              let name = '';
+              try {
+                const { data: ug } = await client.database.from('users_global').select('email, name').eq('id', tu.user_id).single();
+                email = String((ug as { email?: string } | null)?.email || '');
+                name = String((ug as { name?: string } | null)?.name || '');
+              } catch {}
+              if (email && existingEmails.has(email.toLowerCase())) continue;
+              if (email) existingEmails.add(email.toLowerCase());
+              found.push({
+                id: null,
+                user_id: tu.user_id,
+                global_user: true,
+                role: tu.role,
+                full_name: name || email.split('@')[0] || 'Usuario',
+                email: email || null,
+                phone: null,
+                document_type: null,
+                document_number: '',
+                relationship_type: null,
+                is_primary_contact: false,
+                departments: undefined,
+                created_at: null
+              });
+            }
           }
           merged = [...enriched, ...found];
         }

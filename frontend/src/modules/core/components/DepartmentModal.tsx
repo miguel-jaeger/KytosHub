@@ -1,6 +1,8 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useResidents } from '../hooks/useResidents';
 import { useCondominium } from '../../../contexts/CondominiumContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import { SUPER_ADMIN_EMAIL } from '../../../hooks/useUserRole';
 import { PaginationBar, paginate } from '../../../components/Pagination';
 import type { Resident, DepartmentNode } from '../types';
 
@@ -33,7 +35,9 @@ export function DepartmentModal({
   onResidentChange?: () => void;
 }) {
   const { condominium } = useCondominium();
+  const { user } = useAuth();
   const schemaName = condominium?.schema_name;
+  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
   const { residents, loading: residentsLoading, createResident, deleteResident, fetchResidents } = useResidents(departmentId);
   const [showForm, setShowForm] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -81,7 +85,7 @@ export function DepartmentModal({
       const { invokeFunction } = await import('../../../lib/insforge');
       const { data, error: fnError } = await invokeFunction<{ success: boolean; data: Resident[] | null; error: { message: string } | null }>('residents', {
         method: 'POST',
-        body: { action: 'list', schema_name: schemaName, include_users: true, tenant_id: condominium?.tenant_id }
+        body: { action: 'list', schema_name: schemaName, include_users: true, tenant_id: condominium?.tenant_id, all_users: isSuperAdmin }
       });
       if (fnError) throw fnError;
       const all = (data?.success ? (data.data || []) : []) as SearchResident[];
