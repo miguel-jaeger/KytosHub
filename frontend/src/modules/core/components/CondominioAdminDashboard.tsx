@@ -47,6 +47,7 @@ export function CondominioAdminDashboard() {
   const [newUser, setNewUser] = useState({ email: '', name: '', role: 'RESIDENT', tenant_id: '', document_type: 'DNI', document_number: '', phone: '' });
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState<number | 'all'>(10);
+  const [viewAllCondos, setViewAllCondos] = useState<boolean>(isSuperAdmin);
 
   const [condoSearch, setCondoSearch] = useState(condominium?.name || '');
   const [condoDropdownOpen, setCondoDropdownOpen] = useState(false);
@@ -73,10 +74,12 @@ export function CondominioAdminDashboard() {
 
   const fetchUsers = async () => {
     try {
-      if (!condominium?.tenant_id) { setUsers([]); setLoading(false); return; }
+      if (!viewAllCondos && !condominium?.tenant_id) { setUsers([]); setLoading(false); return; }
       setLoading(true);
       setError(null);
-      const body = { action: 'list', tenant_id: condominium?.tenant_id };
+      const body = viewAllCondos
+        ? { action: 'list-all' }
+        : { action: 'list', tenant_id: condominium?.tenant_id };
       const { data, error: fnError } = await invokeFunction<{ success: boolean; data: TenantUser[] | null; error: { message: string } | null }>('list-condominium-users', {
         method: 'POST',
         body
@@ -99,10 +102,10 @@ export function CondominioAdminDashboard() {
 
   useEffect(() => {
     fetchUsers();
-  }, [condominium?.tenant_id]);
+  }, [condominium?.tenant_id, viewAllCondos]);
 
   useEffect(() => {
-    if (isSuperAdmin || !user || condominium) return;
+    if (isSuperAdmin || !user) return;
     invokeFunction<{ success: boolean; data: { tenant_id: string }[] | null }>('list-condominium-users', {
       method: 'POST',
       body: { action: 'list-by-user', user_id: user.id }
@@ -110,7 +113,9 @@ export function CondominioAdminDashboard() {
       const first = data?.data?.[0]?.tenant_id;
       if (!first) return;
       const c = condominiums.find(x => x.id === first);
-      if (c) {
+      if (!c) return;
+      const isOnOwnCondo = condominium?.tenant_id === first;
+      if (!condominium || !isOnOwnCondo) {
         setCondominium({
           tenant_id: c.id,
           name: c.name,
@@ -287,6 +292,7 @@ export function CondominioAdminDashboard() {
   }, [condominium]);
 
   const selectCondo = (c: { id: string; name: string; slug: string; short_name: string | null; schema_name: string; image_url: string | null }) => {
+    setViewAllCondos(false);
     setCondominium({
       tenant_id: c.id,
       name: c.name,
@@ -296,6 +302,12 @@ export function CondominioAdminDashboard() {
       image_url: c.image_url
     });
     setCondoSearch(c.name);
+    setCondoDropdownOpen(false);
+  };
+
+  const selectAllCondos = () => {
+    setViewAllCondos(true);
+    setCondoSearch('');
     setCondoDropdownOpen(false);
   };
 
@@ -350,7 +362,7 @@ export function CondominioAdminDashboard() {
   return (
     <div className="dashboard">
       <div className="header">
-        <h2>Usuarios {condominium ? `- ${condominium.name}` : ''}</h2>
+        <h2>Usuarios {viewAllCondos ? '- Todos los condominios' : condominium ? `- ${condominium.name}` : ''}</h2>
         <button onClick={openAddForm}><span className="material-symbols-outlined">person_add</span> Adicionar</button>
       </div>
       <div className="condo-search-panel">
@@ -367,11 +379,15 @@ export function CondominioAdminDashboard() {
             />
             {condoDropdownOpen && (
               <div className="condo-picker-dropdown">
+                <button type="button" className={`condo-picker-item ${viewAllCondos ? 'selected' : ''}`} onClick={selectAllCondos}>
+                  <span className="material-symbols-outlined">public</span>
+                  <span>Todos los condominios</span>
+                </button>
                 {filteredCondos.length === 0 ? (
                   <div className="condo-picker-empty">Sin resultados</div>
                 ) : (
                   filteredCondos.map(c => (
-                    <button key={c.id} type="button" className={`condo-picker-item ${c.id === condominium?.tenant_id ? 'selected' : ''}`} onClick={() => selectCondo(c)}>
+                    <button key={c.id} type="button" className={`condo-picker-item ${!viewAllCondos && c.id === condominium?.tenant_id ? 'selected' : ''}`} onClick={() => selectCondo(c)}>
                       <span className="material-symbols-outlined">apartment</span>
                       <span>{c.name}</span>
                     </button>
@@ -589,6 +605,7 @@ export function CondominioAdminDashboard() {
                 <div className="user-card-info">
                   <div className="user-card-line"><span className="user-card-label">Nombre</span><span>{u.name || '-'}</span></div>
                   <div className="user-card-line"><span className="user-card-label">Correo</span><span>{u.email || u.users_global?.email || '-'}</span></div>
+                  {viewAllCondos && <div className="user-card-line"><span className="user-card-label">Condominio</span><span>{u.tenant_name || '-'}</span></div>}
                   {(u.document_type || u.document_number) && <div className="user-card-line"><span className="user-card-label">Documento</span><span>{u.document_type || ''} {u.document_number || ''}</span></div>}
                   {u.phone && <div className="user-card-line"><span className="user-card-label">Teléfono</span><span>{u.phone}</span></div>}
                   <div className="user-card-line"><span className="user-card-label">Rol</span><span>{ROLE_LABELS[u.role] || u.role}</span></div>
@@ -612,6 +629,7 @@ export function CondominioAdminDashboard() {
           <table>
             <thead>
               <tr>
+                {viewAllCondos && <th>Condominio</th>}
                 <th>Nombre</th>
                 <th className="users-email-cell">Email</th>
                 <th>Rol</th>
@@ -622,6 +640,7 @@ export function CondominioAdminDashboard() {
             <tbody>
               {pagedUsers.map(u => (
                 <tr key={`${u.id}-${u.user_id}`}>
+                  {viewAllCondos && <td>{u.tenant_name || '-'}</td>}
                   <td>{u.name || '-'}</td>
                   <td className="users-email-cell">{u.email || u.users_global?.email || '-'}</td>
                   <td>{ROLE_LABELS[u.role] || u.role}</td>
