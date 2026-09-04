@@ -351,7 +351,7 @@ export function CondominioAdminDashboard() {
     <div className="dashboard">
       <div className="header">
         <h2>Usuarios {viewAllCondos ? '- Todos los condominios' : condominium ? `- ${condominium.name}` : ''}</h2>
-        {condominium && !viewAllCondos && <button onClick={openAddForm}><span className="material-symbols-outlined">person_add</span> Adicionar</button>}
+        <button onClick={openAddForm}><span className="material-symbols-outlined">person_add</span> Adicionar</button>
       </div>
       <div className="condo-search-panel">
         {isSuperAdmin && condominiums.length > 0 && (
