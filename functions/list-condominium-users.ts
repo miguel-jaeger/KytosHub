@@ -66,12 +66,19 @@ export default async function(req: Request): Promise<Response> {
           for (const u of users || []) {
             let email = '';
             let name = '';
+            let document_type: string | null = null;
+            let document_number: string | null = null;
+            let phone: string | null = null;
             try {
-            const { data: ug } = await client.database.from('users_global').select('email, name, document_type, document_number, phone').eq('id', u.user_id).single();
+              const { data: ug } = await client.database.from('users_global').select('email, name, document_type, document_number, phone').eq('id', u.user_id).single();
+              const ugRow = ug as Record<string, unknown> | null;
               email = (ug as { email?: string })?.email || '';
               name = (ug as { name?: string })?.name || '';
+              document_type = (ugRow?.document_type as string) || null;
+              document_number = (ugRow?.document_number as string) || null;
+              phone = (ugRow?.phone as string) || null;
             } catch {}
-            allUsers.push({ ...u, tenant_id: tenantIdForQuery, tenant_name: (t as { name: string }).name, email, name, document_type: (ug as Record<string, unknown>)?.document_type || null, document_number: (ug as Record<string, unknown>)?.document_number || null, phone: (ug as Record<string, unknown>)?.phone || null, source: 'tenant_user' });
+            allUsers.push({ ...u, tenant_id: tenantIdForQuery, tenant_name: (t as { name: string }).name, email, name, document_type, document_number, phone, source: 'tenant_user' });
           }
 
           if (!role || role === 'RESIDENT') {
@@ -137,16 +144,23 @@ export default async function(req: Request): Promise<Response> {
         for (const u of users || []) {
           let email = '';
           let name = '';
+          let document_type: string | null = null;
+          let document_number: string | null = null;
+          let phone: string | null = null;
           try {
             const { data: ug } = await client.database.from('users_global').select('email, name, document_type, document_number, phone').eq('id', u.user_id).single();
+            const ugRow = ug as Record<string, unknown> | null;
             email = (ug as { email?: string })?.email || '';
             name = (ug as { name?: string })?.name || '';
+            document_type = (ugRow?.document_type as string) || null;
+            document_number = (ugRow?.document_number as string) || null;
+            phone = (ugRow?.phone as string) || null;
           } catch {}
           try {
             const { data: prof } = await client.auth.getProfile(u.user_id);
             if (!name) name = (prof as { name?: string } | null)?.name || '';
           } catch {}
-          enrichedUsers.push({ ...u, email, name, document_type: (ug as Record<string, unknown>)?.document_type || null, document_number: (ug as Record<string, unknown>)?.document_number || null, phone: (ug as Record<string, unknown>)?.phone || null, source: 'tenant_user' });
+          enrichedUsers.push({ ...u, email, name, document_type, document_number, phone, source: 'tenant_user' });
         }
 
         // Include residents from the tenant schema so the users view is populated
