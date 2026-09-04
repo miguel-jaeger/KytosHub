@@ -226,7 +226,7 @@ export default async function(req: Request): Promise<Response> {
         for (const row of rows) {
           const email = String(row.email ?? '').trim().toLowerCase();
           const name = String(row.name ?? '').trim();
-          const documentType = String(row.document_type ?? 'DNI').trim().toUpperCase();
+          const documentType = normalizeDocumentType(String(row.document_type ?? ''));
           const documentNumber = String(row.document_number ?? '').trim();
           const phone = String(row.phone ?? '').trim();
 
@@ -235,6 +235,14 @@ export default async function(req: Request): Promise<Response> {
             results.errors.push({ email: email || '(sin correo)', reason: 'Faltan campos obligatorios (nombre y correo)' });
             continue;
           }
+
+          if (documentNumber && !documentType) {
+            results.failed++;
+            results.errors.push({ email, reason: 'Tipo de documento no válido (use DNI, CE o PASAPORTE)' });
+            continue;
+          }
+
+          const effectiveDocType = documentType || 'DNI';
 
           try {
             let userId = await resolveUserIdByEmail(email);
@@ -276,7 +284,7 @@ export default async function(req: Request): Promise<Response> {
               is_superadmin: false
             };
             if (documentNumber) {
-              ugPayload.document_type = documentType;
+              ugPayload.document_type = effectiveDocType;
               ugPayload.document_number = documentNumber;
             }
             if (phone) ugPayload.phone = phone;
@@ -285,7 +293,7 @@ export default async function(req: Request): Promise<Response> {
             if (ugError) {
               const ugUpdate: Record<string, unknown> = { name };
               if (documentNumber) {
-                ugUpdate.document_type = documentType;
+                ugUpdate.document_type = effectiveDocType;
                 ugUpdate.document_number = documentNumber;
               }
               if (phone) ugUpdate.phone = phone;
@@ -605,6 +613,14 @@ export default async function(req: Request): Promise<Response> {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
+}
+
+function normalizeDocumentType(value: string): string | null {
+  const v = value.trim().toLowerCase().replace(/[^a-z]/g, '');
+  if (v === 'dni') return 'DNI';
+  if (['ce', 'carnetdeextranjeria', 'carnetdeextranjera', 'extranjeria', 'extranjera', 'carnetextranjeria', 'carnetextranjera'].includes(v)) return 'CE';
+  if (['pasaporte', 'passport', 'passeport', 'pasaport'].includes(v)) return 'PASAPORTE';
+  return null;
 }
 
 async function resolveUserIdByEmail(email: string): Promise<string | null> {

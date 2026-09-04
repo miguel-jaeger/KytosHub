@@ -42,6 +42,7 @@ interface ImportRow {
 interface ImportColumnIndexes {
   name?: number;
   email?: number;
+  docType?: number;
   document?: number;
   phone?: number;
 }
@@ -92,10 +93,25 @@ function detectImportColumns(headers: string[]): ImportColumnIndexes {
     if (!key) return;
     if (['nombre', 'name', 'nombres', 'nombre completo'].includes(key)) idx.name = i;
     else if (['correo', 'email', 'correo electronico', 'correo electrónico'].includes(key)) idx.email = i;
+    else if (['tipo de documento', 'tipo documento', 'tipo doc', 'tipo doc identidad', 'documento tipo'].includes(key)) idx.docType = i;
     else if (['dni', 'documento', 'numero de documento', 'nro documento', 'nro dni'].includes(key)) idx.document = i;
     else if (['telefono', 'phone', 'celular', 'numero de telefono'].includes(key)) idx.phone = i;
   });
   return idx;
+}
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  DNI: 'DNI',
+  CE: 'Carnet de Extranjería',
+  PASAPORTE: 'Pasaporte'
+};
+
+function normalizeDocumentType(value: string): string | null {
+  const v = value.trim().toLowerCase().replace(/[^a-z]/g, '');
+  if (v === 'dni') return 'DNI';
+  if (['ce', 'carnetdeextranjeria', 'carnetdeextranjera', 'extranjeria', 'extranjera', 'carnetextranjeria', 'carnetextranjera'].includes(v)) return 'CE';
+  if (['pasaporte', 'passport', 'passeport', 'pasaport'].includes(v)) return 'PASAPORTE';
+  return null;
 }
 
 function mapImportRows(dataRows: string[][], idx: ImportColumnIndexes): { rows: ImportRow[]; invalid: number } {
@@ -103,16 +119,23 @@ function mapImportRows(dataRows: string[][], idx: ImportColumnIndexes): { rows: 
   const rows: ImportRow[] = [];
   const seen = new Set<string>();
   let invalid = 0;
+  const hasDocTypeColumn = idx.docType !== undefined;
   for (const cells of dataRows) {
     const at = (i?: number) => (i === undefined ? '' : (cells[i] ?? '')).trim();
     const name = at(idx.name);
     const email = at(idx.email).toLowerCase();
     const document_number = at(idx.document);
     const phone = at(idx.phone);
+    let document_type = 'DNI';
+    if (hasDocTypeColumn) {
+      const t = normalizeDocumentType(at(idx.docType));
+      if (t) document_type = t;
+      else if (document_number) { invalid++; continue; }
+    }
     if (!name || !email || !EMAIL_RE.test(email)) { invalid++; continue; }
     if (seen.has(email)) { invalid++; continue; }
     seen.add(email);
-    rows.push({ name, email, document_type: 'DNI', document_number, phone });
+    rows.push({ name, email, document_type, document_number, phone });
   }
   return { rows, invalid };
 }
@@ -506,7 +529,7 @@ export function CondominioAdminDashboard() {
   };
 
   const downloadImportTemplate = () => {
-    const content = '\uFEFFNombre,Correo,DNI,Telefono\nJuan Perez,juan.perez@example.com,12345678,+51 999 888 777\nMaria Lopez,maria.lopez@example.com,87654321,+51 987 654 321\n';
+    const content = '\uFEFFNombre,Correo,Tipo de Documento,Documento,Telefono\nJuan Perez,juan.perez@example.com,DNI,12345678,+51 999 888 777\nMaria Gomez,maria.gomez@example.com,Carnet de Extranjeria,87654321,+51 987 654 321\nCarlos Ruiz,carlos.ruiz@example.com,Pasaporte,AB123456,+51 955 444 333\n';
     const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -829,7 +852,7 @@ export function CondominioAdminDashboard() {
               onChange={(e) => void handleImportFileChange(e.target.files?.[0] || null)}
             />
             <small style={{ display: 'block', marginTop: '0.4rem' }}>
-              Columnas aceptadas: <code>Nombre, Correo, DNI, Telefono</code>. La primera fila debe ser el encabezado.
+              Columnas aceptadas: <code>Nombre, Correo, Tipo de Documento (DNI / Carnet de Extranjería / Pasaporte), Documento, Telefono</code>. La primera fila debe ser el encabezado.
               <br />
               <button type="button" className="btn-cancel" style={{ display: 'inline-flex', gap: '0.3rem', marginTop: '0.4rem' }} onClick={downloadImportTemplate}>
                 <span className="material-symbols-outlined">download</span> Descargar plantilla
@@ -851,7 +874,8 @@ export function CondominioAdminDashboard() {
                   <tr>
                     <th>Nombre</th>
                     <th>Correo</th>
-                    <th>DNI</th>
+                    <th>Tipo de Documento</th>
+                    <th>Documento</th>
                     <th>Teléfono</th>
                   </tr>
                 </thead>
@@ -860,6 +884,7 @@ export function CondominioAdminDashboard() {
                     <tr key={i}>
                       <td>{r.name}</td>
                       <td className="users-email-cell">{r.email}</td>
+                      <td>{DOC_TYPE_LABELS[r.document_type] || r.document_type}</td>
                       <td>{r.document_number || '-'}</td>
                       <td>{r.phone || '-'}</td>
                     </tr>
