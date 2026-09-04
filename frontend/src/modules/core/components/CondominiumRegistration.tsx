@@ -24,7 +24,7 @@ export function CondominiumRegistration({ onRegistered }: CondominiumRegistratio
   const [error, setError] = useState<string | null>(null);
 
   const deriveShortName = (value: string) =>
-    value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 
   const handleNameChange = (value: string) => {
     setName(value);

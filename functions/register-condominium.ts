@@ -75,7 +75,7 @@ export default async function(req: Request): Promise<Response> {
       .from('tenants')
       .insert([{
         name: body.name.trim(),
-        short_name: body.short_name?.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-') || null,
+        short_name: body.short_name?.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || null,
         address: body.address?.trim() || null,
         admin_phone: body.admin_phone?.trim() || null,
         image_url: body.image_url || null,
@@ -87,7 +87,7 @@ export default async function(req: Request): Promise<Response> {
     if (error) throw error;
 
     // Provision the per-tenant schema (condo_{slug}) with core tables
-    const { error: provisionError } = await client.database.rpc('provision_tenant_schema', {
+    const { error: provisionError } = await client.database.rpc('provision_tenant_schema_v2', {
       p_tenant_id: tenant.id
     });
 

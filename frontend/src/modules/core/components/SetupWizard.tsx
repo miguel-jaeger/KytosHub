@@ -68,7 +68,7 @@ export function SetupWizard() {
             </div>
             <div className="form-group">
               <label>Nombre Corto (identificador)</label>
-              <input type="text" value={condoData.short_name} onChange={e => setCondoData({ ...condoData, short_name: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-{2,}/g, '-').replace(/^-|-$/g, '') })} placeholder="Ej: gardenias" required />
+              <input type="text" value={condoData.short_name} onChange={e => setCondoData({ ...condoData, short_name: e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_{2,}/g, '_').replace(/^_|_$/g, '') })} placeholder="Ej: gardenias" required />
               <small>Se usará para el esquema de datos en la base de datos.</small>
             </div>
             <div className="form-group">
