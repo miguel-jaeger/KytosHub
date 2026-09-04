@@ -35,6 +35,34 @@ export default async function(req: Request): Promise<Response> {
       } catch {}
     };
 
+    // Resolve a user's real document from their resident records across all tenant schemas
+    const resolveDocsFromResidents = async (userIds: string[]): Promise<Map<string, { document_type: string; document_number: string; phone: string | null }>> => {
+      const map = new Map<string, { document_type: string; document_number: string; phone: string | null }>();
+      if (!userIds.length) return map;
+      try {
+        const { data: tenants } = await client.database.from('tenants').select('schema_name');
+        const schemas = [...new Set((tenants || []).map((t: { schema_name?: string }) => t.schema_name).filter(Boolean))];
+        for (const s of schemas) {
+          try {
+            const { data: rows } = await client.database.schema(s)
+              .from('residents')
+              .select('user_id, document_type, document_number, phone')
+              .in('user_id', userIds);
+            for (const row of (rows || []) as Array<{ user_id?: string; document_type?: string; document_number?: string; phone?: string | null }>) {
+              if (row.user_id && row.document_number && !map.has(row.user_id)) {
+                map.set(row.user_id, {
+                  document_type: row.document_type || 'DNI',
+                  document_number: row.document_number,
+                  phone: row.phone || null
+                });
+              }
+            }
+          } catch {}
+        }
+      } catch {}
+      return map;
+    };
+
     switch (action) {
       case 'list': {
         let q = db.from('residents').select('*');
@@ -135,6 +163,20 @@ export default async function(req: Request): Promise<Response> {
           merged = [...enriched, ...found];
         }
 
+        // Fill in the real document for users that only have it in their resident records
+        const docMissing = (found as Array<Record<string, unknown>>).filter(f => !String(f.document_number || '')).map(f => String(f.user_id || '')).filter(Boolean);
+        if (docMissing.length) {
+          const docs = await resolveDocsFromResidents(docMissing);
+          for (const f of (found as Array<Record<string, unknown>>)) {
+            const d = docs.get(String(f.user_id || ''));
+            if (d) {
+              if (!f.document_number) f.document_number = d.document_number;
+              if (!f.document_type) f.document_type = d.document_type;
+              if (!f.phone) f.phone = d.phone;
+            }
+          }
+        }
+
         return ok(corsHeaders, merged);
       }
 
@@ -168,8 +210,20 @@ export default async function(req: Request): Promise<Response> {
           return ok(corsHeaders, existingDoc);
         }
 
-        const finalDocType = document_type || 'DNI';
-        const finalDocNumber = document_number || `USR${user_id.replace(/-/g, '').slice(0, 12).toUpperCase()}`;
+        // Prefer the user's real document (from users_global or their resident records)
+        let finalDocType = document_type || 'DNI';
+        let finalDocNumber = document_number || '';
+        if (!finalDocNumber) {
+          const docs = await resolveDocsFromResidents([user_id]);
+          const d = docs.get(user_id);
+          if (d) {
+            finalDocType = d.document_type;
+            finalDocNumber = d.document_number;
+          }
+        }
+        if (!finalDocNumber) {
+          finalDocNumber = `USR${user_id.replace(/-/g, '').slice(0, 12).toUpperCase()}`;
+        }
         const { data, error } = await db.from('residents').insert([{
           department_id,
           full_name: fullName,

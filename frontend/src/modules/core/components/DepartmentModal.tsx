@@ -360,13 +360,17 @@ export function DepartmentModal({
                                   <option value="CE">CE</option>
                                   <option value="PASAPORTE">Pasaporte</option>
                                 </select>
-                                <input type="text" value={linkForm.document_number} onChange={e => setLinkForm({ ...linkForm, document_number: e.target.value })} placeholder="N° doc" style={{ fontSize: '0.8em', padding: '2px', width: '90px' }} />
+                                {linkForm.document_number.trim() ? (
+                                  <input type="text" value={linkForm.document_number} readOnly title="Documento del usuario" style={{ fontSize: '0.8em', padding: '2px', width: '90px', background: '#f0f0f0', cursor: 'not-allowed' }} />
+                                ) : (
+                                  <input type="text" value={linkForm.document_number} onChange={e => setLinkForm({ ...linkForm, document_number: e.target.value })} placeholder="N° doc" style={{ fontSize: '0.8em', padding: '2px', width: '90px' }} />
+                                )}
                                 <select value={linkForm.relationship_type} onChange={e => setLinkForm({ ...linkForm, relationship_type: e.target.value as Resident['relationship_type'] })} style={{ fontSize: '0.8em', padding: '2px' }}>
                                   <option value="PROPIETARIO">Propietario</option>
                                   <option value="FAMILIAR">Familiar</option>
                                   <option value="INQUILINO">Inquilino</option>
                                 </select>
-                                <button className="btn-primary" onClick={() => { setLinkUserTarget(null); assignResident(r, linkForm); }} disabled={!linkForm.document_number.trim() || assigningId === (r.id ?? r.user_id ?? r.full_name)}>OK</button>
+                                <button className="btn-primary" onClick={() => { setLinkUserTarget(null); assignResident(r, linkForm); }} disabled={assigningId === (r.id ?? r.user_id ?? r.full_name)}>OK</button>
                                 <button className="btn-cancel" onClick={() => setLinkUserTarget(null)} style={{ fontSize: '0.8em' }}>X</button>
                               </div>
                             ) : (
