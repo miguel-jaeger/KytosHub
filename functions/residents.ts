@@ -95,11 +95,13 @@ export default async function(req: Request): Promise<Response> {
 
       case 'link-user': {
         // Attach an existing global user as a resident of the given department
-        const { user_id, department_id, relationship_type, is_primary_contact } = body as {
+        const { user_id, department_id, relationship_type, is_primary_contact, document_type, document_number } = body as {
           user_id?: string;
           department_id?: string;
           relationship_type?: string;
           is_primary_contact?: boolean;
+          document_type?: string;
+          document_number?: string;
         };
         if (!user_id || !department_id) {
           return bad(corsHeaders, 'user_id y department_id son requeridos');
@@ -121,12 +123,13 @@ export default async function(req: Request): Promise<Response> {
           return ok(corsHeaders, existingDoc);
         }
 
-        const documentNumber = `USR${user_id.replace(/-/g, '').slice(0, 12).toUpperCase()}`;
+        const finalDocType = document_type || 'DNI';
+        const finalDocNumber = document_number || `USR${user_id.replace(/-/g, '').slice(0, 12).toUpperCase()}`;
         const { data, error } = await db.from('residents').insert([{
           department_id,
           full_name: fullName,
-          document_type: 'DNI',
-          document_number: documentNumber,
+          document_type: finalDocType,
+          document_number: finalDocNumber,
           relationship_type: relationship_type || 'PROPIETARIO',
           is_primary_contact: is_primary_contact || false,
           email: email || null,

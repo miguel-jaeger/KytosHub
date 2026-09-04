@@ -21,7 +21,8 @@ export function DepartmentModal({
   floorNumber,
   department,
   departmentId,
-  onClose
+  onClose,
+  onResidentChange
 }: {
   towerName: string;
   towerCode: string;
@@ -29,6 +30,7 @@ export function DepartmentModal({
   department: DepartmentNode;
   departmentId: string;
   onClose: () => void;
+  onResidentChange?: () => void;
 }) {
   const { condominium } = useCondominium();
   const schemaName = condominium?.schema_name;
@@ -45,6 +47,8 @@ export function DepartmentModal({
   const [searching, setSearching] = useState(false);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [linkUserTarget, setLinkUserTarget] = useState<SearchResident | null>(null);
+  const [linkForm, setLinkForm] = useState<{ document_type: Resident['document_type']; document_number: string; relationship_type: Resident['relationship_type'] }>({ document_type: 'DNI', document_number: '', relationship_type: 'PROPIETARIO' });
   const [resPage, setResPage] = useState(1);
   const [resPerPage, setResPerPage] = useState<number | 'all'>(10);
   const [searchPage, setSearchPage] = useState(1);
@@ -118,7 +122,7 @@ export function DepartmentModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm]);
 
-  const assignResident = async (r: Resident) => {
+  const assignResident = async (r: Resident, overrideDoc?: { document_type: Resident['document_type']; document_number: string; relationship_type: Resident['relationship_type'] }) => {
     if (!schemaName) return;
     const assignKey = r.id ?? r.user_id ?? r.full_name;
     setAssigningId(assignKey);
@@ -128,26 +132,26 @@ export function DepartmentModal({
       const { invokeFunction } = await import('../../../lib/insforge');
 
       if (!r.id) {
-        // Global user without a resident row: link them to this department
         const { data, error: fnError } = await invokeFunction<{ success: boolean; data?: Resident | null; error: { message: string } | null }>('residents', {
           method: 'POST',
           body: {
             action: 'link-user',
             schema_name: schemaName,
             user_id: r.user_id,
-            department_id: departmentId
+            department_id: departmentId,
+            document_type: overrideDoc?.document_type,
+            document_number: overrideDoc?.document_number,
+            relationship_type: overrideDoc?.relationship_type
           }
         });
         if (fnError) throw fnError;
         if (!data?.success) { setError(data?.error?.message || 'No se pudo asignar el usuario'); return; }
         setMessage(`"${r.full_name}" fue agregado al Dpto ${department.department_number}.`);
       } else if (r.department_id === departmentId) {
-        // Already in this department: nothing to do
         setMessage(`"${r.full_name}" ya está en el Dpto ${department.department_number}.`);
         await fetchResidents();
         return;
       } else if (r.department_id) {
-        // Belongs to another department: add a copy here so it can live in both
         const { data, error: fnError } = await invokeFunction<{ success: boolean; data?: Resident | null; error: { message: string } | null }>('residents', {
           method: 'POST',
           body: {
@@ -167,7 +171,6 @@ export function DepartmentModal({
         if (!data?.success) { setError(data?.error?.message || 'No se pudo asignar el residente'); return; }
         setMessage(`"${r.full_name}" fue agregado al Dpto ${department.department_number} (conserva su otro departamento).`);
       } else {
-        // No department yet: assign it
         const { data, error: fnError } = await invokeFunction<{ success: boolean; error: { message: string } | null }>('residents', {
           method: 'POST',
           body: { action: 'update', id: r.id, schema_name: schemaName, department_id: departmentId }
@@ -182,6 +185,7 @@ export function DepartmentModal({
       setShowSearch(false);
       setAllCondoResidents([]);
       await fetchResidents();
+      onResidentChange?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error de conexión');
     } finally {
@@ -231,6 +235,7 @@ export function DepartmentModal({
       setShowForm(false);
       setFormData({ full_name: '', document_type: 'DNI', document_number: '', relationship_type: 'PROPIETARIO', is_primary_contact: false, email: '', phone: '' });
       alert(`Residente agregado.${accountMessage}`);
+      onResidentChange?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al agregar residente');
     } finally {
@@ -240,7 +245,7 @@ export function DepartmentModal({
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar este residente?')) return;
-    try { await deleteResident(id); } catch (err) { alert((err as Error).message); }
+    try { await deleteResident(id); onResidentChange?.(); } catch (err) { alert((err as Error).message); }
   };
 
   const updateEditField = <K extends keyof Resident>(key: K, value: Resident[K]) => {
@@ -271,6 +276,7 @@ export function DepartmentModal({
       setEditingResident(null);
       await fetchResidents();
       setAllCondoResidents([]);
+      onResidentChange?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error de conexión');
     } finally {
@@ -330,22 +336,47 @@ export function DepartmentModal({
                       </tr>
                     </thead>
                     <tbody>
-                      {pagedSearchResults.map(r => (
+                      {pagedSearchResults.map(r => {
+                        const isGlobal = !r.id;
+                        const isLinking = linkUserTarget && (linkUserTarget.user_id === r.user_id) && (linkUserTarget.id === r.id);
+                        return (
                         <tr key={r.id ?? `global-${r.user_id}`}>
                           <td>{r.full_name}</td>
-                          <td>{(r as unknown as { global_user?: boolean }).global_user ? 'Usuario del condominio' : `${r.document_type} ${r.document_number}`}</td>
+                          <td>{isGlobal ? 'Usuario del condominio' : `${r.document_type} ${r.document_number}`}</td>
                           <td>
                             {r.departments?.department_number
                               ? <>Dpto {r.departments.department_number}{r.departments.towers?.code ? ` (${r.departments.towers.code})` : ''}</>
                               : <span className="status-badge status-vacant">Sin asignar</span>}
                           </td>
                           <td>
-                            <button className="btn-primary" onClick={() => assignResident(r)} disabled={assigningId === (r.id ?? r.user_id ?? r.full_name) || r.department_id === departmentId}>
+                            {isGlobal && isLinking ? (
+                              <div className="link-user-form" style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                <select value={linkForm.document_type} onChange={e => setLinkForm({ ...linkForm, document_type: e.target.value as Resident['document_type'] })} style={{ fontSize: '0.8em', padding: '2px' }}>
+                                  <option value="DNI">DNI</option>
+                                  <option value="CE">CE</option>
+                                  <option value="PASAPORTE">Pasaporte</option>
+                                </select>
+                                <input type="text" value={linkForm.document_number} onChange={e => setLinkForm({ ...linkForm, document_number: e.target.value })} placeholder="N° doc" style={{ fontSize: '0.8em', padding: '2px', width: '90px' }} />
+                                <select value={linkForm.relationship_type} onChange={e => setLinkForm({ ...linkForm, relationship_type: e.target.value as Resident['relationship_type'] })} style={{ fontSize: '0.8em', padding: '2px' }}>
+                                  <option value="PROPIETARIO">Propietario</option>
+                                  <option value="FAMILIAR">Familiar</option>
+                                  <option value="INQUILINO">Inquilino</option>
+                                </select>
+                                <button className="btn-primary" onClick={() => { setLinkUserTarget(null); assignResident(r, linkForm); }} disabled={!linkForm.document_number.trim() || assigningId === (r.id ?? r.user_id ?? r.full_name)}>OK</button>
+                                <button className="btn-cancel" onClick={() => setLinkUserTarget(null)} style={{ fontSize: '0.8em' }}>X</button>
+                              </div>
+                            ) : (
+                            <button className="btn-primary" onClick={() => {
+                              if (isGlobal) { setLinkUserTarget(r); setLinkForm({ document_type: 'DNI', document_number: '', relationship_type: 'PROPIETARIO' }); }
+                              else { assignResident(r); }
+                            }} disabled={assigningId === (r.id ?? r.user_id ?? r.full_name) || r.department_id === departmentId}>
                               {assigningId === (r.id ?? r.user_id ?? r.full_name) ? '...' : r.department_id === departmentId ? 'Ya está aquí' : r.department_id ? 'Agregar aquí' : 'Asignar'}
                             </button>
+                            )}
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 )}

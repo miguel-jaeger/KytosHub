@@ -191,6 +191,7 @@ export function StructureManager() {
           department={selectedDept.dept}
           departmentId={selectedDept.dept.id}
           onClose={() => { setSelectedDept(null); refresh(); }}
+          onResidentChange={() => refresh()}
         />
       )}
     </div>
