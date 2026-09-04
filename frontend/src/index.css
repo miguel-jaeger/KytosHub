@@ -213,6 +213,25 @@ header h1 {
   overflow-x: hidden;
 }
 
+.dashboard .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  gap: 0.75rem;
+}
+
+.dashboard .header h2 {
+  margin: 0;
+}
+
+.dashboard .header button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
 .quick-actions {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -462,6 +481,89 @@ button:disabled {
   margin-top: 1.5rem;
   justify-content: flex-end;
 }
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.import-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #eef2ff;
+  border: 1px solid #dfe3f8;
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  color: #0b1c30;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.import-preview {
+  margin-bottom: 1rem;
+}
+
+.import-preview table {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 0.85rem;
+}
+
+.import-preview th,
+.import-preview td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.import-preview thead th {
+  background: #eef2ff;
+  color: #0b1c30;
+}
+
+.import-preview-more {
+  text-align: center;
+  color: #666;
+  font-size: 0.85rem;
+  padding: 0.4rem;
+}
+
+.import-result {
+  background: #f0fdf4;
+  border: 1px solid #d1fae5;
+  border-radius: 8px;
+  padding: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.import-result-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.import-result-count {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #0b1c30;
+  font-size: 0.9rem;
+}
+
+.import-result-errors {
+  margin: 0.6rem 0 0 0;
+  padding-left: 1.2rem;
+  color: #b00020;
+  font-size: 0.85rem;
+}
+
+html.dark .import-summary { background: #2a2a2a; border-color: #333; color: #e5e7eb; }
+html.dark .import-preview thead th { background: #2a2a2a; color: #e5e7eb; }
+html.dark .import-preview th, html.dark .import-preview td { border-color: #333; }
+html.dark .import-result { background: #1a2e1a; border-color: #2f4a2f; }
+html.dark .import-result-count { color: #e5e7eb; }
 
 table {
   width: 100%;

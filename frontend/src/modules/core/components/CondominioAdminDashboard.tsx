@@ -31,6 +31,92 @@ const ROLE_LABELS: Record<string, string> = {
   VISITOR: 'Visitante'
 };
 
+interface ImportRow {
+  name: string;
+  email: string;
+  document_type: string;
+  document_number: string;
+  phone: string;
+}
+
+interface ImportColumnIndexes {
+  name?: number;
+  email?: number;
+  document?: number;
+  phone?: number;
+}
+
+interface ImportResult {
+  created: number;
+  skipped: number;
+  failed: number;
+  errors: Array<{ email: string; reason: string }>;
+}
+
+function parseCSV(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let inQuotes = false;
+  const input = text.replace(/^\uFEFF/, '');
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (input[i + 1] === '"') { field += '"'; i++; }
+        else { inQuotes = false; }
+      } else { field += ch; }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      row.push(field);
+      field = '';
+    } else if (ch === '\n') {
+      row.push(field);
+      field = '';
+      rows.push(row);
+      row = [];
+    } else if (ch !== '\r') {
+      field += ch;
+    }
+  }
+  if (field !== '' || row.length > 0) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(c => c.trim() !== ''));
+}
+
+function detectImportColumns(headers: string[]): ImportColumnIndexes {
+  const norm = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const idx: ImportColumnIndexes = {};
+  headers.forEach((h, i) => {
+    const key = norm(h);
+    if (!key) return;
+    if (['nombre', 'name', 'nombres', 'nombre completo'].includes(key)) idx.name = i;
+    else if (['correo', 'email', 'correo electronico', 'correo electrónico'].includes(key)) idx.email = i;
+    else if (['dni', 'documento', 'numero de documento', 'nro documento', 'nro dni'].includes(key)) idx.document = i;
+    else if (['telefono', 'phone', 'celular', 'numero de telefono'].includes(key)) idx.phone = i;
+  });
+  return idx;
+}
+
+function mapImportRows(dataRows: string[][], idx: ImportColumnIndexes): { rows: ImportRow[]; invalid: number } {
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const rows: ImportRow[] = [];
+  const seen = new Set<string>();
+  let invalid = 0;
+  for (const cells of dataRows) {
+    const at = (i?: number) => (i === undefined ? '' : (cells[i] ?? '')).trim();
+    const name = at(idx.name);
+    const email = at(idx.email).toLowerCase();
+    const document_number = at(idx.document);
+    const phone = at(idx.phone);
+    if (!name || !email || !EMAIL_RE.test(email)) { invalid++; continue; }
+    if (seen.has(email)) { invalid++; continue; }
+    seen.add(email);
+    rows.push({ name, email, document_type: 'DNI', document_number, phone });
+  }
+  return { rows, invalid };
+}
+
 export function CondominioAdminDashboard() {
   const { condominium, setCondominium } = useCondominium();
   const { user } = useAuth();
@@ -62,6 +148,19 @@ export function CondominioAdminDashboard() {
   const editCondoDropdownRef = useRef<HTMLDivElement>(null);
   const [editOriginalTenant, setEditOriginalTenant] = useState('');
   const [editOriginalSchema, setEditOriginalSchema] = useState('');
+
+  const [showImportForm, setShowImportForm] = useState(false);
+  const [importTargetTenant, setImportTargetTenant] = useState('');
+  const [importCondoSearch, setImportCondoSearch] = useState('');
+  const [importCondoDropdownOpen, setImportCondoDropdownOpen] = useState(false);
+  const importCondoDropdownRef = useRef<HTMLDivElement>(null);
+  const [importFileName, setImportFileName] = useState('');
+  const [importPreview, setImportPreview] = useState<ImportRow[]>([]);
+  const [importInvalidCount, setImportInvalidCount] = useState(0);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [importParseError, setImportParseError] = useState<string | null>(null);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
 
   const openAddForm = () => {
     const initial = condominium?.tenant_id || '';
@@ -329,6 +428,94 @@ export function CondominioAdminDashboard() {
     setEditCondoDropdownOpen(false);
   };
 
+  const filteredImportCondos = condominiums.filter(c => c.name.toLowerCase().includes(importCondoSearch.trim().toLowerCase()));
+
+  const selectImportCondo = (c: { id: string; name: string }) => {
+    setImportTargetTenant(c.id);
+    setImportCondoSearch(c.name);
+    setImportCondoDropdownOpen(false);
+  };
+
+  const openImportForm = () => {
+    const initial = condominium?.tenant_id || '';
+    const initialName = condominiums.find(c => c.id === initial)?.name || '';
+    setImportTargetTenant(initial);
+    setImportCondoSearch(initialName);
+    setImportFileName('');
+    setImportPreview([]);
+    setImportInvalidCount(0);
+    setImportResult(null);
+    setImportParseError(null);
+    setImporting(false);
+    if (importFileInputRef.current) importFileInputRef.current.value = '';
+    setShowImportForm(true);
+  };
+
+  const handleImportFileChange = async (file: File | null) => {
+    setImportResult(null);
+    setImportParseError(null);
+    if (!file) return;
+    setImportFileName(file.name);
+    try {
+      const text = await file.text();
+      const parsed = parseCSV(text);
+      if (parsed.length < 2) {
+        setImportPreview([]);
+        setImportInvalidCount(0);
+        setImportParseError('El CSV no contiene filas de datos. Asegúrate de incluir una fila de encabezado.');
+        return;
+      }
+      const headers = parsed[0];
+      const idx = detectImportColumns(headers);
+      if (idx.name === undefined || idx.email === undefined) {
+        setImportPreview([]);
+        setImportInvalidCount(0);
+        setImportParseError('No se encontraron las columnas "Nombre" y "Correo". Verifica la fila de encabezado del CSV.');
+        return;
+      }
+      const { rows, invalid } = mapImportRows(parsed.slice(1), idx);
+      setImportPreview(rows);
+      setImportInvalidCount(invalid);
+    } catch (err) {
+      setImportParseError(err instanceof Error ? err.message : 'No se pudo leer el archivo CSV.');
+    }
+  };
+
+  const handleImportUsers = async () => {
+    if (!importTargetTenant) { setImportParseError('Seleccione el condominio de destino'); return; }
+    if (importPreview.length === 0) { setImportParseError('No hay filas válidas para importar.'); return; }
+    setImporting(true);
+    setImportParseError(null);
+    try {
+      const { data, error: fnError } = await invokeFunction<{ success: boolean; data: ImportResult | null; error: { message: string } | null }>('list-condominium-users', {
+        method: 'POST',
+        body: { action: 'import', tenant_id: importTargetTenant, users: importPreview }
+      });
+      if (fnError) throw fnError;
+      if (data?.success && data.data) {
+        setImportResult(data.data);
+        fetchUsers();
+      } else {
+        setImportParseError(data?.error?.message || 'Error al importar usuarios');
+      }
+    } catch (err) {
+      setImportParseError(err instanceof Error ? err.message : 'Error de conexión');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const downloadImportTemplate = () => {
+    const content = '\uFEFFNombre,Correo,DNI,Telefono\nJuan Perez,juan.perez@example.com,12345678,+51 999 888 777\nMaria Lopez,maria.lopez@example.com,87654321,+51 987 654 321\n';
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'plantilla-usuarios.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (editCondoDropdownRef.current && !editCondoDropdownRef.current.contains(e.target as Node)) {
@@ -359,11 +546,24 @@ export function CondominioAdminDashboard() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (importCondoDropdownRef.current && !importCondoDropdownRef.current.contains(e.target as Node)) {
+        setImportCondoDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   return (
     <div className="dashboard">
       <div className="header">
         <h2>Usuarios {viewAllCondos ? '- Todos los condominios' : condominium ? `- ${condominium.name}` : ''}</h2>
-        <button onClick={openAddForm}><span className="material-symbols-outlined">person_add</span> Adicionar</button>
+        <div className="header-actions">
+          <button onClick={openImportForm} title="Importar usuarios desde CSV"><span className="material-symbols-outlined">upload_file</span> Importar</button>
+          <button onClick={openAddForm}><span className="material-symbols-outlined">person_add</span> Adicionar</button>
+        </div>
       </div>
       <div className="condo-search-panel">
         {isSuperAdmin && condominiums.length > 0 && (
@@ -584,6 +784,118 @@ export function CondominioAdminDashboard() {
           <div className="form-actions">
             <button className="btn-cancel" onClick={() => setShowEditForm(false)}><span className="material-symbols-outlined">close</span> Cancelar</button>
             <button onClick={handleSaveEdit}><span className="material-symbols-outlined">save</span> Guardar</button>
+          </div>
+        </div>
+      )}
+
+      {showImportForm && (
+        <div className="form-modal">
+          <h3>Importar Usuarios desde CSV</h3>
+          {isSuperAdmin && (
+            <div className="form-group">
+              <label>Condominio de destino</label>
+              <div className="search-bar condo-picker" ref={importCondoDropdownRef}>
+                <input
+                  type="text"
+                  value={importCondoSearch}
+                  placeholder="Buscar condominio..."
+                  style={{ paddingLeft: '0.75rem' }}
+                  onFocus={() => setImportCondoDropdownOpen(true)}
+                  onChange={(e) => { setImportCondoSearch(e.target.value); setImportCondoDropdownOpen(true); }}
+                />
+                {importCondoDropdownOpen && (
+                  <div className="condo-picker-dropdown">
+                    {filteredImportCondos.length === 0 ? (
+                      <div className="condo-picker-empty">Sin resultados</div>
+                    ) : (
+                      filteredImportCondos.map(c => (
+                        <button key={c.id} type="button" className={`condo-picker-item ${c.id === importTargetTenant ? 'selected' : ''}`} onClick={() => selectImportCondo(c)}>
+                          <span className="material-symbols-outlined">apartment</span>
+                          <span>{c.name}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <div className="form-group">
+            <label>Archivo CSV</label>
+            <input
+              ref={importFileInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              onChange={(e) => void handleImportFileChange(e.target.files?.[0] || null)}
+            />
+            <small style={{ display: 'block', marginTop: '0.4rem' }}>
+              Columnas aceptadas: <code>Nombre, Correo, DNI, Telefono</code>. La primera fila debe ser el encabezado.
+              <br />
+              <button type="button" className="btn-cancel" style={{ display: 'inline-flex', gap: '0.3rem', marginTop: '0.4rem' }} onClick={downloadImportTemplate}>
+                <span className="material-symbols-outlined">download</span> Descargar plantilla
+              </button>
+            </small>
+          </div>
+
+          {importFileName && (
+            <div className="import-summary">
+              <span className="material-symbols-outlined">description</span>
+              <span><strong>{importFileName}</strong> — {importPreview.length} fila(s) válida(s){importInvalidCount > 0 ? `, ${importInvalidCount} omitida(s)` : ''}</span>
+            </div>
+          )}
+
+          {importPreview.length > 0 && (
+            <div className="import-preview">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Correo</th>
+                    <th>DNI</th>
+                    <th>Teléfono</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {importPreview.slice(0, 5).map((r, i) => (
+                    <tr key={i}>
+                      <td>{r.name}</td>
+                      <td className="users-email-cell">{r.email}</td>
+                      <td>{r.document_number || '-'}</td>
+                      <td>{r.phone || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {importPreview.length > 5 && <div className="import-preview-more">… y {importPreview.length - 5} más</div>}
+            </div>
+          )}
+
+          {importParseError && <div className="error-message">{importParseError}</div>}
+
+          {importResult && (
+            <div className="import-result">
+              <div className="import-result-summary">
+                <div className="import-result-count"><span className="material-symbols-outlined">check_circle</span><span><strong>{importResult.created}</strong> importado(s)</span></div>
+                <div className="import-result-count"><span className="material-symbols-outlined">skip_next</span><span><strong>{importResult.skipped}</strong> omitido(s) (ya existían)</span></div>
+                <div className="import-result-count"><span className="material-symbols-outlined">error</span><span><strong>{importResult.failed}</strong> con error</span></div>
+              </div>
+              {importResult.errors.length > 0 && (
+                <ul className="import-result-errors">
+                  {importResult.errors.slice(0, 10).map((e, i) => (
+                    <li key={i}>{e.email}: {e.reason}</li>
+                  ))}
+                  {importResult.errors.length > 10 && <li>… y {importResult.errors.length - 10} más</li>}
+                </ul>
+              )}
+              <small>La contraseña de todos los usuarios importados es: <code>12345678</code></small>
+            </div>
+          )}
+
+          <div className="form-actions">
+            <button className="btn-cancel" onClick={() => setShowImportForm(false)}><span className="material-symbols-outlined">close</span> Cerrar</button>
+            <button onClick={handleImportUsers} disabled={importing || importPreview.length === 0}>
+              <span className="material-symbols-outlined">upload_file</span> {importing ? 'Importando...' : 'Importar'}
+            </button>
           </div>
         </div>
       )}
