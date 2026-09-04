@@ -380,6 +380,16 @@ button.btn-cancel:hover:not(:disabled) {
   background: #93000a;
 }
 
+/* Uniform sizing for OK/cancel buttons inside the resident assign form */
+.link-user-form button {
+  min-width: 2.6rem;
+  min-height: 1.9rem;
+  padding: 0.25rem 0.55rem !important;
+  font-size: 0.8rem !important;
+  line-height: 1.2 !important;
+  border-radius: 6px !important;
+}
+
 html.dark button.btn-cancel { background: #ba1a1a; color: #fff; }
 html.dark button.btn-cancel:hover:not(:disabled) { background: #93000a; }
 

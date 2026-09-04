@@ -363,8 +363,8 @@ export function DepartmentModal({
                                     <option value="INQUILINO">Inquilino</option>
                                   </select>
                                 </label>
-                                <button className="btn-primary" onClick={() => { setLinkUserTarget(null); assignResident(r, linkForm); }} disabled={assigningId === (r.id ?? r.user_id ?? r.full_name)} style={{ fontSize: '0.8em', padding: '2px 6px', lineHeight: 1.2 }}>OK</button>
-                                <button className="btn-cancel" onClick={() => setLinkUserTarget(null)} title="Cancelar" style={{ fontSize: '0.8em', padding: '2px 6px', lineHeight: 1.2 }}>✕</button>
+                                <button className="btn-primary" onClick={() => { setLinkUserTarget(null); assignResident(r, linkForm); }} disabled={assigningId === (r.id ?? r.user_id ?? r.full_name)}>OK</button>
+                                <button className="btn-cancel" onClick={() => setLinkUserTarget(null)} title="Cancelar">✕</button>
                               </div>
                             ) : (
                             <button className="btn-primary" onClick={() => {
