@@ -409,6 +409,45 @@ button.btn-cancel:hover:not(:disabled) {
   border-radius: 6px !important;
 }
 
+.link-user-form {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.link-user-form .link-user-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8em;
+  color: #0b1c30;
+}
+
+.link-user-form .link-user-role select {
+  font-size: 0.8em;
+  padding: 2px;
+  border: 1px solid #c6c6cd;
+  border-radius: 5px;
+}
+
+.link-user-form .link-user-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+html.dark .link-user-form .link-user-role {
+  color: #e5e7eb;
+}
+
+html.dark .link-user-form .link-user-role select {
+  background: #2a2a2a;
+  border-color: #444;
+  color: #e5e7eb;
+}
+
 html.dark button.btn-cancel { background: #ba1a1a; color: #fff; }
 html.dark button.btn-cancel:hover:not(:disabled) { background: #93000a; }
 

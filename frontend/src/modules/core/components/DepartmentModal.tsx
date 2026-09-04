@@ -354,17 +354,19 @@ export function DepartmentModal({
                           </td>
                           <td>
                             {isGlobal && isLinking ? (
-                              <div className="link-user-form" style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
-                                <label style={{ fontSize: '0.8em', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <div className="link-user-form">
+                                <label className="link-user-role">
                                   Rol:
-                                  <select value={linkForm.relationship_type} onChange={e => setLinkForm({ ...linkForm, relationship_type: e.target.value as Resident['relationship_type'] })} style={{ fontSize: '0.8em', padding: '2px' }}>
+                                  <select value={linkForm.relationship_type} onChange={e => setLinkForm({ ...linkForm, relationship_type: e.target.value as Resident['relationship_type'] })}>
                                     <option value="PROPIETARIO">Propietario</option>
                                     <option value="FAMILIAR">Familiar</option>
                                     <option value="INQUILINO">Inquilino</option>
                                   </select>
                                 </label>
-                                <button className="btn-primary" onClick={() => { setLinkUserTarget(null); assignResident(r, linkForm); }} disabled={assigningId === (r.id ?? r.user_id ?? r.full_name)}>OK</button>
-                                <button className="btn-cancel" onClick={() => setLinkUserTarget(null)} title="Cancelar">✕</button>
+                                <div className="link-user-actions">
+                                  <button className="btn-primary" onClick={() => { setLinkUserTarget(null); assignResident(r, linkForm); }} disabled={assigningId === (r.id ?? r.user_id ?? r.full_name)}>OK</button>
+                                  <button className="btn-cancel" onClick={() => setLinkUserTarget(null)} title="Cancelar">✕</button>
+                                </div>
                               </div>
                             ) : (
                             <button className="btn-primary" onClick={() => {
