@@ -346,7 +346,11 @@ export function DepartmentModal({
                         return (
                         <tr key={r.id ?? `global-${r.user_id}`}>
                           <td>{r.full_name}</td>
-                          <td>{isGlobal ? 'Usuario del condominio' : `${r.document_type} ${r.document_number}`}</td>
+                          <td>
+                            {isGlobal
+                              ? (r.document_number ? `${r.document_type || 'DNI'} ${r.document_number}` : 'Usuario del condominio')
+                              : `${r.document_type} ${r.document_number}`}
+                          </td>
                           <td>
                             {r.departments?.department_number
                               ? <>Dpto {r.departments.department_number}{r.departments.towers?.code ? ` (${r.departments.towers.code})` : ''}</>
