@@ -46,7 +46,7 @@ export default async function(req: Request): Promise<Response> {
 
       case 'create': {
         if (!body.tower_id || !body.floor_number) return bad(corsHeaders, 'tower_id y floor_number son requeridos');
-        const { data: existing } = await db.from('floors').select('id').eq('tower_id', body.tower_id).eq('floor_number', body.floor_number).single().catch(() => ({ data: null }));
+        const { data: existing } = await db.from('floors').select('id').eq('tower_id', body.tower_id).eq('floor_number', body.floor_number).single();
         if (existing) return err(corsHeaders, 'DUPLICATE', 'Ya existe ese piso');
         const { data, error } = await db.from('floors').insert([{ tower_id: body.tower_id, floor_number: body.floor_number }]).select().single();
         if (error) throw error;

@@ -58,7 +58,7 @@ export default async function(req: Request): Promise<Response> {
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-        const { data: existing } = await db.from('towers').select('id').eq('code', body.code).single().catch(() => ({ data: null }));
+        const { data: existing } = await db.from('towers').select('id').eq('code', body.code).single();
         if (existing) {
           return new Response(
             JSON.stringify({ success: false, data: null, error: { code: 'DUPLICATE', message: 'Ya existe una torre con ese código' } }),

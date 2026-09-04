@@ -50,7 +50,7 @@ export default async function(req: Request): Promise<Response> {
         if (!body.floor_id || !body.tower_id || !body.department_number) {
           return bad(corsHeaders, 'floor_id, tower_id, department_number son requeridos');
         }
-        const { data: existing } = await db.from('departments').select('id').eq('tower_id', body.tower_id).eq('department_number', body.department_number).single().catch(() => ({ data: null }));
+        const { data: existing } = await db.from('departments').select('id').eq('tower_id', body.tower_id).eq('department_number', body.department_number).single();
         if (existing) return conflict(corsHeaders, 'Ya existe un departamento con ese número en la torre');
         const { data, error } = await db.from('departments').insert([{
           floor_id: body.floor_id,
