@@ -204,6 +204,114 @@ export default async function(req: Request): Promise<Response> {
 
     switch (action || req.method) {
 
+      case 'import': {
+        const importTenantId = body.tenant_id as string;
+        const rows = (Array.isArray(body.users) ? body.users : []) as Array<Record<string, unknown>>;
+
+        if (!importTenantId) {
+          return new Response(
+            JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere un condominio (tenant_id)' } }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const results = {
+          created: 0,
+          skipped: 0,
+          failed: 0,
+          errors: [] as Array<{ email: string; reason: string }>
+        };
+        const defaultPassword = '12345678';
+
+        for (const row of rows) {
+          const email = String(row.email ?? '').trim().toLowerCase();
+          const name = String(row.name ?? '').trim();
+          const documentType = String(row.document_type ?? 'DNI').trim().toUpperCase();
+          const documentNumber = String(row.document_number ?? '').trim();
+          const phone = String(row.phone ?? '').trim();
+
+          if (!email || !name) {
+            results.failed++;
+            results.errors.push({ email: email || '(sin correo)', reason: 'Faltan campos obligatorios (nombre y correo)' });
+            continue;
+          }
+
+          try {
+            let userId = await resolveUserIdByEmail(email);
+
+            if (!userId) {
+              const { data: signUpData, error: signUpError } = await client.auth.signUp({
+                email,
+                password: defaultPassword,
+                name,
+                redirectTo: 'https://kytos-hub.vercel.app',
+                autoConfirm: true
+              });
+              userId = signUpData?.user?.id || null;
+              if (!userId) {
+                userId = await resolveUserIdByEmail(email);
+              }
+              if (!userId) {
+                throw new Error(signUpError ? signUpError.message : 'No se pudo crear la cuenta');
+              }
+            }
+
+            const { data: existing } = await client.database
+              .from('tenant_users')
+              .select('id')
+              .eq('user_id', userId)
+              .eq('tenant_id', importTenantId)
+              .single();
+
+            if (existing) {
+              results.skipped++;
+              continue;
+            }
+
+            const ugPayload: Record<string, unknown> = {
+              id: userId,
+              email,
+              name,
+              password_hash: defaultPassword,
+              is_superadmin: false
+            };
+            if (documentNumber) {
+              ugPayload.document_type = documentType;
+              ugPayload.document_number = documentNumber;
+            }
+            if (phone) ugPayload.phone = phone;
+
+            const { error: ugError } = await client.database.from('users_global').insert([ugPayload]);
+            if (ugError) {
+              const ugUpdate: Record<string, unknown> = { name };
+              if (documentNumber) {
+                ugUpdate.document_type = documentType;
+                ugUpdate.document_number = documentNumber;
+              }
+              if (phone) ugUpdate.phone = phone;
+              await client.database.from('users_global').update(ugUpdate).eq('id', userId);
+            }
+
+            await client.database.from('tenant_users').insert([{
+              tenant_id: importTenantId,
+              user_id: userId,
+              role: 'RESIDENT',
+              status: 'ACTIVE'
+            }]);
+
+            results.created++;
+          } catch (err) {
+            results.failed++;
+            results.errors.push({ email, reason: err instanceof Error ? err.message : 'Error interno' });
+          }
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, data: results, error: null }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       case 'POST':
       case 'create': {
         const reqBody = body as unknown as AddUserRequest;
@@ -354,7 +462,7 @@ export default async function(req: Request): Promise<Response> {
               const { data: tenants } = await client.database.from('tenants').select('id, schema_name').eq('id', newTenantId).single();
               const newSchemaName = (tenants as { schema_name?: string } | null)?.schema_name;
               if (newSchemaName && newSchemaName !== schemaName) {
-                const { data: existing } = await client.database.schema(newSchemaName).from('residents').select('id').eq('document_number', String((data as { document_number?: string })?.document_number || '')).single().catch(() => ({ data: null }));
+                const { data: existing } = await client.database.schema(newSchemaName).from('residents').select('id').eq('document_number', String((data as { document_number?: string })?.document_number || '')).single();
                 if (!existing) {
                   const resident = data as Record<string, unknown>;
                   const movePayload: Record<string, unknown> = {};
