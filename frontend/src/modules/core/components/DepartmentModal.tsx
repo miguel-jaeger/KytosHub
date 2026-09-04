@@ -355,22 +355,15 @@ export function DepartmentModal({
                           <td>
                             {isGlobal && isLinking ? (
                               <div className="link-user-form" style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
-                                <select value={linkForm.document_type} onChange={e => setLinkForm({ ...linkForm, document_type: e.target.value as Resident['document_type'] })} style={{ fontSize: '0.8em', padding: '2px' }}>
-                                  <option value="DNI">DNI</option>
-                                  <option value="CE">CE</option>
-                                  <option value="PASAPORTE">Pasaporte</option>
-                                </select>
-                                {linkForm.document_number.trim() ? (
-                                  <span title="Documento del usuario" style={{ fontSize: '0.85em', fontWeight: 600, padding: '2px 4px' }}>{linkForm.document_number}</span>
-                                ) : (
-                                  <input type="text" value={linkForm.document_number} onChange={e => setLinkForm({ ...linkForm, document_number: e.target.value })} placeholder="N° doc" style={{ fontSize: '0.8em', padding: '2px', width: '90px' }} />
-                                )}
-                                <select value={linkForm.relationship_type} onChange={e => setLinkForm({ ...linkForm, relationship_type: e.target.value as Resident['relationship_type'] })} style={{ fontSize: '0.8em', padding: '2px' }}>
-                                  <option value="PROPIETARIO">Propietario</option>
-                                  <option value="FAMILIAR">Familiar</option>
-                                  <option value="INQUILINO">Inquilino</option>
-                                </select>
-                                <button className="btn-primary" onClick={() => { setLinkUserTarget(null); assignResident(r, linkForm); }} disabled={!linkForm.document_number.trim() || assigningId === (r.id ?? r.user_id ?? r.full_name)} style={{ fontSize: '0.8em', padding: '2px 6px', lineHeight: 1.2 }}>OK</button>
+                                <label style={{ fontSize: '0.8em', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  Rol:
+                                  <select value={linkForm.relationship_type} onChange={e => setLinkForm({ ...linkForm, relationship_type: e.target.value as Resident['relationship_type'] })} style={{ fontSize: '0.8em', padding: '2px' }}>
+                                    <option value="PROPIETARIO">Propietario</option>
+                                    <option value="FAMILIAR">Familiar</option>
+                                    <option value="INQUILINO">Inquilino</option>
+                                  </select>
+                                </label>
+                                <button className="btn-primary" onClick={() => { setLinkUserTarget(null); assignResident(r, linkForm); }} disabled={assigningId === (r.id ?? r.user_id ?? r.full_name)} style={{ fontSize: '0.8em', padding: '2px 6px', lineHeight: 1.2 }}>OK</button>
                                 <button className="btn-cancel" onClick={() => setLinkUserTarget(null)} title="Cancelar" style={{ fontSize: '0.8em', padding: '2px 6px', lineHeight: 1.2 }}>✕</button>
                               </div>
                             ) : (
