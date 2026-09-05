@@ -1852,7 +1852,25 @@ html.dark .condo-card-actions { border-top-color: #333; }
 
 .modal-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; }
 .modal-header h3 { margin: 0; color: #0b1c30; }
-.modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #76777d; }
+.modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #f1f5f9;
+  border: 1px solid #e5e7eb;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  color: #76777d;
+  transition: all 0.2s;
+}
+html.dark .modal-close { background: #2a2a2a; border-color: #3a3a3a; color: #e5e7eb; }
+html.dark .modal-close:hover { background: #243328; border-color: #006c49; color: #7fe0b0; }
 .residents-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
 .residents-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .residents-header button { display: inline-flex; align-items: center; gap: 0.35rem; background: #f1f5f9; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.45rem 0.7rem; cursor: pointer; color: #0b1c30; font-size: 0.85rem; transition: all 0.2s; }
@@ -1937,7 +1955,7 @@ html.dark .resident-grid-name { color: #e5e7eb; }
 html.dark .resident-grid-label { color: #aaa; }
 .resident-form .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 
-.modal-close:hover { background: #f1f5f9; color: #0b1c30; border-radius: 6px; }
+.modal-close:hover { background: #e8f5ec; border-color: #006c49; color: #006c49; }
 
 
 .tower-list { padding: 0 10px; }
