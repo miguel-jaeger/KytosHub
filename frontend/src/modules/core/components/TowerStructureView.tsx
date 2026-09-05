@@ -204,7 +204,7 @@ function DepartmentModal({
         <div className="modal-header">
           <h3>Depto {department.department_number}</h3>
           <p className="text-on-surface-variant">{towerName} ({towerCode}) - Piso {floorNumber} - {statusLabel[department.status]}</p>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
         </div>
 
         <div className="modal-body">

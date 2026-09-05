@@ -296,7 +296,7 @@ export function DepartmentModal({
             <h3>Dpto {department.department_number}</h3>
             <p>{towerName} ({towerCode}) - Piso {floorNumber} - {department.status}</p>
           </div>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
         </div>
 
         <div className="modal-body">

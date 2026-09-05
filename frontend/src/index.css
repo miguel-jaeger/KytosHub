@@ -1866,11 +1866,17 @@ html.dark .condo-card-actions { border-top-color: #333; }
   line-height: 1;
   padding: 0;
   cursor: pointer;
-  color: #76777d;
+  color: #0b1c30;
   transition: all 0.2s;
 }
+.modal-close .material-symbols-outlined {
+  font-size: 1.1rem;
+  color: #0b1c30;
+}
 html.dark .modal-close { background: #2a2a2a; border-color: #3a3a3a; color: #e5e7eb; }
+html.dark .modal-close .material-symbols-outlined { color: #e5e7eb; }
 html.dark .modal-close:hover { background: #243328; border-color: #006c49; color: #7fe0b0; }
+html.dark .modal-close:hover .material-symbols-outlined { color: #7fe0b0; }
 .residents-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
 .residents-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .residents-header button { display: inline-flex; align-items: center; gap: 0.35rem; background: #f1f5f9; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.45rem 0.7rem; cursor: pointer; color: #0b1c30; font-size: 0.85rem; transition: all 0.2s; }
