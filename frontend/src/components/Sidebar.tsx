@@ -105,8 +105,8 @@ export function Sidebar() {
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header">
         {!collapsed && <span className="sidebar-logo-text">KytosHub</span>}
-        <button className="sidebar-toggle" onClick={() => setCollapsed(!collapsed)}>
-          <span className="material-symbols-outlined">{collapsed ? 'menu_open' : 'menu'}</span>
+        <button className="sidebar-toggle" onClick={() => setCollapsed(!collapsed)} title={collapsed ? 'Expandir menú' : 'Colapsar menú'} aria-label={collapsed ? 'Expandir menú' : 'Colapsar menú'}>
+          <span className="material-symbols-outlined">{collapsed ? 'last_page' : 'first_page'}</span>
         </button>
       </div>
 
