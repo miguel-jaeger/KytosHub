@@ -1114,14 +1114,14 @@ tr:hover {
 }
 
 .sidebar-toggle:hover {
-  background: #e8f5ec;
+  background: #006c49;
   border-color: #006c49;
-  color: #006c49;
+  color: #fff;
   transform: scale(1.05);
 }
 
 .sidebar-toggle:hover .material-symbols-outlined {
-  color: #006c49;
+  color: #fff;
 }
 
 .sidebar.collapsed .sidebar-header {
@@ -1136,13 +1136,13 @@ html.dark .sidebar-toggle {
 }
 
 html.dark .sidebar-toggle:hover {
-  background: #123b2a;
+  background: #006c49;
   border-color: #006c49;
-  color: #90caf9;
+  color: #fff;
 }
 
 html.dark .sidebar-toggle:hover .material-symbols-outlined {
-  color: #90caf9;
+  color: #fff;
 }
 
 .sidebar-condominium {
