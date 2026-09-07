@@ -65,6 +65,13 @@ export default async function(req: Request): Promise<Response> {
             { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
+        const { data: existingName } = await db.from('towers').select('id').ilike('name', String(body.name).trim()).single();
+        if (existingName) {
+          return new Response(
+            JSON.stringify({ success: false, data: null, error: { code: 'DUPLICATE', message: 'Ya existe una torre con ese nombre' } }),
+            { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
         const { data, error } = await db.from('towers').insert([{
           name: body.name,
           code: body.code,

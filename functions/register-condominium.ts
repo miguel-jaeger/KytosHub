@@ -61,7 +61,7 @@ export default async function(req: Request): Promise<Response> {
     const { data: existing } = await client.database
       .from('tenants')
       .select('id')
-      .eq('name', body.name.trim())
+      .ilike('name', body.name.trim())
       .single();
 
     if (existing) {

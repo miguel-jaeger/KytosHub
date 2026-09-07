@@ -32,9 +32,13 @@ export async function invokeFunction<T>(
     return { data: data as T, error: null };
   } catch (error) {
     console.error(`Function ${slug} failed:`, error);
-    return {
-      data: null,
-      error: error instanceof Error ? error : new Error('Error de conexión')
-    };
+    const e = error as { error?: unknown; message?: unknown };
+    let msg: string | undefined;
+    if (e && typeof e.error === 'object' && e.error !== null && 'message' in e.error) {
+      msg = String((e.error as { message: unknown }).message || '');
+    }
+    if (!msg && typeof e?.message === 'string' && e.message) msg = e.message;
+    if (!msg && error instanceof Error && error.message) msg = error.message;
+    return { data: null, error: new Error(msg || 'Error de conexión') };
   }
 }

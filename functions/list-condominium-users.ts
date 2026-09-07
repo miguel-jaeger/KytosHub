@@ -384,6 +384,20 @@ export default async function(req: Request): Promise<Response> {
         }
 
         if (userId && reqBody.tenant_id) {
+          const { data: existingTu } = await client.database
+            .from('tenant_users')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('tenant_id', reqBody.tenant_id)
+            .single();
+
+          if (existingTu) {
+            return new Response(
+              JSON.stringify({ success: false, data: null, error: { code: 'USER_EXISTS_IN_TENANT', message: 'El usuario ya pertenece a este condominio' } }),
+              { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+
           const { data: tu, error: tuError } = await client.database
             .from('tenant_users')
             .insert([{

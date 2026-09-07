@@ -87,6 +87,19 @@ export default async function(req: Request): Promise<Response> {
       );
     }
 
+    const { data: existingTowerByName } = await db
+      .from('towers')
+      .select('id')
+      .ilike('name', body.tower_name.trim())
+      .single();
+
+    if (existingTowerByName) {
+      return new Response(
+        JSON.stringify({ success: false, data: null, error: { code: 'TOWER_EXISTS', message: 'Ya existe una torre con ese nombre' } }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { data: tower, error: towerError } = await db
       .from('towers')
       .insert([{
