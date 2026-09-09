@@ -17,6 +17,7 @@ export function CartCheckoutForm({ schemaName, carts, towers, gates, busy, onChe
   const [towerId, setTowerId] = useState('');
   const [floorId, setFloorId] = useState('');
   const [deptId, setDeptId] = useState('');
+  const [gateId, setGateId] = useState('');
   const [cartType, setCartType] = useState('');
   const [cartId, setCartId] = useState('');
 
@@ -57,31 +58,39 @@ export function CartCheckoutForm({ schemaName, carts, towers, gates, busy, onChe
   };
 
   const availableCarts = carts.filter(c => c.status === 'DISPONIBLE');
-  const gateCarts = availableCarts.filter(c => (!cartType || c.cart_type === cartType));
+  const gateAvailable = (gid: string) => availableCarts.filter(c => c.gate_id === gid).length;
+  const typeCount = (type: string) => availableCarts.filter(c => c.gate_id === gateId && c.cart_type === type).length;
+  const gateCarts = availableCarts.filter(c => c.gate_id === gateId && c.cart_type === cartType);
 
   const selectedTower = towers.find(t => t.id === towerId);
   const selectedFloor = floors.find(f => f.id === floorId);
   const selectedDepartment = departments.find(d => d.id === deptId);
+  const selectedGate = gates.find(g => g.id === gateId);
+
+  const resetAfterDept = () => { setGateId(''); setCartType(''); setCartId(''); };
 
   const selectTower = (id: string) => {
     setTowerId(id);
     setFloorId('');
     setDeptId('');
-    setCartType('');
-    setCartId('');
+    resetAfterDept();
     void loadFloors(id);
   };
 
   const selectFloor = (id: string) => {
     setFloorId(id);
     setDeptId('');
-    setCartType('');
-    setCartId('');
+    resetAfterDept();
     void loadDepartments(id);
   };
 
   const selectDepartment = (id: string) => {
     setDeptId(id);
+    resetAfterDept();
+  };
+
+  const selectGate = (id: string) => {
+    setGateId(id);
     setCartType('');
     setCartId('');
   };
@@ -100,7 +109,7 @@ export function CartCheckoutForm({ schemaName, carts, towers, gates, busy, onChe
   return (
     <div className="cart-checkout-form">
       <h4>Registrar Préstamo</h4>
-      <p className="cart-checkout-hint">Sigue los pasos: torre, piso, departamento, tipo de carrito y el carrito a prestar.</p>
+      <p className="cart-checkout-hint">Sigue los pasos: torre, piso, departamento, puerta, tipo de carrito y el carrito a prestar.</p>
 
       <div className="checkout-field">
         <label>1. Torre</label>
@@ -167,15 +176,47 @@ export function CartCheckoutForm({ schemaName, carts, towers, gates, busy, onChe
 
       {towerId !== '' && floorId !== '' && deptId !== '' && (
         <div className="checkout-field">
-          <label>4. Tipo de carrito</label>
+          <label>4. Puerta</label>
+          {gates.length === 0 ? (
+            <span className="text-muted">Sin puertas configuradas.</span>
+          ) : (
+            <div className="checkout-chip-grid">
+              {gates.map(g => {
+                const disp = gateAvailable(g.id);
+                const disabled = disp === 0;
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    className={`checkout-chip checkout-chip-wide ${gateId === g.id ? 'active' : ''} ${disabled ? 'checkout-chip-disabled' : ''}`}
+                    disabled={disabled}
+                    onClick={() => selectGate(g.id)}
+                  >
+                    <span className="checkout-chip-code">{g.name}</span>
+                    <small className={disp > 0 ? 'checkout-chip-count' : 'checkout-chip-count-empty'}>
+                      {disp > 0 ? `${disp} disponible${disp === 1 ? '' : 's'}` : 'Sin disponibilidad'}
+                    </small>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {towerId !== '' && floorId !== '' && deptId !== '' && gateId !== '' && (
+        <div className="checkout-field">
+          <label>5. Tipo de carrito</label>
           <div className="checkout-chip-row">
             {Object.entries(CART_TYPE_LABELS).map(([type, label]) => {
-              const count = availableCarts.filter(c => c.cart_type === type).length;
+              const count = typeCount(type);
+              const disabled = count === 0;
               return (
                 <button
                   key={type}
                   type="button"
-                  className={`checkout-chip checkout-chip-wide ${cartType === type ? 'active' : ''}`}
+                  className={`checkout-chip checkout-chip-wide ${cartType === type ? 'active' : ''} ${disabled ? 'checkout-chip-disabled' : ''}`}
+                  disabled={disabled}
                   onClick={() => selectType(type)}
                 >
                   {label} ({count})
@@ -186,11 +227,11 @@ export function CartCheckoutForm({ schemaName, carts, towers, gates, busy, onChe
         </div>
       )}
 
-      {towerId !== '' && floorId !== '' && deptId !== '' && cartType !== '' && (
+      {towerId !== '' && floorId !== '' && deptId !== '' && gateId !== '' && cartType !== '' && (
         <div className="checkout-field">
-          <label>5. Carrito a prestar</label>
+          <label>6. Carrito a prestar</label>
           {gateCarts.length === 0 ? (
-            <span className="text-muted">No hay carritos disponibles de {CART_TYPE_LABELS[cartType]} en ninguna puerta.</span>
+            <span className="text-muted">No hay carritos disponibles de {CART_TYPE_LABELS[cartType]} en {selectedGate?.name}.</span>
           ) : (
             <div className="checkout-chip-grid">
               {gateCarts.map(c => (
@@ -201,7 +242,6 @@ export function CartCheckoutForm({ schemaName, carts, towers, gates, busy, onChe
                   onClick={() => setCartId(c.id)}
                 >
                   <span className="checkout-chip-code">{c.code_identifier}</span>
-                  {c.gate?.name ? <small>{c.gate.name}</small> : null}
                 </button>
               ))}
             </div>
@@ -214,7 +254,6 @@ export function CartCheckoutForm({ schemaName, carts, towers, gates, busy, onChe
           {busy ? 'Prestado...' : 'Prestar'}
         </button>
       </div>
-      {gates.length === 0 && <span className="text-muted checkout-hint-inline">Sin puertas configuradas.</span>}
     </div>
   );
 }

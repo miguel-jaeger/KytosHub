@@ -1575,7 +1575,12 @@ html.dark .theme-switch input:checked + .theme-switch-track { background: #006c4
 .checkout-chip { min-width: 0; min-height: 42px; text-align: center; padding: 0.5rem 0.6rem; border: 1.5px solid #c6c6cd; background: #fff; color: #45464d; border-radius: 10px; cursor: pointer; font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .checkout-chip-wide { min-height: 44px; }
 .checkout-chip.active { background: #006c49; border-color: #006c49; color: #fff; }
+.checkout-chip-disabled { opacity: 0.45; cursor: not-allowed; }
 .checkout-chip-code { display: block; }
+.checkout-chip-count { display: block; font-size: 0.7rem; font-weight: 600; color: #006c49; margin-top: 0.1rem; }
+.checkout-chip-count-empty { display: block; font-size: 0.7rem; font-weight: 500; color: #c62828; margin-top: 0.1rem; }
+.checkout-chip.active .checkout-chip-count { color: #c8f0d9; }
+html.dark .checkout-chip-count { color: #69db7c; }
 .checkout-divider { border-top: 1px solid #e5e7eb; margin: 0.35rem 0 0.85rem; }
 .checkout-hint-inline { font-size: 0.78rem; color: #76777d; }
 .checkout-submit { width: 100%; justify-content: center; padding: 0.7rem !important; font-size: 0.95rem; min-height: 48px; }
