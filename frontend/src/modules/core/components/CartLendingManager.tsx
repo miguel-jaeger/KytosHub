@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import { useCartLending } from '../hooks/useCartLending';
 import { useCondoGates } from '../hooks/useCondoGates';
+import { PaginationBar, paginate } from '../../../components/Pagination';
 import type { Cart, CartLoan, CartLendingConfig, FinesSummaryRow, Gate, Tower, Floor, Department } from '../types';
 
 function fmtMoney(n: number): string {
@@ -63,6 +64,17 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [tab, setTab] = useState<'carts' | 'stats'>('carts');
+
+  const [cartsPage, setCartsPage] = useState(1);
+  const [cartsPerPage, setCartsPerPage] = useState<number | 'all'>(10);
+  const [finesPage, setFinesPage] = useState(1);
+  const [finesPerPage, setFinesPerPage] = useState<number | 'all'>(10);
+  const [loansPage, setLoansPage] = useState(1);
+  const [loansPerPage, setLoansPerPage] = useState<number | 'all'>(10);
+
+  useEffect(() => { setCartsPage(1); }, [carts.length]);
+  useEffect(() => { setFinesPage(1); }, [fines.length]);
+  useEffect(() => { setLoansPage(1); }, [loans.length]);
 
   const [cartForm, setCartForm] = useState({ code_identifier: '', status: 'DISPONIBLE', gate_id: '', cart_type: 'CARGA', notes: '' });
   const [editingCart, setEditingCart] = useState<Cart | null>(null);
@@ -241,6 +253,10 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
 
   const hasActiveFilters = !!(filters.start_date || filters.end_date || filters.tower_id || filters.floor_id || filters.department_id);
 
+  const cartsPageItems = cartsPerPage === 'all' ? carts : paginate(carts, cartsPage, cartsPerPage).slice;
+  const finesPageItems = finesPerPage === 'all' ? fines : paginate(fines, finesPage, finesPerPage).slice;
+  const loansPageItems = loansPerPage === 'all' ? loans : paginate(loans, loansPage, loansPerPage).slice;
+
   return (
     <div className="cart-lending-manager">
       <div className="modules-header">
@@ -324,7 +340,7 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
             <tbody>
               {carts.length === 0 ? (
                 <tr><td colSpan={6} className="empty-text">No hay carritos registrados.</td></tr>
-              ) : carts.map(c => (
+              ) : cartsPageItems.map(c => (
                 <tr key={c.id}>
                   <td>{c.code_identifier}</td>
                   <td>{c.gate?.name || '-'}</td>
@@ -341,6 +357,15 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
               ))}
             </tbody>
           </table>
+
+          <PaginationBar
+            total={carts.length}
+            page={cartsPage}
+            perPage={cartsPerPage}
+            onPageChange={setCartsPage}
+            onPerPageChange={(n) => { setCartsPerPage(n); setCartsPage(1); }}
+            itemLabel="carrito"
+          />
         </div>
       )}
 
@@ -467,7 +492,7 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
               <tbody>
                 {fines.length === 0 ? (
                   <tr><td colSpan={6} className="empty-text">{hasActiveFilters ? 'No hay multas que coincidan con los filtros.' : 'No hay multas registradas por este concepto.'}</td></tr>
-                ) : fines.map(f => (
+                ) : finesPageItems.map(f => (
                   <tr key={f.department_id}>
                     <td>{f.department_number || '-'}</td>
                     <td>{f.tower_code || '-'}</td>
@@ -479,6 +504,15 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
                 ))}
               </tbody>
             </table>
+
+            <PaginationBar
+              total={fines.length}
+              page={finesPage}
+              perPage={finesPerPage}
+              onPageChange={setFinesPage}
+              onPerPageChange={(n) => { setFinesPerPage(n); setFinesPage(1); }}
+              itemLabel="departamento"
+            />
           </div>
 
           <div className="cart-loans-table">
@@ -500,7 +534,7 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
               <tbody>
                 {loans.length === 0 ? (
                   <tr><td colSpan={9} className="empty-text">Aún no hay préstamos registrados.</td></tr>
-                ) : loans.map(l => (
+                ) : loansPageItems.map(l => (
                   <tr key={l.id}>
                     <td>{l.cart_code || '-'}</td>
                     <td>{l.cart_gate?.name || '-'}</td>
@@ -539,6 +573,15 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
                 ))}
               </tbody>
             </table>
+
+            <PaginationBar
+              total={loans.length}
+              page={loansPage}
+              perPage={loansPerPage}
+              onPageChange={setLoansPage}
+              onPerPageChange={(n) => { setLoansPerPage(n); setLoansPage(1); }}
+              itemLabel="préstamo"
+            />
           </div>
         </div>
       )}

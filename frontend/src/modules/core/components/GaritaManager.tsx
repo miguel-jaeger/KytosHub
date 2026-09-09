@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import { useCartLending } from '../hooks/useCartLending';
 import { useCondoGates } from '../hooks/useCondoGates';
+import { PaginationBar, paginate } from '../../../components/Pagination';
 import { CartCheckoutForm } from './CartCheckoutForm';
 import type { Cart, CartLoan, CartLendingConfig, Gate, Tower } from '../types';
 
@@ -62,6 +63,9 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  const [loansPage, setLoansPage] = useState(1);
+  const [loansPerPage, setLoansPerPage] = useState<number | 'all'>(10);
 
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkinBusyId, setCheckinBusyId] = useState<string | null>(null);
@@ -148,6 +152,9 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
   if (loading) return <div className="loading-message">Cargando garita...</div>;
 
   const activeLoans = loans.filter(l => l.status === 'ACTIVO');
+  const loansPageItems = loansPerPage === 'all' ? activeLoans : paginate(activeLoans, loansPage, loansPerPage).slice;
+
+  useEffect(() => { setLoansPage(1); }, [activeLoans.length]);
   const prestados = carts.filter(c => c.status === 'PRESTADO').length;
   const mantenimiento = carts.filter(c => c.status === 'MANTENIMIENTO').length;
   const disponibles = carts.filter(c => c.status === 'DISPONIBLE').length;
@@ -248,7 +255,7 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
             <tbody>
               {activeLoans.length === 0 ? (
                 <tr><td colSpan={8} className="empty-text">No hay carritos prestados.</td></tr>
-              ) : activeLoans.map(l => {
+              ) : loansPageItems.map(l => {
                 const st = loanStatus(now, l, config);
                 return (
                   <tr key={l.id} className={`loan-row loan-${st.severity}`}>
@@ -276,6 +283,15 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
               })}
             </tbody>
           </table>
+
+          <PaginationBar
+            total={activeLoans.length}
+            page={loansPage}
+            perPage={loansPerPage}
+            onPageChange={setLoansPage}
+            onPerPageChange={(n) => { setLoansPerPage(n); setLoansPage(1); }}
+            itemLabel="préstamo"
+          />
         </div>
       </div>
     </div>

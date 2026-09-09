@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useCondoGates } from '../hooks/useCondoGates';
+import { PaginationBar, paginate } from '../../../components/Pagination';
 import type { Gate } from '../types';
 
 const CART_TYPE_LABELS: Record<string, string> = { CARGA: 'Carga', COMPRA: 'Compras' };
@@ -16,6 +17,13 @@ export function GatesManager({ schemaName }: { schemaName?: string }) {
   const [editing, setEditing] = useState<Gate | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState<number | 'all'>(10);
+
+  useEffect(() => { setPage(1); }, [gates.length]);
+
+  const pageItems = perPage === 'all' ? gates : paginate(gates, page, perPage).slice;
 
   const load = useCallback(async () => {
     if (!schemaName) { setGates([]); setLoading(false); return; }
@@ -172,7 +180,7 @@ export function GatesManager({ schemaName }: { schemaName?: string }) {
             </tr>
           </thead>
           <tbody>
-            {gates.map(g => (
+            {pageItems.map(g => (
               <tr key={g.id}>
                 <td>{g.name}</td>
                 <td>{g.code || '-'}</td>
@@ -194,6 +202,15 @@ export function GatesManager({ schemaName }: { schemaName?: string }) {
           </tbody>
         </table>
       )}
+
+      <PaginationBar
+        total={gates.length}
+        page={page}
+        perPage={perPage}
+        onPageChange={setPage}
+        onPerPageChange={(n) => { setPerPage(n); setPage(1); }}
+        itemLabel="puerta"
+      />
     </div>
   );
 }
