@@ -224,7 +224,7 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
 
         <div className="cart-loans-table">
           <h4>Carritos prestados</h4>
-          <table className="residents-table residents-desktop">
+          <table className="residents-table residents-desktop cart-scroll-table">
             <thead>
               <tr>
                 <th>Carrito</th>

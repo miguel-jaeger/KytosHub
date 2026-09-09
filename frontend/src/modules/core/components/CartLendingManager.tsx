@@ -302,7 +302,7 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
             </div>
           </div>
 
-          <table className="residents-table residents-desktop">
+          <table className="residents-table residents-desktop cart-scroll-table">
             <thead>
               <tr>
                 <th>Código</th>
@@ -445,7 +445,7 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
               </div>
             </div>
 
-            <table className="residents-table residents-desktop">
+            <table className="residents-table residents-desktop cart-scroll-table">
               <thead>
                 <tr>
                   <th>Departamento</th>
@@ -475,7 +475,7 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
 
           <div className="cart-loans-table">
             <h4>Historial de préstamos</h4>
-            <table className="residents-table residents-desktop">
+            <table className="residents-table residents-desktop cart-scroll-table">
               <thead>
                 <tr>
                   <th>Carrito</th>
