@@ -178,23 +178,35 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
                   const group = gateCarts.filter(c => c.cart_type === type);
                   const disp = group.filter(c => c.status === 'DISPONIBLE').length;
                   const prest = group.filter(c => c.status === 'PRESTADO').length;
+                  const pct = capacity > 0 ? Math.min(100, Math.round((prest / capacity) * 100)) : 0;
                   return (
-                    <span className="cart-gate-type">
-                      <span className="cart-gate-type-label">{type === 'CARGA' ? 'Carga' : 'Compras'}</span>
-                      <span className="cart-gate-type-counts">
-                        <span className="cart-gate-disp">{disp} disp.</span>
-                        <span className={prest > 0 ? 'cart-gate-prestado' : ''}>{prest} prest.</span>
-                      </span>
-                      <span className="cart-gate-cap">cap {capacity}</span>
-                    </span>
+                    <div key={type} className="cart-gate-type">
+                      <div className="cart-gate-type-head">
+                        <span className="cart-gate-type-label">{type === 'CARGA' ? 'Carga' : 'Compras'}</span>
+                        <span className="cart-gate-cap">Cap. {capacity}</span>
+                      </div>
+                      <div className={`cart-gate-bar${prest > 0 ? ' cart-gate-bar-used' : ''}`}>
+                        <span style={{ width: `${pct}%` }} />
+                      </div>
+                      <div className="cart-gate-type-counts">
+                        <span className="cart-gate-disp"><strong>{disp}</strong> disponibles</span>
+                        <span className={`cart-gate-prestado${prest > 0 ? ' has' : ''}`}><strong>{prest}</strong> prestados</span>
+                      </div>
+                    </div>
                   );
                 };
                 return (
-                  <div key={g.id} className="cart-gate-card">
-                    <span className="cart-gate-num">{g.name}</span>
+                  <article key={g.id} className="cart-gate-card">
+                    <header className="cart-gate-head">
+                      <div className="cart-gate-titles">
+                        <span className="cart-gate-num">{g.name}</span>
+                        {g.code && <span className="cart-gate-code">{g.code}</span>}
+                      </div>
+                      {g.is_entry_exit && <span className="cart-gate-badge"><span className="material-symbols-outlined">directions_car</span>Vehículos</span>}
+                    </header>
                     {typeSummary('CARGA', g.carts_carga)}
                     {typeSummary('COMPRA', g.carts_compra)}
-                  </div>
+                  </article>
                 );
               })}
             </div>
