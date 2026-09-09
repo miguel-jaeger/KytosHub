@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
+import { invokeFunction } from '../../../lib/insforge';
 import type { Cart, Department, Floor, Gate, Tower } from '../types';
 
 interface Props {
+  schemaName?: string;
   carts: Cart[];
-  departments: Department[];
   towers: Tower[];
-  floors: Floor[];
   gates: Gate[];
   busy: boolean;
   onCheckout: (cartId: string, departmentId: string) => Promise<void> | void;
@@ -13,57 +13,103 @@ interface Props {
 
 const CART_TYPE_LABELS: Record<string, string> = { CARGA: 'Carro de carga', COMPRA: 'Coche de compras' };
 
-export function CartCheckoutForm({ carts, departments, towers, floors, gates, busy, onCheckout }: Props) {
+export function CartCheckoutForm({ schemaName, carts, towers, gates, busy, onCheckout }: Props) {
   const [towerId, setTowerId] = useState('');
   const [floorId, setFloorId] = useState('');
   const [deptId, setDeptId] = useState('');
+  const [cartType, setCartType] = useState('');
   const [cartId, setCartId] = useState('');
 
-  const availableCarts = useMemo(() => carts.filter(c => c.status === 'DISPONIBLE'), [carts]);
-  const towerFloors = useMemo(() => floors.filter(f => f.tower_id === towerId).sort((a, b) => a.floor_number - b.floor_number), [floors, towerId]);
-  const towerDepartments = useMemo(
-    () => (towerId && floorId ? departments.filter(d => d.tower_id === towerId && d.floor_id === floorId) : []),
-    [departments, towerId, floorId]
-  );
+  const [floors, setFloors] = useState<Floor[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loadingStep, setLoadingStep] = useState<string | null>(null);
+
+  const loadFloors = async (tid: string) => {
+    setLoadingStep('pisos');
+    setFloors([]);
+    setDepartments([]);
+    setFloorId('');
+    setDeptId('');
+    try {
+      const { data } = await invokeFunction<{ success: boolean; data: Floor[] | null }>('floors', {
+        method: 'POST',
+        body: { action: 'list', schema_name: schemaName, tower_id: tid }
+      });
+      setFloors((data?.data || []).sort((a, b) => a.floor_number - b.floor_number));
+    } finally {
+      setLoadingStep(null);
+    }
+  };
+
+  const loadDepartments = async (fid: string) => {
+    setLoadingStep('departamentos');
+    setDepartments([]);
+    setDeptId('');
+    try {
+      const { data } = await invokeFunction<{ success: boolean; data: Department[] | null }>('departments', {
+        method: 'POST',
+        body: { action: 'list', schema_name: schemaName, tower_id: towerId, floor_id: fid }
+      });
+      setDepartments(data?.data || []);
+    } finally {
+      setLoadingStep(null);
+    }
+  };
+
+  const availableCarts = carts.filter(c => c.status === 'DISPONIBLE');
+  const gateCarts = availableCarts.filter(c => (!cartType || c.cart_type === cartType));
+
   const selectedTower = towers.find(t => t.id === towerId);
-  const selectedFloor = towerFloors.find(f => f.id === floorId);
+  const selectedFloor = floors.find(f => f.id === floorId);
+  const selectedDepartment = departments.find(d => d.id === deptId);
 
   const selectTower = (id: string) => {
     setTowerId(id);
     setFloorId('');
     setDeptId('');
+    setCartType('');
+    setCartId('');
+    void loadFloors(id);
   };
 
   const selectFloor = (id: string) => {
     setFloorId(id);
     setDeptId('');
+    setCartType('');
+    setCartId('');
+    void loadDepartments(id);
+  };
+
+  const selectDepartment = (id: string) => {
+    setDeptId(id);
+    setCartType('');
+    setCartId('');
+  };
+
+  const selectType = (type: string) => {
+    setCartType(type);
+    setCartId('');
   };
 
   const handleSubmit = async () => {
     if (!cartId || !deptId) return;
     await onCheckout(cartId, deptId);
     setCartId('');
-    setDeptId('');
   };
 
   return (
     <div className="cart-checkout-form">
       <h4>Registrar Préstamo</h4>
-      <p className="cart-checkout-hint">Elige torre, piso y departamento del residente, y el carrito que llevará.</p>
+      <p className="cart-checkout-hint">Sigue los pasos: torre, piso, departamento, tipo de carrito y el carrito a prestar.</p>
 
       <div className="checkout-field">
         <label>1. Torre</label>
         {towers.length === 0 ? (
           <span className="text-muted">No hay torres registradas.</span>
         ) : (
-          <div className="checkout-tower-chips">
+          <div className="checkout-chip-row">
             {towers.map(t => (
-              <button
-                key={t.id}
-                type="button"
-                className={`checkout-chip ${towerId === t.id ? 'active' : ''}`}
-                onClick={() => selectTower(t.id)}
-              >
+              <button key={t.id} type="button" className={`checkout-chip ${towerId === t.id ? 'active' : ''}`} onClick={() => selectTower(t.id)}>
                 <span className="checkout-chip-code">{t.code}</span>
               </button>
             ))}
@@ -71,75 +117,104 @@ export function CartCheckoutForm({ carts, departments, towers, floors, gates, bu
         )}
       </div>
 
-      <div className="checkout-field">
-        <label>2. Piso</label>
-        {towerId === '' ? (
-          <span className="text-muted">Primero elige la torre.</span>
-        ) : towerFloors.length === 0 ? (
-          <span className="text-muted">Esa torre no tiene pisos.</span>
-        ) : (
-          <select value={floorId} onChange={e => selectFloor(e.target.value)}>
-            <option value="">Seleccionar piso...</option>
-            {towerFloors.map(f => (
-              <option key={f.id} value={f.id}>
-                Piso {f.floor_number}
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
+      {towerId !== '' && (
+        <div className="checkout-field">
+          <label>2. Piso</label>
+          {loadingStep === 'pisos' ? (
+            <span className="text-muted">Cargando pisos...</span>
+          ) : floors.length === 0 ? (
+            <span className="text-muted">Esa torre no tiene pisos.</span>
+          ) : (
+            <div className="checkout-chip-row">
+              {floors.map(f => (
+                <button key={f.id} type="button" className={`checkout-chip ${floorId === f.id ? 'active' : ''}`} onClick={() => selectFloor(f.id)}>
+                  {f.floor_number}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
-      <div className="checkout-field">
-        <label>3. Departamento</label>
-        {towerId === '' ? (
-          <span className="text-muted">Primero elige la torre.</span>
-        ) : floorId === '' ? (
-          <span className="text-muted">Primero elige el piso.</span>
-        ) : towerDepartments.length === 0 ? (
-          <span className="text-muted">Ese piso no tiene departamentos.</span>
-        ) : (
-          <select value={deptId} onChange={e => setDeptId(e.target.value)}>
-            <option value="">Seleccionar departamento...</option>
-            {towerDepartments.map(d => (
-              <option key={d.id} value={d.id}>
-                Dpto {d.department_number} {d.status === 'HABITADO' ? '' : `(${d.status.toLowerCase()})`}
-              </option>
-            ))}
-          </select>
-        )}
-        {selectedTower && selectedFloor && deptId && (
-          <span className="checkout-hint-inline">
-            Torre {selectedTower.code} · Piso {selectedFloor.floor_number} · Dpto {towerDepartments.find(d => d.id === deptId)?.department_number}
-          </span>
-        )}
-      </div>
+      {towerId !== '' && floorId !== '' && (
+        <div className="checkout-field">
+          <label>3. Departamento</label>
+          {loadingStep === 'departamentos' ? (
+            <span className="text-muted">Cargando departamentos...</span>
+          ) : departments.length === 0 ? (
+            <span className="text-muted">Ese piso no tiene departamentos.</span>
+          ) : (
+            <div className="checkout-chip-grid">
+              {departments.map(d => (
+                <button
+                  key={d.id}
+                  type="button"
+                  className={`checkout-chip checkout-chip-wide ${deptId === d.id ? 'active' : ''}`}
+                  onClick={() => selectDepartment(d.id)}
+                >
+                  {d.department_number}
+                </button>
+              ))}
+            </div>
+          )}
+          {selectedTower && selectedFloor && deptId && (
+            <span className="checkout-hint-inline">
+              Torre {selectedTower.code} · Piso {selectedFloor.floor_number} · Dpto {selectedDepartment?.department_number}
+            </span>
+          )}
+        </div>
+      )}
 
-      <div className="checkout-field">
-        <label>4. Carrito</label>
-        {availableCarts.length === 0 ? (
-          <span className="text-muted">No hay carritos disponibles.</span>
-        ) : (
-          <select value={cartId} onChange={e => setCartId(e.target.value)}>
-            <option value="">Seleccionar carrito...</option>
-            {availableCarts.map(c => (
-              <option key={c.id} value={c.id}>
-                {c.code_identifier}{c.gate?.name ? ` · ${c.gate.name}` : ''} · {CART_TYPE_LABELS[c.cart_type || 'CARGA']}
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
+      {towerId !== '' && floorId !== '' && deptId !== '' && (
+        <div className="checkout-field">
+          <label>4. Tipo de carrito</label>
+          <div className="checkout-chip-row">
+            {Object.entries(CART_TYPE_LABELS).map(([type, label]) => {
+              const count = availableCarts.filter(c => c.cart_type === type).length;
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  className={`checkout-chip checkout-chip-wide ${cartType === type ? 'active' : ''}`}
+                  onClick={() => selectType(type)}
+                >
+                  {label} ({count})
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {towerId !== '' && floorId !== '' && deptId !== '' && cartType !== '' && (
+        <div className="checkout-field">
+          <label>5. Carrito a prestar</label>
+          {gateCarts.length === 0 ? (
+            <span className="text-muted">No hay carritos disponibles de {CART_TYPE_LABELS[cartType]} en ninguna puerta.</span>
+          ) : (
+            <div className="checkout-chip-grid">
+              {gateCarts.map(c => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`checkout-chip ${cartId === c.id ? 'active' : ''}`}
+                  onClick={() => setCartId(c.id)}
+                >
+                  <span className="checkout-chip-code">{c.code_identifier}</span>
+                  {c.gate?.name ? <small>{c.gate.name}</small> : null}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="form-actions">
-        <button
-          onClick={handleSubmit}
-          disabled={busy || !cartId || !deptId}
-          className="btn-primary checkout-submit"
-        >
+        <button onClick={handleSubmit} disabled={busy || !cartId || !deptId} className="btn-primary checkout-submit">
           {busy ? 'Prestado...' : 'Prestar'}
         </button>
       </div>
-      {gates.length === 0 && <span className="text-muted checkout-hint-inline">Sin puertas configuradas: el carrito se prestará sin puerta asignada.</span>}
+      {gates.length === 0 && <span className="text-muted checkout-hint-inline">Sin puertas configuradas.</span>}
     </div>
   );
 }

@@ -3,17 +3,44 @@ import { invokeFunction } from '../../../lib/insforge';
 import { useCartLending } from '../hooks/useCartLending';
 import { useCondoGates } from '../hooks/useCondoGates';
 import { CartCheckoutForm } from './CartCheckoutForm';
-import type { Cart, CartLoan, CartLendingConfig, Department, Floor, Gate, Tower } from '../types';
+import type { Cart, CartLoan, CartLendingConfig, Gate, Tower } from '../types';
 
-function fmtMinutes(total: number): string {
-  if (!Number.isFinite(total) || total <= 0) return '0 min';
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  return h > 0 ? `${h} h ${m} min` : `${m} min`;
+function fmtDuration(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  return `${m}:${String(sec).padStart(2, '0')}`;
 }
 
 function fmtMoney(n: number): string {
   return `S/ ${(Number(n) || 0).toFixed(2)}`;
+}
+
+function computeFine(config: CartLendingConfig, overtimeMinutes: number): number {
+  if (!config.fine_enabled || overtimeMinutes <= config.grace_period_minutes) return 0;
+  const excess = overtimeMinutes - config.grace_period_minutes;
+  if (config.fine_type === 'FIXED' || (config.fine_type === 'FIXED_OR_PER_INTERVAL' && excess <= config.fine_interval_minutes)) {
+    return config.fine_amount;
+  }
+  return Math.ceil(excess / config.fine_interval_minutes) * config.fine_amount;
+}
+
+function loanStatus(now: number, loan: CartLoan, config: CartLendingConfig | null): { elapsedSec: number; remainingSec: number; overtimeMin: number; fine: number; severity: 'ok' | 'warning' | 'overdue' } {
+  const checkoutMs = new Date(loan.checkout_time).getTime();
+  const dueMs = new Date(loan.due_time).getTime();
+  const elapsedSec = Math.max(0, Math.floor((now - checkoutMs) / 1000));
+  const remainingSec = Math.max(0, Math.floor((dueMs - now) / 1000));
+  const overtimeMin = Math.max(0, Math.floor((now - dueMs) / 60000));
+  const fine = config ? computeFine(config, overtimeMin) : 0;
+  let severity: 'ok' | 'warning' | 'overdue' = 'ok';
+  if (overtimeMin > 0) {
+    severity = fine > 0 ? 'overdue' : 'warning';
+  } else if (remainingSec <= 10 * 60) {
+    severity = 'warning';
+  }
+  return { elapsedSec, remainingSec, overtimeMin, fine, severity };
 }
 
 export function GaritaManager({ schemaName }: { schemaName?: string }) {
@@ -23,15 +50,19 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
   const [loans, setLoans] = useState<CartLoan[]>([]);
   const [config, setConfig] = useState<CartLendingConfig | null>(null);
   const [gates, setGates] = useState<Gate[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
   const [towers, setTowers] = useState<Tower[]>([]);
-  const [floors, setFloors] = useState<Floor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkinBusyId, setCheckinBusyId] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const loadCarts = useCallback(async () => {
     if (!schemaName) return [];
@@ -55,13 +86,9 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
       setError(null);
       try {
         await Promise.all([loadCarts(), loadLoans(), listGates(schemaName).then(setGates)]);
-        const deptRes = await invokeFunction<{ success: boolean; data: Department[] | null }>('departments', { method: 'POST', body: { action: 'list', schema_name: schemaName } });
         const towerRes = await invokeFunction<{ success: boolean; data: Tower[] | null }>('towers', { method: 'POST', body: { action: 'list', schema_name: schemaName } });
-        const floorRes = await invokeFunction<{ success: boolean; data: Floor[] | null }>('floors', { method: 'POST', body: { action: 'list', schema_name: schemaName } });
         if (cancelled) return;
-        setDepartments(deptRes?.data?.data || []);
         setTowers(towerRes?.data?.data || []);
-        setFloors(floorRes?.data?.data || []);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Error de carga');
       } finally {
@@ -147,15 +174,26 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
             <div className="cart-gate-grid">
               {activeGates.map(g => {
                 const gateCarts = carts.filter(c => c.gate_id === g.id);
-                const carga = gateCarts.filter(c => c.cart_type === 'CARGA');
-                const compra = gateCarts.filter(c => c.cart_type === 'COMPRA');
-                const prestadosGate = gateCarts.filter(c => c.status === 'PRESTADO').length;
+                const typeSummary = (type: string, capacity: number) => {
+                  const group = gateCarts.filter(c => c.cart_type === type);
+                  const disp = group.filter(c => c.status === 'DISPONIBLE').length;
+                  const prest = group.filter(c => c.status === 'PRESTADO').length;
+                  return (
+                    <span className="cart-gate-type">
+                      <span className="cart-gate-type-label">{type === 'CARGA' ? 'Carga' : 'Compras'}</span>
+                      <span className="cart-gate-type-counts">
+                        <span className="cart-gate-disp">{disp} disp.</span>
+                        <span className={prest > 0 ? 'cart-gate-prestado' : ''}>{prest} prest.</span>
+                      </span>
+                      <span className="cart-gate-cap">cap {capacity}</span>
+                    </span>
+                  );
+                };
                 return (
                   <div key={g.id} className="cart-gate-card">
                     <span className="cart-gate-num">{g.name}</span>
-                    <span>Carros de carga: {carga.length} / {g.carts_carga}</span>
-                    <span>Coches de compras: {compra.length} / {g.carts_compra}</span>
-                    <span className={prestadosGate > 0 ? 'cart-gate-prestado' : ''}>{prestadosGate > 0 ? `${prestadosGate} prestado(s)` : 'Sin préstamos'}</span>
+                    {typeSummary('CARGA', g.carts_carga)}
+                    {typeSummary('COMPRA', g.carts_compra)}
                   </div>
                 );
               })}
@@ -164,10 +202,9 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
         )}
 
         <CartCheckoutForm
+          schemaName={schemaName}
           carts={carts}
-          departments={departments}
           towers={towers}
-          floors={floors}
           gates={activeGates}
           busy={checkoutBusy}
           onCheckout={handleCheckout}
@@ -191,26 +228,32 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
             <tbody>
               {activeLoans.length === 0 ? (
                 <tr><td colSpan={8} className="empty-text">No hay carritos prestados.</td></tr>
-              ) : activeLoans.map(l => (
-                <tr key={l.id}>
-                  <td>{l.cart_code || '-'}{l.cart_gate?.name ? ` (${l.cart_gate.name})` : ''}</td>
-                  <td>{l.tower_code || '-'}</td>
-                  <td>{l.department_number || '-'}</td>
-                  <td>{new Date(l.checkout_time).toLocaleString('es-PE')}</td>
-                  <td>{fmtMinutes(l.elapsed_minutes || 0)}</td>
-                  <td>{new Date(l.due_time).toLocaleString('es-PE')}</td>
-                  <td>
-                    {(l.estimated_fine && l.estimated_fine > 0)
-                      ? <span className="fines-tag">{fmtMoney(l.estimated_fine)}</span>
-                      : <span className="text-muted">—</span>}
-                  </td>
-                  <td>
-                    <button className="btn-primary" onClick={() => handleCheckin(l)} disabled={checkinBusyId === l.id}>
-                      {checkinBusyId === l.id ? '...' : 'Devolución'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              ) : activeLoans.map(l => {
+                const st = loanStatus(now, l, config);
+                return (
+                  <tr key={l.id} className={`loan-row loan-${st.severity}`}>
+                    <td>{l.cart_code || '-'}{l.cart_gate?.name ? ` (${l.cart_gate.name})` : ''}</td>
+                    <td>{l.tower_code || '-'}</td>
+                    <td>{l.department_number || '-'}</td>
+                    <td>{new Date(l.checkout_time).toLocaleString('es-PE')}</td>
+                    <td><span className="loan-timer">{fmtDuration(st.elapsedSec)}</span></td>
+                    <td>{st.remainingSec <= 0
+                      ? <span className="loan-overdue-label">Vencido</span>
+                      : <span className={st.severity === 'ok' ? 'text-muted' : ''}>en {fmtDuration(st.remainingSec)}</span>}
+                    </td>
+                    <td>
+                      {st.fine > 0
+                        ? <span className="fines-tag">{fmtMoney(st.fine)}</span>
+                        : <span className="text-muted">—</span>}
+                    </td>
+                    <td>
+                      <button className="btn-primary" onClick={() => handleCheckin(l)} disabled={checkinBusyId === l.id}>
+                        {checkinBusyId === l.id ? '...' : 'Devolución'}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

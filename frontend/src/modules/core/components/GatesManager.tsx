@@ -14,6 +14,7 @@ export function GatesManager({ schemaName }: { schemaName?: string }) {
   const [message, setMessage] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [editing, setEditing] = useState<Gate | null>(null);
+  const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -53,6 +54,7 @@ export function GatesManager({ schemaName }: { schemaName?: string }) {
       }
       setForm(emptyForm);
       setEditing(null);
+      setShowForm(false);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error');
@@ -64,11 +66,13 @@ export function GatesManager({ schemaName }: { schemaName?: string }) {
   const startEdit = (g: Gate) => {
     setEditing(g);
     setForm({ name: g.name, code: g.code || '', is_entry_exit: g.is_entry_exit, carts_carga: g.carts_carga, carts_compra: g.carts_compra });
+    setShowForm(true);
   };
 
   const cancelEdit = () => {
     setEditing(null);
     setForm(emptyForm);
+    setShowForm(false);
   };
 
   const toggleActive = async (g: Gate) => {
@@ -98,48 +102,62 @@ export function GatesManager({ schemaName }: { schemaName?: string }) {
 
   return (
     <div>
-      <div className="modules-header">
-        <h3>Puertas del Condominio</h3>
-        <small>Define las puertas/garitas con su nombre y cuántos carritos de cada tipo están asignados. Se generan automáticamente los carritos físicos según la capacidad. Se reutilizan como puntos de ingreso/salida del estacionamiento.</small>
+      <div className="header">
+        <div>
+          <h2>Puertas del Condominio</h2>
+          <small>Define las puertas/garitas con su nombre y cuántos carritos de cada tipo están asignados. Se generan automáticamente los carritos físicos según la capacidad. Se reutilizan como puntos de ingreso/salida del estacionamiento.</small>
+        </div>
+        {!showForm && (
+          <button onClick={() => { setShowForm(true); setEditing(null); setForm(emptyForm); }}>
+            <span className="material-symbols-outlined">add_business</span> Adicionar
+          </button>
+        )}
       </div>
 
       {message && <div className="success-message" onClick={() => setMessage(null)}>{message} — clic para cerrar</div>}
       {error && <div className="error-message" onClick={() => setError(null)}>{error} — clic para cerrar</div>}
 
-      <div className="cart-form">
-        <h4>{editing ? 'Editar Puerta' : 'Registrar Puerta'}</h4>
-        <div className="form-row">
-          <div className="form-group">
-            <label>Nombre</label>
-            <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Ej: Puerta Principal" />
+      {showForm && (
+        <div className="cart-form">
+          <h4>{editing ? 'Editar Puerta' : 'Registrar Puerta'}</h4>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Nombre</label>
+              <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Ej: Puerta Principal" autoFocus />
+            </div>
+            <div className="form-group">
+              <label>Código (opcional)</label>
+              <input type="text" value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="Ej: P1" />
+            </div>
           </div>
-          <div className="form-group">
-            <label>Código (opcional)</label>
-            <input type="text" value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="Ej: P1" />
+          <div className="form-row">
+            <div className="form-group">
+              <label>Carritos de carga asignados</label>
+              <input type="number" min={0} value={form.carts_carga} onChange={e => setForm({ ...form, carts_carga: Number(e.target.value) })} />
+            </div>
+            <div className="form-group">
+              <label>Carritos de compras asignados</label>
+              <input type="number" min={0} value={form.carts_compra} onChange={e => setForm({ ...form, carts_compra: Number(e.target.value) })} />
+            </div>
+          </div>
+          <label className="checkbox-row">
+            <input type="checkbox" checked={form.is_entry_exit} onChange={e => setForm({ ...form, is_entry_exit: e.target.checked })} />
+            <span>Es punto de ingreso/salida de vehículos (estacionamiento)</span>
+          </label>
+          <div className="form-actions">
+            <button className="btn-cancel" onClick={cancelEdit}>Cancelar</button>
+            <button onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : editing ? 'Guardar' : 'Registrar'}</button>
           </div>
         </div>
-        <div className="form-row">
-          <div className="form-group">
-            <label>Carritos de carga asignados</label>
-            <input type="number" min={0} value={form.carts_carga} onChange={e => setForm({ ...form, carts_carga: Number(e.target.value) })} />
-          </div>
-          <div className="form-group">
-            <label>Carritos de compras asignados</label>
-            <input type="number" min={0} value={form.carts_compra} onChange={e => setForm({ ...form, carts_compra: Number(e.target.value) })} />
-          </div>
-        </div>
-        <label className="checkbox-row">
-          <input type="checkbox" checked={form.is_entry_exit} onChange={e => setForm({ ...form, is_entry_exit: e.target.checked })} />
-          <span>Es punto de ingreso/salida de vehículos (estacionamiento)</span>
-        </label>
-        <div className="form-actions">
-          {editing && <button className="btn-cancel" onClick={cancelEdit}>Cancelar</button>}
-          <button onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : editing ? 'Guardar' : 'Registrar'}</button>
-        </div>
-      </div>
+      )}
 
       {gates.length === 0 ? (
-        <div className="empty-state"><p>No hay puertas registradas aún. Registra la primera puerta.</p></div>
+        <div className="empty-state">
+          <p>No hay puertas registradas aún. Registra la primera puerta.</p>
+          <button onClick={() => { setShowForm(true); setEditing(null); setForm(emptyForm); }}>
+            <span className="material-symbols-outlined">add_business</span> Adicionar
+          </button>
+        </div>
       ) : (
         <table className="residents-table residents-desktop">
           <thead>
