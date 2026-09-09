@@ -131,11 +131,13 @@ function Dashboard() {
               <p>Administrar torres, pisos, departamentos y residentes</p>
             </button>
           )}
-          <Link to="/admin/users" className="action-card">
-            <span className="material-symbols-outlined">group</span>
-            <h3>Gestionar Usuarios</h3>
-            <p>Administrar roles y accesos del condominio</p>
-          </Link>
+          {canManageUsers && (
+            <Link to="/admin/users" className="action-card">
+              <span className="material-symbols-outlined">group</span>
+              <h3>Gestionar Usuarios</h3>
+              <p>Administrar roles y accesos del condominio</p>
+            </Link>
+          )}
         </div>
       )}
     </div>
