@@ -125,7 +125,7 @@ export function CartCheckoutForm({ schemaName, carts, towers, gates, busy, onChe
           ) : floors.length === 0 ? (
             <span className="text-muted">Esa torre no tiene pisos.</span>
           ) : (
-            <div className="checkout-chip-row">
+            <div className="checkout-chip-grid">
               {floors.map(f => (
                 <button key={f.id} type="button" className={`checkout-chip ${floorId === f.id ? 'active' : ''}`} onClick={() => selectFloor(f.id)}>
                   {f.floor_number}
