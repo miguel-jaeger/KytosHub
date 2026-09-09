@@ -8,6 +8,13 @@ function fmtMoney(n: number): string {
   return `S/ ${(Number(n) || 0).toFixed(2)}`;
 }
 
+function fmtDateTime(iso: string): string {
+  const d = new Date(iso);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${d.toLocaleDateString('es-PE')}, ${hh}:${mm}`;
+}
+
 const CART_TYPE_LABELS: Record<string, string> = { CARGA: 'Carro de carga', COMPRA: 'Coche de compras' };
 
 const LOAN_STATUS_LABELS: Record<string, string> = {
@@ -498,8 +505,8 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
                     <td>{l.cart_gate?.name || '-'}</td>
                     <td>{l.tower_code || '-'}</td>
                     <td>{l.department_number || '-'}</td>
-                    <td>{new Date(l.checkout_time).toLocaleString('es-PE')}</td>
-                    <td>{l.checkin_time ? new Date(l.checkin_time).toLocaleString('es-PE') : '—'}</td>
+                    <td>{fmtDateTime(l.checkout_time)}</td>
+                    <td>{l.checkin_time ? fmtDateTime(l.checkin_time) : '—'}</td>
                     <td><span className={`status-badge ${LOAN_STATUS_CLASS[l.status] || 'status-vacant'}`}>{LOAN_STATUS_LABELS[l.status] || l.status}</span></td>
                     <td>
                       {l.status === 'ACTIVO'

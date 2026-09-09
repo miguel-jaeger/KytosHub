@@ -18,6 +18,13 @@ function fmtMoney(n: number): string {
   return `S/ ${(Number(n) || 0).toFixed(2)}`;
 }
 
+function fmtDateTime(iso: string): string {
+  const d = new Date(iso);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${d.toLocaleDateString('es-PE')}, ${hh}:${mm}`;
+}
+
 function computeFine(config: CartLendingConfig, overtimeMinutes: number): number {
   if (!config.fine_enabled || overtimeMinutes <= config.grace_period_minutes) return 0;
   const excess = overtimeMinutes - config.grace_period_minutes;
@@ -109,7 +116,7 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
     setError(null);
     try {
       const loan = await checkout(schemaName, cartId, departmentId);
-      setMessage(`Préstamo registrado${loan && loan.due_time ? ` — vence ${new Date(loan.due_time).toLocaleString('es-PE')}` : ''}`);
+      setMessage(`Préstamo registrado${loan && loan.due_time ? ` — vence ${fmtDateTime(loan.due_time)}` : ''}`);
       await refreshAll();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error');
@@ -247,7 +254,7 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
                     <td>{l.cart_code || '-'}{l.cart_gate?.name ? ` (${l.cart_gate.name})` : ''}</td>
                     <td>{l.tower_code || '-'}</td>
                     <td>{l.department_number || '-'}</td>
-                    <td>{new Date(l.checkout_time).toLocaleString('es-PE')}</td>
+                    <td>{fmtDateTime(l.checkout_time)}</td>
                     <td><span className="loan-timer">{fmtDuration(st.elapsedSec)}</span></td>
                     <td>{st.remainingSec <= 0
                       ? <span className="loan-overdue-label">Vencido</span>
