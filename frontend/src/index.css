@@ -1599,7 +1599,7 @@ html.dark .checkout-chip-count { color: #69db7c; }
 
 .cart-gates, .cart-loans-table, .cart-fines { margin-top: 1rem; }
 .cart-gates h4, .cart-loans-table h4, .cart-fines h4 { margin: 0 0 0.7rem; color: #0b1c30; }
-.cart-gate-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.7rem; }
+.cart-gate-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 0.7rem; }
 .cart-gate-card { display: flex; flex-direction: column; gap: 0.6rem; background: #f8f9ff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 0.8rem 0.95rem; font-size: 0.85rem; color: #45464d; box-shadow: 0 1px 2px rgba(11, 28, 48, 0.05); transition: border-color 0.2s, box-shadow 0.2s; }
 .cart-gate-card:hover { border-color: #c6c6cd; box-shadow: 0 3px 8px rgba(11, 28, 48, 0.07); }
 .cart-gate-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
