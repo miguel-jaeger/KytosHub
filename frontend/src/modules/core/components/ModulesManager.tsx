@@ -4,6 +4,8 @@ import type { ModuleInfo } from '../types';
 
 const CART_CONFIG_FIELDS: Array<{ key: string; label: string; type: 'number' | 'checkbox' }> = [
   { key: 'max_loan_minutes', label: 'Máximo de minutos de préstamo', type: 'number' },
+  { key: 'gates_count', label: 'Cantidad de puertas del condominio', type: 'number' },
+  { key: 'carts_per_gate', label: 'Carritos por puerta', type: 'number' },
   { key: 'grace_period_minutes', label: 'Período de gracia (minutos)', type: 'number' },
   { key: 'fine_amount', label: 'Monto de multa (S/)', type: 'number' },
   { key: 'fine_interval_minutes', label: 'Intervalo de multa (minutos)', type: 'number' },
@@ -118,36 +120,51 @@ export function ModulesManager({ schemaName }: { schemaName?: string }) {
 
               <div className="module-config">
                 {cartConfig ? (
-                  <div className="cart-config-form">
-                    {CART_CONFIG_FIELDS.map(f => (
-                      <label key={f.key}>
-                        {f.label}
-                        {f.type === 'checkbox' ? (
-                          <input
-                            type="checkbox"
-                            disabled={!isSuperAdmin}
-                            checked={!!((JSON.parse(configDrafts?.[m.module_key] || '{}') || {} as Record<string, unknown>)[f.key])}
-                            onChange={e => updateDraftField(m, f.key, e.target.checked)}
-                          />
-                        ) : (
-                          <input
-                            type="number"
-                            disabled={!isSuperAdmin}
-                            value={String((JSON.parse(configDrafts?.[m.module_key] || '{}') || {} as Record<string, unknown>)[f.key] ?? '')}
-                            onChange={e => updateDraftField(m, f.key, Number(e.target.value))}
-                          />
-                        )}
-                      </label>
-                    ))}
-                  </div>
+                  <>
+                    <div className="cart-config-form">
+                      {CART_CONFIG_FIELDS.map(f => (
+                        <label key={f.key}>
+                          {f.label}
+                          {f.type === 'checkbox' ? (
+                            <input
+                              type="checkbox"
+                              disabled={!isSuperAdmin}
+                              checked={!!((JSON.parse(configDrafts?.[m.module_key] || '{}') || {} as Record<string, unknown>)[f.key])}
+                              onChange={e => updateDraftField(m, f.key, e.target.checked)}
+                            />
+                          ) : (
+                            <input
+                              type="number"
+                              disabled={!isSuperAdmin}
+                              value={String((JSON.parse(configDrafts?.[m.module_key] || '{}') || {} as Record<string, unknown>)[f.key] ?? '')}
+                              onChange={e => updateDraftField(m, f.key, Number(e.target.value))}
+                            />
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                    <div className="module-example">
+                      <span className="material-symbols-outlined">info</span>
+                      <span>
+                        Ejemplo: con <strong>2 puertas</strong> y <strong>5 carritos por puerta</strong> se adminarán hasta{' '}
+                        <strong>10 carritos</strong> (cada uno se registra como <em>carro de carga</em> o <em>coche de compras</em>).
+                      </span>
+                    </div>
+                  </>
                 ) : (
-                  <textarea
-                    className="module-json"
-                    rows={5}
-                    readOnly={!isSuperAdmin}
-                    value={configDrafts?.[m.module_key] || '{}'}
-                    onChange={e => setConfigDrafts(prev => ({ ...prev, [m.module_key]: e.target.value }))}
-                  />
+                  <>
+                    <div className="module-example">
+                      <span className="material-symbols-outlined">info</span>
+                      <span>Ejemplo de configuración JSON: <code>{'{ "clave": "valor" }'}</code></span>
+                    </div>
+                    <textarea
+                      className="module-json"
+                      rows={5}
+                      readOnly={!isSuperAdmin}
+                      value={configDrafts?.[m.module_key] || '{}'}
+                      onChange={e => setConfigDrafts(prev => ({ ...prev, [m.module_key]: e.target.value }))}
+                    />
+                  </>
                 )}
                 {isSuperAdmin && (
                   <button className="btn-primary" onClick={() => handleSaveConfig(m)} disabled={savingKey === m.module_key}>
