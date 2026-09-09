@@ -5,10 +5,11 @@ import { useCondominiumRegistration } from '../hooks/useCondominiumRegistration'
 import { useCondoModules } from '../hooks/useCondoModules';
 import { StructureManager } from './StructureManager';
 import { ModulesManager } from './ModulesManager';
+import { GatesManager } from './GatesManager';
 import { CartLendingManager } from './CartLendingManager';
 import type { WizardStep } from '../types';
 
-type SetupTab = 'structure' | 'modules' | 'carts';
+type SetupTab = 'structure' | 'gates' | 'modules' | 'carts';
 
 export function SetupWizard() {
   const { condominium, setCondominium } = useCondominium();
@@ -123,11 +124,13 @@ export function SetupWizard() {
 
       <div className="setup-tabs">
         <button className={tab === 'structure' ? 'active' : ''} onClick={() => setTab('structure')}>Estructura</button>
+        <button className={tab === 'gates' ? 'active' : ''} onClick={() => setTab('gates')}>Puertas</button>
         <button className={tab === 'modules' ? 'active' : ''} onClick={() => setTab('modules')}>Módulos</button>
         {cartEnabled && <button className={tab === 'carts' ? 'active' : ''} onClick={() => setTab('carts')}>Carritos</button>}
       </div>
 
       {tab === 'structure' && <StructureManager />}
+      {tab === 'gates' && <GatesManager schemaName={condominium?.schema_name} />}
       {tab === 'modules' && <ModulesManager schemaName={condominium?.schema_name} />}
       {tab === 'carts' && cartEnabled && <CartLendingManager schemaName={condominium?.schema_name} />}
     </div>

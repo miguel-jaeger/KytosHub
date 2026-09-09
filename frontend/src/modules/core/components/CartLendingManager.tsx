@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import { useCartLending } from '../hooks/useCartLending';
-import type { Cart, CartLoan, CartLendingConfig, Department, FinesSummaryRow, Tower } from '../types';
+import { useCondoGates } from '../hooks/useCondoGates';
+import type { Cart, CartLoan, CartLendingConfig, Department, FinesSummaryRow, Gate, Tower } from '../types';
 
 interface DeptOption {
   id: string;
@@ -23,9 +24,11 @@ const CART_TYPE_LABELS: Record<string, string> = { CARGA: 'Carro de carga', COMP
 
 export function CartLendingManager({ schemaName }: { schemaName?: string }) {
   const { listCarts, createCart, updateCart, deleteCart, listLoans, checkout, checkin, finesSummary } = useCartLending();
+  const { list: listGates } = useCondoGates();
   const [carts, setCarts] = useState<Cart[]>([]);
   const [loans, setLoans] = useState<CartLoan[]>([]);
   const [config, setConfig] = useState<CartLendingConfig | null>(null);
+  const [gates, setGates] = useState<Gate[]>([]);
   const [fines, setFines] = useState<FinesSummaryRow[]>([]);
   const [deptOptions, setDeptOptions] = useState<DeptOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +36,7 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
   const [message, setMessage] = useState<string | null>(null);
   const [tab, setTab] = useState<'estado' | 'carts' | 'fines'>('estado');
 
-  const [cartForm, setCartForm] = useState({ code_identifier: '', status: 'DISPONIBLE', gate: '', cart_type: 'CARGA', notes: '' });
+  const [cartForm, setCartForm] = useState({ code_identifier: '', status: 'DISPONIBLE', gate_id: '', cart_type: 'CARGA', notes: '' });
   const [editingCart, setEditingCart] = useState<Cart | null>(null);
   const [savingCart, setSavingCart] = useState(false);
 
@@ -65,6 +68,7 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
       try {
         await loadCarts();
         await loadLoans();
+        setGates(await listGates(schemaName));
         // Departments + towers for the checkout selector (torre y departamento del residente)
         const deptRes = await invokeFunction<{ success: boolean; data: Department[] | null }>('departments', { method: 'POST', body: { action: 'list', schema_name: schemaName } });
         const towerRes = await invokeFunction<{ success: boolean; data: Tower[] | null }>('towers', { method: 'POST', body: { action: 'list', schema_name: schemaName } });
@@ -83,11 +87,11 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [schemaName, loadCarts, loadLoans]);
+  }, [schemaName, loadCarts, loadLoans, listGates]);
 
   const refreshAll = async () => {
     if (!schemaName) return;
-    await Promise.all([loadCarts(), loadLoans()]);
+    await Promise.all([loadCarts(), loadLoans(), listGates(schemaName).then(setGates)]);
   };
 
   const openFines = async () => {
@@ -102,13 +106,13 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
     setSavingCart(true);
     setError(null);
     try {
-      const gate = cartForm.gate.trim() === '' ? null : Number(cartForm.gate);
+      const gateId = cartForm.gate_id.trim() === '' ? null : cartForm.gate_id.trim();
       if (editingCart) {
-        await updateCart(schemaName, editingCart.id, { code_identifier: cartForm.code_identifier, status: cartForm.status as Cart['status'], cart_type: cartForm.cart_type, gate: gate ?? undefined, notes: cartForm.notes });
+        await updateCart(schemaName, editingCart.id, { code_identifier: cartForm.code_identifier, status: cartForm.status as Cart['status'], cart_type: cartForm.cart_type, gate_id: gateId ?? undefined, notes: cartForm.notes });
       } else {
-        await createCart(schemaName, { code_identifier: cartForm.code_identifier, status: cartForm.status, cart_type: cartForm.cart_type, gate: gate ?? undefined, notes: cartForm.notes });
+        await createCart(schemaName, { code_identifier: cartForm.code_identifier, status: cartForm.status, cart_type: cartForm.cart_type, gate_id: gateId ?? undefined, notes: cartForm.notes });
       }
-      setCartForm({ code_identifier: '', status: 'DISPONIBLE', gate: '', cart_type: 'CARGA', notes: '' });
+      setCartForm({ code_identifier: '', status: 'DISPONIBLE', gate_id: '', cart_type: 'CARGA', notes: '' });
       setEditingCart(null);
       setMessage('Carrito guardado');
       setCarts(await listCarts(schemaName));
@@ -121,7 +125,7 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
 
   const startEditCart = (c: Cart) => {
     setEditingCart(c);
-    setCartForm({ code_identifier: c.code_identifier, status: c.status, gate: c.gate ? String(c.gate) : '', cart_type: c.cart_type || 'CARGA', notes: c.notes || '' });
+    setCartForm({ code_identifier: c.code_identifier, status: c.status, gate_id: c.gate_id || c.gate?.id || '', cart_type: c.cart_type || 'CARGA', notes: c.notes || '' });
     setTab('carts');
   };
 
@@ -180,7 +184,7 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
   const prestados = carts.filter(c => c.status === 'PRESTADO').length;
   const mantenimiento = carts.filter(c => c.status === 'MANTENIMIENTO').length;
   const disponibles = carts.filter(c => c.status === 'DISPONIBLE').length;
-  const gates = config ? Array.from({ length: config.gates_count }, (_, i) => i + 1) : [];
+  const activeGates = gates.filter(g => g.is_active);
 
   return (
     <div className="cart-lending-manager">
@@ -188,7 +192,7 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
         <h3>Préstamo de Carritos y Multas</h3>
         {config && (
           <small>
-            Préstamo máx: {config.max_loan_minutes} min · Gracia: {config.grace_period_minutes} min · Multa: {fmtMoney(config.fine_amount)} cada {config.fine_interval_minutes} min · Puertas: {config.gates_count} · Carritos por puerta: {config.carts_per_gate}
+            Préstamo máx: {config.max_loan_minutes} min · Gracia: {config.grace_period_minutes} min · Multa: {fmtMoney(config.fine_amount)} cada {config.fine_interval_minutes} min · Puertas: {gates.length}
             {config.fine_enabled ? '' : ' (multas desactivadas)'}
           </small>
         )}
@@ -212,18 +216,21 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
             <div className="cart-kpi cart-kpi-mant"><span className="material-symbols-outlined">build</span><strong>{mantenimiento}</strong> en mantenimiento</div>
           </div>
 
-          {config && gates.length > 0 && (
+          {activeGates.length > 0 && (
             <div className="cart-gates">
               <h4>Carritos por puerta</h4>
               <div className="cart-gate-grid">
-                {gates.map(g => {
-                  const gCarts = carts.filter(c => c.gate === g);
-                  const gPrestados = gCarts.filter(c => c.status === 'PRESTADO').length;
+                {activeGates.map(g => {
+                  const gateCarts = carts.filter(c => c.gate_id === g.id);
+                  const carga = gateCarts.filter(c => c.cart_type === 'CARGA');
+                  const compra = gateCarts.filter(c => c.cart_type === 'COMPRA');
+                  const prestados = gateCarts.filter(c => c.status === 'PRESTADO').length;
                   return (
-                    <div key={g} className={`cart-gate-card`}>
-                      <span className="cart-gate-num">Puerta {g}</span>
-                      <span>{gCarts.length} / {config.carts_per_gate} carritos</span>
-                      <span className={gPrestados > 0 ? 'cart-gate-prestado' : ''}>{gPrestados > 0 ? `${gPrestados} prestado(s)` : 'Sin préstamos'}</span>
+                    <div key={g.id} className="cart-gate-card">
+                      <span className="cart-gate-num">{g.name}</span>
+                      <span>Carros de carga: {carga.length} / {g.carts_carga}</span>
+                      <span>Coches de compras: {compra.length} / {g.carts_compra}</span>
+                      <span className={prestados > 0 ? 'cart-gate-prestado' : ''}>{prestados > 0 ? `${prestados} prestado(s)` : 'Sin préstamos'}</span>
                     </div>
                   );
                 })}
@@ -239,7 +246,7 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
                 <label>Carrito</label>
                 <select value={checkoutCartId} onChange={e => setCheckoutCartId(e.target.value)}>
                   <option value="">Seleccionar...</option>
-                  {availableCarts.map(c => <option key={c.id} value={c.id}>{c.code_identifier}{c.gate ? ` (Puerta ${c.gate})` : ''} · {CART_TYPE_LABELS[c.cart_type || 'CARGA']}</option>)}
+                  {availableCarts.map(c => <option key={c.id} value={c.id}>{c.code_identifier}{c.gate?.name ? ` (${c.gate.name})` : ''} · {CART_TYPE_LABELS[c.cart_type || 'CARGA']}</option>)}
                 </select>
               </div>
               <div className="form-group">
@@ -277,7 +284,7 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
                   <tr><td colSpan={8} className="empty-text">No hay carritos prestados.</td></tr>
                 ) : activeLoans.map(l => (
                   <tr key={l.id}>
-                    <td>{l.cart_code || '-'}{l.cart_gate ? ` (P${l.cart_gate})` : ''}</td>
+                    <td>{l.cart_code || '-'}{l.cart_gate?.name ? ` (${l.cart_gate.name})` : ''}</td>
                     <td>{l.tower_code || '-'}</td>
                     <td>{l.department_number || '-'}</td>
                     <td>{new Date(l.checkout_time).toLocaleString('es-PE')}</td>
@@ -312,7 +319,10 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
               </div>
               <div className="form-group">
                 <label>Puerta</label>
-                <input type="number" min={1} max={config?.gates_count || 9} value={cartForm.gate} onChange={e => setCartForm({ ...cartForm, gate: e.target.value })} placeholder={`1 - ${config?.gates_count || 1}`} />
+                <select value={cartForm.gate_id} onChange={e => setCartForm({ ...cartForm, gate_id: e.target.value })}>
+                  <option value="">Sin puerta</option>
+                  {activeGates.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
               </div>
             </div>
             <div className="form-row">
@@ -337,7 +347,7 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
               <input type="text" value={cartForm.notes} onChange={e => setCartForm({ ...cartForm, notes: e.target.value })} placeholder="Observaciones" />
             </div>
             <div className="form-actions">
-              {editingCart && <button className="btn-cancel" onClick={() => { setEditingCart(null); setCartForm({ code_identifier: '', status: 'DISPONIBLE', gate: '', cart_type: 'CARGA', notes: '' }); }}>Cancelar</button>}
+              {editingCart && <button className="btn-cancel" onClick={() => { setEditingCart(null); setCartForm({ code_identifier: '', status: 'DISPONIBLE', gate_id: '', cart_type: 'CARGA', notes: '' }); }}>Cancelar</button>}
               <button onClick={handleAddOrUpdateCart} disabled={savingCart}>{savingCart ? 'Guardando...' : editingCart ? 'Guardar' : 'Registrar'}</button>
             </div>
           </div>
@@ -359,7 +369,7 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
               ) : carts.map(c => (
                 <tr key={c.id}>
                   <td>{c.code_identifier}</td>
-                  <td>{c.gate ? `Puerta ${c.gate}` : '-'}</td>
+                  <td>{c.gate?.name || '-'}</td>
                   <td>{CART_TYPE_LABELS[c.cart_type || 'CARGA']}</td>
                   <td><span className={`status-badge ${c.status === 'DISPONIBLE' ? 'status-occupied' : 'status-vacant'}`}>{c.status}</span></td>
                   <td>{c.notes || '-'}</td>

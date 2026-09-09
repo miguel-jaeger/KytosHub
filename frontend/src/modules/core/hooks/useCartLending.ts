@@ -18,7 +18,7 @@ export function useCartLending() {
     return data.data || [];
   }, []);
 
-  const createCart = useCallback(async (schemaName: string, cart: { code_identifier: string; status?: string; cart_type?: string; gate?: number | null; notes?: string }) => {
+  const createCart = useCallback(async (schemaName: string, cart: { code_identifier: string; status?: string; cart_type?: string; gate_id?: string | null; notes?: string }) => {
     const { data, error } = await invokeFunction<{ success: boolean; data: Cart | null; error: { message: string } | null }>('cart-lending', {
       method: 'POST',
       body: { action: 'create-cart', schema_name: schemaName, ...cart }

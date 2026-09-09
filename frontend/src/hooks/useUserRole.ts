@@ -12,7 +12,7 @@ export const ROLE_LABELS: Record<string, string> = {
   VISITOR: 'Visitante'
 };
 
-export type UserRole = 'loading' | 'super' | 'admin' | 'resident' | 'none';
+export type UserRole = 'loading' | 'super' | 'admin' | 'security' | 'resident' | 'none';
 
 export function useUserRole(): UserRole {
   const { user, loading } = useAuth();
@@ -30,8 +30,9 @@ export function useUserRole(): UserRole {
       if (cancelled) return;
       if (data?.success && data.data) {
         const active = data.data.filter(x => x.status === 'ACTIVE');
-        const highest = active.some(x => x.role === 'SUPER_ADMIN' || x.role === 'ADMIN');
-        setRole(highest ? 'admin' : 'resident');
+        const isManager = active.some(x => x.role === 'SUPER_ADMIN' || x.role === 'ADMIN');
+        const isSecurity = active.some(x => x.role === 'SECURITY_AGENT');
+        setRole(isManager ? 'admin' : isSecurity ? 'security' : 'resident');
       } else {
         setRole('resident');
       }
@@ -46,6 +47,7 @@ export function useUserRole(): UserRole {
 export function useRoleLabel(role: UserRole): string {
   if (role === 'super') return ROLE_LABELS.SUPER_ADMIN;
   if (role === 'admin') return ROLE_LABELS.ADMIN;
+  if (role === 'security') return ROLE_LABELS.SECURITY_AGENT;
   if (role === 'resident') return ROLE_LABELS.RESIDENT;
   return 'Residente';
 }

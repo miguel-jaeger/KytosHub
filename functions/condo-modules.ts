@@ -22,9 +22,7 @@ const MODULES: Record<string, ModuleDef> = {
       fine_type: 'FIXED_OR_PER_INTERVAL',
       grace_period_minutes: 10,
       fine_amount: 5,
-      fine_interval_minutes: 30,
-      gates_count: 2,
-      carts_per_gate: 5
+      fine_interval_minutes: 30
     }
   }
 };
@@ -54,26 +52,50 @@ export default async function(req: Request): Promise<Response> {
     }
 
     const isSuperAdmin = await callerIsSuperAdmin(req, client);
+    const isTenantAdmin = isSuperAdmin || await callerIsTenantAdmin(req, client, schemaName);
     const db = client.database.schema(schemaName);
 
     if (action === 'list') {
       const modules = await listModules(db);
-      return json({ success: true, data: { is_superadmin: isSuperAdmin, modules }, error: null }, 200);
+      const withFlags = modules.map(m => ({
+        ...m,
+        can_toggle: isSuperAdmin,
+        can_edit_config: isSuperAdmin || isTenantAdmin
+      }));
+      return json({ success: true, data: { is_superadmin: isSuperAdmin, modules: withFlags }, error: null }, 200);
     }
 
     if (action === 'update') {
-      if (!isSuperAdmin) {
-        return json({ success: false, data: null, error: { code: 'FORBIDDEN', message: 'Solo el administrador global puede modificar la configuración de módulos' } }, 403);
-      }
-
       const moduleKey = String(body.module_key || '');
       const def = MODULES[moduleKey];
       if (!def) {
         return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Módulo no reconocido' } }, 400);
       }
 
-      const nextEnabled = typeof body.is_enabled === 'boolean' ? body.is_enabled : def.default_enabled;
-      const nextConfig = body.config && typeof body.config === 'object'
+      const wantsToggle = typeof body.is_enabled === 'boolean';
+      const wantsConfig = body.config && typeof body.config === 'object';
+
+      // Only the global admin can activate/deactivate a module
+      if (wantsToggle && !isSuperAdmin) {
+        return json({ success: false, data: null, error: { code: 'FORBIDDEN', message: 'Solo el administrador global puede activar o desactivar módulos' } }, 403);
+      }
+      // Config edits are allowed for the global admin and the condominium admin
+      if (wantsConfig && !isSuperAdmin && !isTenantAdmin) {
+        return json({ success: false, data: null, error: { code: 'FORBIDDEN', message: 'No tienes permisos para editar la configuración' } }, 403);
+      }
+
+      // When only the config is edited (no explicit toggle), keep the current
+      // enabled state instead of resetting it to the module default.
+      let currentEnabled: boolean | null = null;
+      if (!wantsToggle) {
+        const { data: cur } = await db.from('condo_settings').select('is_enabled').eq('module_key', moduleKey).single();
+        currentEnabled = cur ? Boolean((cur as { is_enabled: boolean }).is_enabled) : null;
+      }
+
+      const nextEnabled = wantsToggle
+        ? body.is_enabled as boolean
+        : (currentEnabled ?? def.default_enabled);
+      const nextConfig = wantsConfig
         ? sanitizeConfig(moduleKey, body.config as Record<string, unknown>)
         : def.default_config;
 
@@ -121,6 +143,8 @@ async function listModules(db: { from(t: string): any }) {
 function sanitizeConfig(key: string, config: Record<string, unknown>): Record<string, unknown> {
   const cfg: Record<string, unknown> = { ...config };
   if (key === 'cart_lending') {
+    delete cfg.gates_count;
+    delete cfg.carts_per_gate;
     const num = (v: unknown, d: number) => {
       const n = Number(v);
       return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : d;
@@ -133,6 +157,24 @@ function sanitizeConfig(key: string, config: Record<string, unknown>): Record<st
     if (cfg.fine_type !== 'FIXED' && cfg.fine_type !== 'PER_INTERVAL' && cfg.fine_type !== 'FIXED_OR_PER_INTERVAL') cfg.fine_type = 'FIXED_OR_PER_INTERVAL';
   }
   return cfg;
+}
+
+async function callerIsTenantAdmin(req: Request, client: ReturnType<typeof createAdminClient>, schemaName: string): Promise<boolean> {
+  const auth = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
+  if (!auth) return false;
+  try {
+    const userClient = createClient({ baseUrl: Deno.env.get('INSFORGE_BASE_URL'), accessToken: auth });
+    const { data } = await userClient.auth.getCurrentUser();
+    const uid = data?.user?.id;
+    if (!uid) return false;
+
+    const { data: t } = await client.database.from('tenants').select('id').eq('schema_name', schemaName).single();
+    const tenantId = t?.id;
+    if (!tenantId) return false;
+
+    const { data: tu } = await client.database.from('tenant_users').select('id').eq('user_id', uid).eq('tenant_id', tenantId).eq('status', 'ACTIVE').in('role', ['SUPER_ADMIN', 'ADMIN']).single();
+    return Boolean(tu);
+  } catch { return false; }
 }
 
 async function callerIsSuperAdmin(req: Request, client: ReturnType<typeof createAdminClient>): Promise<boolean> {

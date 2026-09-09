@@ -12,9 +12,7 @@ const DEFAULT_CONFIG = {
   fine_type: 'FIXED_OR_PER_INTERVAL',
   grace_period_minutes: 10,
   fine_amount: 5,
-  fine_interval_minutes: 30,
-  gates_count: 2,
-  carts_per_gate: 5
+  fine_interval_minutes: 30
 };
 
 const CART_TYPES = ['CARGA', 'COMPRA'];
@@ -44,12 +42,14 @@ export default async function(req: Request): Promise<Response> {
 
     const db = client.database.schema(schemaName);
     const isAdmin = await isAdminForSchema(req, client, schemaName);
+    const isOperator = isAdmin || await isSecurityForSchema(req, client, schemaName);
 
     switch (action) {
       case 'list-carts': {
         const { data, error } = await db.from('carts').select('*').order('code_identifier');
         if (error) throw error;
-        return json({ success: true, data: (data || []).map((c: Record<string, unknown>) => ({ ...c, cart_type: c.cart_type || 'CARGA' })), error: null }, 200);
+        const carts = await enrichCarts(db, data || []);
+        return json({ success: true, data: carts, error: null }, 200);
       }
 
       case 'create-cart': {
@@ -57,25 +57,26 @@ export default async function(req: Request): Promise<Response> {
         const code = String(body.code_identifier || '').trim();
         if (!code) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Código del carrito es requerido' } }, 400);
         const cartType = normalizeCartType(body.cart_type);
-        const gate = normalizeGate(body.gate, config);
+        const gate = await resolveGate(db, body.gate_id);
 
         const { data: existing } = await db.from('carts').select('id').eq('code_identifier', code).single();
         if (existing) return json({ success: false, data: null, error: { code: 'DUPLICATE', message: 'Ya existe un carrito con ese código' } }, 409);
 
-        if (gate !== null && !(await gateHasCapacity(db, gate, null, config))) {
-          return json({ success: false, data: null, error: { code: 'CAPACITY', message: `Límite de ${config.carts_per_gate} carritos por puerta alcanzado` } }, 409);
+        if (gate && !(await gateHasCapacity(db, gate, null, cartType))) {
+          return json({ success: false, data: null, error: { code: 'CAPACITY', message: `La ${gate.name} ya alcanzó su límite de ${cartType === 'CARGA' ? gate.carts_carga : gate.carts_compra} carritos de ${cartType === 'CARGA' ? 'carga' : 'compras'}` } }, 409);
         }
 
         const { data, error } = await db.from('carts').insert([{
           code_identifier: code,
           qr_code_hash: body.qr_code_hash || null,
           status: body.status || 'DISPONIBLE',
-          gate,
+          gate_id: gate?.id || null,
           cart_type: cartType,
           notes: body.notes || null
         }]).select().single();
         if (error) throw error;
-        return json({ success: true, data, error: null }, 201);
+        const enriched = (await enrichCarts(db, [data]))[0];
+        return json({ success: true, data: enriched, error: null }, 201);
       }
 
       case 'update-cart': {
@@ -85,17 +86,22 @@ export default async function(req: Request): Promise<Response> {
         if (body.code_identifier !== undefined) updates.code_identifier = String(body.code_identifier).trim();
         if (body.status !== undefined) updates.status = body.status;
         if (body.notes !== undefined) updates.notes = body.notes;
-        if (body.cart_type !== undefined) updates.cart_type = normalizeCartType(body.cart_type);
-        if (body.gate !== undefined) {
-          const gate = normalizeGate(body.gate, config);
-          updates.gate = gate;
-          if (gate !== null && !(await gateHasCapacity(db, gate, String(body.id), config))) {
-            return json({ success: false, data: null, error: { code: 'CAPACITY', message: `Límite de ${config.carts_per_gate} carritos por puerta alcanzado` } }, 409);
+        let newType = updates.cart_type as string | undefined;
+        if (body.cart_type !== undefined) {
+          newType = normalizeCartType(body.cart_type);
+          updates.cart_type = newType;
+        }
+        if (body.gate_id !== undefined) {
+          const gate = await resolveGate(db, body.gate_id);
+          updates.gate_id = gate?.id || null;
+          if (gate && !(await gateHasCapacity(db, gate, String(body.id), newType || (body.cart_type as string) || 'CARGA'))) {
+            return json({ success: false, data: null, error: { code: 'CAPACITY', message: `La ${gate.name} ya alcanzó su límite de carritos de ${(newType || 'CARGA') === 'CARGA' ? 'carga' : 'compras'}` } }, 409);
           }
         }
         const { data, error } = await db.from('carts').update(updates).eq('id', body.id).select().single();
         if (error) throw error;
-        return json({ success: true, data, error: null }, 200);
+        const enriched = (await enrichCarts(db, [data]))[0];
+        return json({ success: true, data: enriched, error: null }, 200);
       }
 
       case 'delete-cart': {
@@ -115,7 +121,7 @@ export default async function(req: Request): Promise<Response> {
         const cartIds = [...new Set((loans || []).map((l: { cart_id: string }) => l.cart_id))];
         const deptIds = [...new Set((loans || []).map((l: { department_id: string }) => l.department_id))];
         const carts = cartIds.length
-          ? ((await db.from('carts').select('id, code_identifier, status, gate, cart_type').in('id', cartIds)).data || [])
+          ? ((await db.from('carts').select('id, code_identifier, status, gate_id, cart_type').in('id', cartIds)).data || [])
           : [];
         const deptRows = deptIds.length
           ? ((await db.from('departments').select('id, department_number, tower_id').in('id', deptIds)).data || [])
@@ -124,19 +130,25 @@ export default async function(req: Request): Promise<Response> {
         const towers = towerIds.length
           ? ((await db.from('towers').select('id, name, code').in('id', towerIds)).data || [])
           : [];
-        const cartMap = new Map((carts as Array<{ id: string; code_identifier: string; status: string; gate: number | null; cart_type: string }>).map(c => [c.id, c]));
+        const gateIds = [...new Set((carts as Array<{ gate_id: string | null }>).map(c => c.gate_id).filter(Boolean))];
+        const gateRows = gateIds.length
+          ? ((await db.from('condo_gates').select('id, name').in('id', gateIds)).data || [])
+          : [];
+        const cartMap = new Map((carts as Array<{ id: string; code_identifier: string; status: string; gate_id: string | null; cart_type: string }>).map(c => [c.id, c]));
         const deptMap = new Map((deptRows as Array<{ id: string; department_number: string; tower_id: string }>).map(d => [d.id, d]));
         const towerMap = new Map((towers as Array<{ id: string; name: string; code: string }>).map(t => [t.id, t]));
+        const gateMap = new Map((gateRows as Array<{ id: string; name: string }>).map(g => [g.id, g.name]));
 
         const now = Date.now();
         const enriched = (loans || []).map((l: Record<string, unknown>) => {
           const cart = cartMap.get(l.cart_id as string);
           const dept = deptMap.get(l.department_id as string);
           const tower = dept ? towerMap.get(dept.tower_id) : undefined;
+          const gateName = cart?.gate_id ? gateMap.get(cart.gate_id as string) : null;
           const base = {
             ...l,
             cart_code: cart?.code_identifier || null,
-            cart_gate: cart?.gate || null,
+            cart_gate: gateName ? { id: cart.gate_id, name: gateName } : null,
             cart_type: cart?.cart_type || 'CARGA',
             department_number: dept?.department_number || null,
             tower_code: tower?.code || null
@@ -154,7 +166,7 @@ export default async function(req: Request): Promise<Response> {
       }
 
       case 'checkout': {
-        if (!isAdmin) return forbidden();
+        if (!isOperator) return forbidden();
         const cartId = body.cart_id as string;
         const departmentId = body.department_id as string;
         if (!cartId || !departmentId) {
@@ -185,7 +197,7 @@ export default async function(req: Request): Promise<Response> {
       }
 
       case 'checkin': {
-        if (!isAdmin) return forbidden();
+        if (!isOperator) return forbidden();
         const loanId = body.loan_id as string;
         if (!loanId) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'loan_id es requerido' } }, 400);
 
@@ -264,6 +276,22 @@ export default async function(req: Request): Promise<Response> {
   }
 }
 
+async function enrichCarts(db: { from(t: string): any }, carts: Array<Record<string, unknown>>): Promise<Array<Record<string, unknown>>> {
+  const gateIds = [...new Set(carts.map(c => c.gate_id as string | null).filter(Boolean))];
+  const gateRows = gateIds.length
+    ? ((await db.from('condo_gates').select('id, name, code, carts_carga, carts_compra').in('id', gateIds)).data || [])
+    : [];
+  const gateMap = new Map((gateRows as Array<{ id: string; name: string; code: string | null; carts_carga: number; carts_compra: number }>).map(g => [g.id, g]));
+  return carts.map(c => {
+    const g = (c.gate_id as string | null) ? gateMap.get(c.gate_id as string) : null;
+    return {
+      ...c,
+      cart_type: (c.cart_type as string) || 'CARGA',
+      gate: g ? { id: g.id, name: g.name, code: g.code, carts_carga: g.carts_carga, carts_compra: g.carts_compra } : null
+    };
+  });
+}
+
 function computeFine(config: { fine_enabled: boolean; fine_type: string; grace_period_minutes: number; fine_amount: number; fine_interval_minutes: number }, overtimeMinutes: number): number {
   let fine = 0;
   if (config.fine_enabled && overtimeMinutes > config.grace_period_minutes) {
@@ -282,18 +310,19 @@ function normalizeCartType(v: unknown): string {
   return CART_TYPES.includes(t) ? t : 'CARGA';
 }
 
-function normalizeGate(v: unknown, config: { gates_count: number }): number | null {
-  if (v === undefined || v === null || v === '') return null;
-  const n = Number(v);
-  if (!Number.isFinite(n) || n < 1 || n > config.gates_count) return null;
-  return Math.round(n);
+async function resolveGate(db: { from(t: string): any }, gateId: unknown): Promise<{ id: string; name: string; carts_carga: number; carts_compra: number } | null> {
+  if (!gateId || gateId === null || gateId === '') return null;
+  const { data } = await db.from('condo_gates').select('*').eq('id', String(gateId)).eq('is_active', true).single();
+  if (!data) return null;
+  return data as { id: string; name: string; carts_carga: number; carts_compra: number };
 }
 
-async function gateHasCapacity(db: { from(t: string): any }, gate: number, excludeId: string | null, config: { carts_per_gate: number }): Promise<boolean> {
-  let q = db.from('carts').select('*', { count: 'exact', head: true }).eq('gate', gate);
+async function gateHasCapacity(db: { from(t: string): any }, gate: { id: string; carts_carga: number; carts_compra: number }, excludeId: string | null, cartType: string): Promise<boolean> {
+  const capacity = cartType === 'CARGA' ? gate.carts_carga : gate.carts_compra;
+  let q = db.from('carts').select('*', { count: 'exact', head: true }).eq('gate_id', gate.id).eq('cart_type', cartType);
   if (excludeId) q = q.neq('id', excludeId);
   const { count } = await q;
-  return (count || 0) < config.carts_per_gate;
+  return (count || 0) < capacity;
 }
 
 async function getModuleConfig(client: ReturnType<typeof createAdminClient>, schemaName: string) {
@@ -309,7 +338,7 @@ async function getModuleConfig(client: ReturnType<typeof createAdminClient>, sch
   } catch {
     return null;
   }
-  return config as { max_loan_minutes: number; fine_enabled: boolean; fine_type: string; grace_period_minutes: number; fine_amount: number; fine_interval_minutes: number; gates_count: number; carts_per_gate: number };
+  return config as { max_loan_minutes: number; fine_enabled: boolean; fine_type: string; grace_period_minutes: number; fine_amount: number; fine_interval_minutes: number };
 }
 
 async function isAdminForSchema(req: Request, client: ReturnType<typeof createAdminClient>, schemaName: string): Promise<boolean> {
@@ -341,6 +370,24 @@ async function currentUserId(req: Request, client: ReturnType<typeof createAdmin
     const { data } = await userClient.auth.getCurrentUser();
     return data?.user?.id || null;
   } catch { return null; }
+}
+
+async function isSecurityForSchema(req: Request, client: ReturnType<typeof createAdminClient>, schemaName: string): Promise<boolean> {
+  const auth = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
+  if (!auth) return false;
+  try {
+    const userClient = createClient({ baseUrl: Deno.env.get('INSFORGE_BASE_URL'), accessToken: auth });
+    const { data } = await userClient.auth.getCurrentUser();
+    const uid = data?.user?.id;
+    if (!uid) return false;
+
+    const { data: t } = await client.database.from('tenants').select('id').eq('schema_name', schemaName).single();
+    const tenantId = t?.id;
+    if (!tenantId) return false;
+
+    const { data: tu } = await client.database.from('tenant_users').select('id').eq('user_id', uid).eq('tenant_id', tenantId).eq('status', 'ACTIVE').eq('role', 'SECURITY_AGENT').single();
+    return Boolean(tu);
+  } catch { return false; }
 }
 
 function forbidden(): Response {

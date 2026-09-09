@@ -99,6 +99,8 @@ export interface ModuleInfo {
   description: string;
   is_enabled: boolean;
   config_json: Record<string, unknown>;
+  can_toggle?: boolean;
+  can_edit_config?: boolean;
   editable?: boolean;
 }
 
@@ -109,8 +111,18 @@ export interface CartLendingConfig {
   grace_period_minutes: number;
   fine_amount: number;
   fine_interval_minutes: number;
-  gates_count: number;
-  carts_per_gate: number;
+}
+
+export interface Gate {
+  id: string;
+  name: string;
+  code: string | null;
+  is_entry_exit: boolean;
+  carts_carga: number;
+  carts_compra: number;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
 }
 
 export interface Cart {
@@ -118,7 +130,8 @@ export interface Cart {
   code_identifier: string;
   qr_code_hash?: string | null;
   status: 'DISPONIBLE' | 'PRESTADO' | 'MANTENIMIENTO';
-  gate?: number | null;
+  gate_id?: string | null;
+  gate?: ({ id: string; name: string; code: string | null; carts_carga: number; carts_compra: number } | null);
   cart_type?: 'CARGA' | 'COMPRA' | string;
   notes?: string | null;
   created_at: string;
@@ -139,7 +152,7 @@ export interface CartLoan {
   penalty_status: 'NINGUNA' | 'PENDIENTE' | 'COBRADA' | 'EXONERADA';
   created_at: string;
   cart_code?: string | null;
-  cart_gate?: number | null;
+  cart_gate?: ({ id: string; name: string } | null);
   cart_type?: string;
   department_number?: string | null;
   tower_code?: string | null;

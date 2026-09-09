@@ -108,6 +108,11 @@ export default async function(req: Request): Promise<Response> {
       await client.database.rpc('seed_condo_modules', { p_tenant_id: tenant.id });
     } catch (e) { console.error('seed_condo_modules failed:', e); }
 
+    // Provision condominium gates (name + per-type cart capacity)
+    try {
+      await client.database.rpc('seed_condo_gates', { p_tenant_id: tenant.id });
+    } catch (e) { console.error('seed_condo_gates failed:', e); }
+
     // Promote the registering user to SUPER_ADMIN of the tenant (if provided)
     if (body.owner_user_id) {
       await client.database.from('tenant_users').insert([

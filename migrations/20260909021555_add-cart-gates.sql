@@ -84,16 +84,15 @@ BEGIN
         END IF;
     END IF;
 
-    -- Feature flag defaults (Sprint 1 ON, new modules OFF) + cart gates config
+    -- Feature flag defaults (Sprint 1 ON, new modules OFF). Cart gates are
+    -- configured at condominium level (condo_gates), not in the module config.
     EXECUTE format('INSERT INTO %I.condo_settings (module_key, is_enabled, config_json) VALUES
         (''core_structure'', true, ''{}''::jsonb),
         (''residents'', true, ''{}''::jsonb),
         (''users'', true, ''{}''::jsonb),
         (''condominiums'', true, ''{}''::jsonb),
-        (''cart_lending'', false, ''{"max_loan_minutes":60,"fine_enabled":true,"fine_type":"FIXED_OR_PER_INTERVAL","grace_period_minutes":10,"fine_amount":5.00,"fine_interval_minutes":30,"gates_count":2,"carts_per_gate":5}''::jsonb)
+        (''cart_lending'', false, ''{"max_loan_minutes":60,"fine_enabled":true,"fine_type":"FIXED_OR_PER_INTERVAL","grace_period_minutes":10,"fine_amount":5.00,"fine_interval_minutes":30}''::jsonb)
         ON CONFLICT (module_key) DO NOTHING', v_schema);
-
-    EXECUTE format('UPDATE %I.condo_settings SET config_json = config_json || ''{"gates_count":2,"carts_per_gate":5}''::jsonb WHERE module_key = ''cart_lending'' AND NOT (config_json ? ''gates_count'')', v_schema);
 
     EXECUTE format('GRANT SELECT ON %I.condo_settings TO anon, authenticated', v_schema);
     EXECUTE format('GRANT INSERT, UPDATE, DELETE ON %I.condo_settings TO authenticated', v_schema);

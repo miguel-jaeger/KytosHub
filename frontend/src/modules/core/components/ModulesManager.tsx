@@ -4,8 +4,6 @@ import type { ModuleInfo } from '../types';
 
 const CART_CONFIG_FIELDS: Array<{ key: string; label: string; type: 'number' | 'checkbox' }> = [
   { key: 'max_loan_minutes', label: 'Máximo de minutos de préstamo', type: 'number' },
-  { key: 'gates_count', label: 'Cantidad de puertas del condominio', type: 'number' },
-  { key: 'carts_per_gate', label: 'Carritos por puerta', type: 'number' },
   { key: 'grace_period_minutes', label: 'Período de gracia (minutos)', type: 'number' },
   { key: 'fine_amount', label: 'Monto de multa (S/)', type: 'number' },
   { key: 'fine_interval_minutes', label: 'Intervalo de multa (minutos)', type: 'number' },
@@ -91,13 +89,16 @@ export function ModulesManager({ schemaName }: { schemaName?: string }) {
     <div className="modules-manager">
       <div className="modules-header">
         <h3>Módulos del Condominio</h3>
-        {!isSuperAdmin && <small>Solo lectura: el administrador global configura los módulos.</small>}
-        {isSuperAdmin && <small>Como administrador global puedes activar/desactivar módulos y editar su configuración.</small>}
+        {isSuperAdmin
+          ? <small>Como administrador global puedes activar/desactivar módulos y editar su configuración.</small>
+          : <small>Como administrador del condominio puedes editar la configuración de los módulos. El administrador global activa/desactiva módulos.</small>}
       </div>
 
       <div className="modules-grid">
         {modules.map(m => {
           const cartConfig = m.module_key === 'cart_lending';
+          const canToggle = m.can_toggle ?? isSuperAdmin;
+          const canEdit = m.can_edit_config ?? isSuperAdmin;
           return (
             <div key={m.module_key} className={`module-card ${m.is_enabled ? 'module-enabled' : 'module-disabled'}`}>
               <div className="module-card-head">
@@ -108,7 +109,7 @@ export function ModulesManager({ schemaName }: { schemaName?: string }) {
                 <span className={`status-badge ${m.is_enabled ? 'status-occupied' : 'status-vacant'}`}>{m.is_enabled ? 'Activado' : 'Desactivado'}</span>
               </div>
 
-              {isSuperAdmin && (
+              {canToggle && (
                 <div className="module-toggle">
                   <label className="switch">
                     <input type="checkbox" checked={m.is_enabled} disabled={savingKey === m.module_key} onChange={e => handleToggle(m, e.target.checked)} />
@@ -128,14 +129,14 @@ export function ModulesManager({ schemaName }: { schemaName?: string }) {
                           {f.type === 'checkbox' ? (
                             <input
                               type="checkbox"
-                              disabled={!isSuperAdmin}
+                              disabled={!canEdit}
                               checked={!!((JSON.parse(configDrafts?.[m.module_key] || '{}') || {} as Record<string, unknown>)[f.key])}
                               onChange={e => updateDraftField(m, f.key, e.target.checked)}
                             />
                           ) : (
                             <input
                               type="number"
-                              disabled={!isSuperAdmin}
+                              disabled={!canEdit}
                               value={String((JSON.parse(configDrafts?.[m.module_key] || '{}') || {} as Record<string, unknown>)[f.key] ?? '')}
                               onChange={e => updateDraftField(m, f.key, Number(e.target.value))}
                             />
@@ -160,13 +161,13 @@ export function ModulesManager({ schemaName }: { schemaName?: string }) {
                     <textarea
                       className="module-json"
                       rows={5}
-                      readOnly={!isSuperAdmin}
+                      readOnly={!canEdit}
                       value={configDrafts?.[m.module_key] || '{}'}
                       onChange={e => setConfigDrafts(prev => ({ ...prev, [m.module_key]: e.target.value }))}
                     />
                   </>
                 )}
-                {isSuperAdmin && (
+                {canEdit && (
                   <button className="btn-primary" onClick={() => handleSaveConfig(m)} disabled={savingKey === m.module_key}>
                     Guardar configuración
                   </button>
