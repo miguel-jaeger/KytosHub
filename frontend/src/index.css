@@ -1574,6 +1574,7 @@ html.dark .theme-switch input:checked + .theme-switch-track { background: #006c4
 /* Cart lending */
 .cart-lending-manager { padding: 0.5rem 0; }
 .cart-crud, .cart-loans { margin-top: 0.75rem; }
+.cart-loans-table, .cart-fines, .cart-crud { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .cart-form, .cart-checkout-form { background: #f8f9ff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
 .cart-form h4, .cart-checkout-form h4 { margin: 0 0 0.75rem; color: #0b1c30; }
 .cart-form .form-actions, .cart-checkout-form .form-actions { justify-content: flex-start; }
@@ -2371,11 +2372,6 @@ html.dark .resident-grid-label { color: #aaa; }
   .residents-mobile-grid {
     display: flex;
     flex-direction: column;
-  }
-
-  .cart-loans-table, .cart-fines, .cart-crud {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
   }
 
   .cart-loans-table .residents-desktop,
