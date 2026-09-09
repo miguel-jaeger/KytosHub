@@ -109,6 +109,8 @@ export interface CartLendingConfig {
   grace_period_minutes: number;
   fine_amount: number;
   fine_interval_minutes: number;
+  gates_count: number;
+  carts_per_gate: number;
 }
 
 export interface Cart {
@@ -116,6 +118,8 @@ export interface Cart {
   code_identifier: string;
   qr_code_hash?: string | null;
   status: 'DISPONIBLE' | 'PRESTADO' | 'MANTENIMIENTO';
+  gate?: number | null;
+  cart_type?: 'CARGA' | 'COMPRA' | string;
   notes?: string | null;
   created_at: string;
 }
@@ -135,7 +139,21 @@ export interface CartLoan {
   penalty_status: 'NINGUNA' | 'PENDIENTE' | 'COBRADA' | 'EXONERADA';
   created_at: string;
   cart_code?: string | null;
+  cart_gate?: number | null;
+  cart_type?: string;
   department_number?: string | null;
   tower_code?: string | null;
+  elapsed_minutes?: number;
   overtime_minutes?: number;
+  estimated_fine?: number;
+}
+
+export interface FinesSummaryRow {
+  department_id: string;
+  department_number: string | null;
+  tower_code: string | null;
+  total_fine: number;
+  count: number;
+  pending: number;
+  cobrada: number;
 }

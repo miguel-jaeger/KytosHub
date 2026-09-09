@@ -1543,10 +1543,36 @@ html.dark .theme-switch input:checked + .theme-switch-track { background: #006c4
 .cart-form h4, .cart-checkout-form h4 { margin: 0 0 0.75rem; color: #0b1c30; }
 .cart-form .form-actions, .cart-checkout-form .form-actions { justify-content: flex-start; }
 
+.module-example { display: flex; align-items: flex-start; gap: 0.4rem; background: #f1f5f9; border: 1px dashed #c6c6cd; border-radius: 8px; padding: 0.55rem 0.7rem; margin-top: 0.6rem; font-size: 0.8rem; color: #45464d; }
+.module-example .material-symbols-outlined { font-size: 18px; color: #006c49; flex: 0 0 auto; }
+.module-example code { background: #fff; border: 1px solid #e5e7eb; border-radius: 4px; padding: 0 0.25rem; }
+.cart-checkout-hint { margin: 0 0 0.6rem; font-size: 0.8rem; color: #76777d; }
+
+.cart-kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.6rem; margin-bottom: 1rem; }
+.cart-kpi { display: flex; flex-direction: column; gap: 0.2rem; align-items: center; justify-content: center; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 0.7rem; font-size: 0.8rem; color: #45464d; text-align: center; }
+.cart-kpi strong { font-size: 1.3rem; color: #0b1c30; }
+.cart-kpi .material-symbols-outlined { font-size: 22px; color: #006c49; }
+.cart-kpi-prestado .material-symbols-outlined { color: #c2410c; }
+.cart-kpi-mant .material-symbols-outlined { color: #7c3aed; }
+
+.cart-gates, .cart-loans-table, .cart-fines { margin-top: 1rem; }
+.cart-gates h4, .cart-loans-table h4, .cart-fines h4 { margin: 0 0 0.6rem; color: #0b1c30; }
+.cart-gate-grid { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.cart-gate-card { display: flex; flex-direction: column; gap: 0.2rem; background: #f8f9ff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 0.7rem 0.9rem; font-size: 0.85rem; color: #45464d; }
+.cart-gate-num { font-weight: 600; color: #006c49; }
+.cart-gate-prestado { color: #c2410c; font-weight: 600; }
+
+.fines-tag { display: inline-block; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; border-radius: 6px; padding: 0.1rem 0.4rem; font-weight: 600; font-size: 0.8rem; }
+.fines-total { font-weight: 700; color: #b91c1c; }
+.text-muted { color: #76777d; }
+
 html.dark .modules-header h3,
 html.dark .module-card-head h4,
 html.dark .cart-form h4,
-html.dark .cart-checkout-form h4 { color: #e5e7eb; }
+html.dark .cart-checkout-form h4,
+html.dark .cart-gates h4,
+html.dark .cart-loans-table h4,
+html.dark .cart-fines h4 { color: #e5e7eb; }
 html.dark .module-card { background: #1e1e1e; border-color: #333; }
 html.dark .module-card-head p { color: #aaa; }
 html.dark .module-toggle { color: #e5e7eb; }
@@ -1557,6 +1583,12 @@ html.dark .cart-form, html.dark .cart-checkout-form { background: #1e1e1e; borde
 html.dark .setup-tabs button { background: #1e1e1e; border-color: #3a3a3a; color: #c8cad1; }
 html.dark .setup-tabs button:hover { background: #2a2a2a; }
 html.dark .setup-tabs button.active { background: #006c49; border-color: #006c49; color: #fff; }
+html.dark .module-example { background: #2a2a2a; border-color: #444; color: #c8cad1; }
+html.dark .module-example code { background: #1e1e1e; border-color: #3a3a3a; }
+html.dark .cart-kpi { background: #1e1e1e; border-color: #333; color: #c8cad1; }
+html.dark .cart-kpi strong { color: #e5e7eb; }
+html.dark .cart-gate-card { background: #1e1e1e; border-color: #333; color: #c8cad1; }
+html.dark .text-muted { color: #888; }
 
 /* Condominium count links */
 .condo-counts { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e5e7eb; }

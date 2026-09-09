@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
-import type { Cart, CartLendingConfig, CartLoan } from '../types';
+import type { Cart, CartLendingConfig, CartLoan, FinesSummaryRow } from '../types';
 
 export interface LoansResult {
   loans: CartLoan[];
@@ -18,7 +18,7 @@ export function useCartLending() {
     return data.data || [];
   }, []);
 
-  const createCart = useCallback(async (schemaName: string, cart: { code_identifier: string; status?: string; notes?: string }) => {
+  const createCart = useCallback(async (schemaName: string, cart: { code_identifier: string; status?: string; cart_type?: string; gate?: number | null; notes?: string }) => {
     const { data, error } = await invokeFunction<{ success: boolean; data: Cart | null; error: { message: string } | null }>('cart-lending', {
       method: 'POST',
       body: { action: 'create-cart', schema_name: schemaName, ...cart }
@@ -57,6 +57,16 @@ export function useCartLending() {
     return data.data;
   }, []);
 
+  const finesSummary = useCallback(async (schemaName: string): Promise<FinesSummaryRow[]> => {
+    const { data, error } = await invokeFunction<{ success: boolean; data: FinesSummaryRow[] | null; error: { message: string } | null }>('cart-lending', {
+      method: 'POST',
+      body: { action: 'fines-summary', schema_name: schemaName }
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error?.message || 'Error al cargar multas');
+    return data.data || [];
+  }, []);
+
   const checkout = useCallback(async (schemaName: string, cartId: string, departmentId: string) => {
     const { data, error } = await invokeFunction<{ success: boolean; data: CartLoan | null; error: { message: string } | null }>('cart-lending', {
       method: 'POST',
@@ -77,5 +87,5 @@ export function useCartLending() {
     return data.data;
   }, []);
 
-  return { listCarts, createCart, updateCart, deleteCart, listLoans, checkout, checkin };
+  return { listCarts, createCart, updateCart, deleteCart, listLoans, checkout, checkin, finesSummary };
 }

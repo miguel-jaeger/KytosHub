@@ -12,8 +12,12 @@ const DEFAULT_CONFIG = {
   fine_type: 'FIXED_OR_PER_INTERVAL',
   grace_period_minutes: 10,
   fine_amount: 5,
-  fine_interval_minutes: 30
+  fine_interval_minutes: 30,
+  gates_count: 2,
+  carts_per_gate: 5
 };
+
+const CART_TYPES = ['CARGA', 'COMPRA'];
 
 export default async function(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
@@ -33,7 +37,6 @@ export default async function(req: Request): Promise<Response> {
       return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'schema_name es requerido' } }, 400);
     }
 
-    // Feature flag guard: module must be enabled in this condominium
     const config = await getModuleConfig(client, schemaName);
     if (!config) {
       return json({ success: false, data: null, error: { code: 'MODULE_DISABLED', message: 'Módulo inactivo para este condominio' } }, 403);
@@ -46,19 +49,29 @@ export default async function(req: Request): Promise<Response> {
       case 'list-carts': {
         const { data, error } = await db.from('carts').select('*').order('code_identifier');
         if (error) throw error;
-        return json({ success: true, data: data || [], error: null }, 200);
+        return json({ success: true, data: (data || []).map((c: Record<string, unknown>) => ({ ...c, cart_type: c.cart_type || 'CARGA' })), error: null }, 200);
       }
 
       case 'create-cart': {
-        if (!isAdmin) return forbidden(corsCat());
+        if (!isAdmin) return forbidden();
         const code = String(body.code_identifier || '').trim();
         if (!code) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Código del carrito es requerido' } }, 400);
+        const cartType = normalizeCartType(body.cart_type);
+        const gate = normalizeGate(body.gate, config);
+
         const { data: existing } = await db.from('carts').select('id').eq('code_identifier', code).single();
         if (existing) return json({ success: false, data: null, error: { code: 'DUPLICATE', message: 'Ya existe un carrito con ese código' } }, 409);
+
+        if (gate !== null && !(await gateHasCapacity(db, gate, null, config))) {
+          return json({ success: false, data: null, error: { code: 'CAPACITY', message: `Límite de ${config.carts_per_gate} carritos por puerta alcanzado` } }, 409);
+        }
+
         const { data, error } = await db.from('carts').insert([{
           code_identifier: code,
           qr_code_hash: body.qr_code_hash || null,
           status: body.status || 'DISPONIBLE',
+          gate,
+          cart_type: cartType,
           notes: body.notes || null
         }]).select().single();
         if (error) throw error;
@@ -66,19 +79,27 @@ export default async function(req: Request): Promise<Response> {
       }
 
       case 'update-cart': {
-        if (!isAdmin) return forbidden(corsCat());
+        if (!isAdmin) return forbidden();
         if (!body.id) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'id es requerido' } }, 400);
         const updates: Record<string, unknown> = {};
         if (body.code_identifier !== undefined) updates.code_identifier = String(body.code_identifier).trim();
         if (body.status !== undefined) updates.status = body.status;
         if (body.notes !== undefined) updates.notes = body.notes;
+        if (body.cart_type !== undefined) updates.cart_type = normalizeCartType(body.cart_type);
+        if (body.gate !== undefined) {
+          const gate = normalizeGate(body.gate, config);
+          updates.gate = gate;
+          if (gate !== null && !(await gateHasCapacity(db, gate, String(body.id), config))) {
+            return json({ success: false, data: null, error: { code: 'CAPACITY', message: `Límite de ${config.carts_per_gate} carritos por puerta alcanzado` } }, 409);
+          }
+        }
         const { data, error } = await db.from('carts').update(updates).eq('id', body.id).select().single();
         if (error) throw error;
         return json({ success: true, data, error: null }, 200);
       }
 
       case 'delete-cart': {
-        if (!isAdmin) return forbidden(corsCat());
+        if (!isAdmin) return forbidden();
         if (!body.id) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'id es requerido' } }, 400);
         const { error } = await db.from('carts').delete().eq('id', body.id);
         if (error) throw error;
@@ -94,7 +115,7 @@ export default async function(req: Request): Promise<Response> {
         const cartIds = [...new Set((loans || []).map((l: { cart_id: string }) => l.cart_id))];
         const deptIds = [...new Set((loans || []).map((l: { department_id: string }) => l.department_id))];
         const carts = cartIds.length
-          ? ((await db.from('carts').select('id, code_identifier, status').in('id', cartIds)).data || [])
+          ? ((await db.from('carts').select('id, code_identifier, status, gate, cart_type').in('id', cartIds)).data || [])
           : [];
         const deptRows = deptIds.length
           ? ((await db.from('departments').select('id, department_number, tower_id').in('id', deptIds)).data || [])
@@ -103,26 +124,37 @@ export default async function(req: Request): Promise<Response> {
         const towers = towerIds.length
           ? ((await db.from('towers').select('id, name, code').in('id', towerIds)).data || [])
           : [];
-        const cartMap = new Map((carts as Array<{ id: string; code_identifier: string; status: string }>).map(c => [c.id, c]));
+        const cartMap = new Map((carts as Array<{ id: string; code_identifier: string; status: string; gate: number | null; cart_type: string }>).map(c => [c.id, c]));
         const deptMap = new Map((deptRows as Array<{ id: string; department_number: string; tower_id: string }>).map(d => [d.id, d]));
         const towerMap = new Map((towers as Array<{ id: string; name: string; code: string }>).map(t => [t.id, t]));
 
+        const now = Date.now();
         const enriched = (loans || []).map((l: Record<string, unknown>) => {
           const cart = cartMap.get(l.cart_id as string);
           const dept = deptMap.get(l.department_id as string);
           const tower = dept ? towerMap.get(dept.tower_id) : undefined;
-          return {
+          const base = {
             ...l,
             cart_code: cart?.code_identifier || null,
+            cart_gate: cart?.gate || null,
+            cart_type: cart?.cart_type || 'CARGA',
             department_number: dept?.department_number || null,
             tower_code: tower?.code || null
           };
+          if (l.status === 'ACTIVO') {
+            const checkoutMs = new Date(String(l.checkout_time)).getTime();
+            const elapsedMinutes = Math.max(0, Math.floor((now - checkoutMs) / 60000));
+            const overtimeMinutes = Math.max(0, elapsedMinutes - config.max_loan_minutes);
+            const estimatedFine = computeFine(config, overtimeMinutes);
+            return { ...base, elapsed_minutes: elapsedMinutes, overtime_minutes: overtimeMinutes, estimated_fine: estimatedFine };
+          }
+          return base;
         });
         return json({ success: true, data: { loans: enriched, config }, error: null }, 200);
       }
 
       case 'checkout': {
-        if (!isAdmin) return forbidden(corsCat());
+        if (!isAdmin) return forbidden();
         const cartId = body.cart_id as string;
         const departmentId = body.department_id as string;
         if (!cartId || !departmentId) {
@@ -149,11 +181,11 @@ export default async function(req: Request): Promise<Response> {
         if (loanError) throw loanError;
 
         await db.from('carts').update({ status: 'PRESTADO' }).eq('id', cartId);
-        return json({ success: true, data: loan, error: null }, 201);
+        return json({ success: true, data: { ...loan, due_time: due.toISOString(), maximum_minutes: config.max_loan_minutes }, error: null }, 201);
       }
 
       case 'checkin': {
-        if (!isAdmin) return forbidden(corsCat());
+        if (!isAdmin) return forbidden();
         const loanId = body.loan_id as string;
         if (!loanId) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'loan_id es requerido' } }, 400);
 
@@ -166,25 +198,14 @@ export default async function(req: Request): Promise<Response> {
         const checkinTime = new Date();
         const dueTime = new Date(String(loan.due_time));
         const overtimeMinutes = Math.max(0, Math.floor((checkinTime.getTime() - dueTime.getTime()) / 60000));
-
-        let penalty = 0;
-        let status = 'DEVUELTO';
-        let penaltyStatus = 'NINGUNA';
-        if (config.fine_enabled && overtimeMinutes > config.grace_period_minutes) {
-          const excess = overtimeMinutes - config.grace_period_minutes;
-          if (config.fine_type === 'FIXED' || config.fine_type === 'FIXED_OR_PER_INTERVAL' && excess <= config.fine_interval_minutes) {
-            penalty = config.fine_amount;
-          } else {
-            penalty = Math.ceil(excess / config.fine_interval_minutes) * config.fine_amount;
-          }
-          status = 'ATRASADO';
-          penaltyStatus = 'PENDIENTE';
-        }
+        const fine = computeFine(config, overtimeMinutes);
+        const status = fine > 0 ? 'ATRASADO' : 'DEVUELTO';
+        const penaltyStatus = fine > 0 ? 'PENDIENTE' : 'NINGUNA';
 
         const { data, error } = await db.from('cart_loans').update({
           checkin_time: checkinTime.toISOString(),
           status,
-          penalty_amount: penalty,
+          penalty_amount: fine,
           penalty_status: penaltyStatus,
           guard_checkin_user_id: await currentUserId(req, client) || null
         }).eq('id', loanId).select().single();
@@ -195,6 +216,45 @@ export default async function(req: Request): Promise<Response> {
         return json({ success: true, data: { ...data, overtime_minutes: overtimeMinutes }, error: null }, 200);
       }
 
+      case 'fines-summary': {
+        if (!isAdmin) return forbidden();
+        const { data: fines, error } = await db.from('cart_loans')
+          .select('department_id, penalty_amount, penalty_status, status')
+          .gt('penalty_amount', 0)
+          .in('penalty_status', ['PENDIENTE', 'COBRADA']);
+        if (error) throw error;
+
+        const rows = (fines || []) as Array<{ department_id: string; penalty_amount: number; penalty_status: string }>;
+        const deptIds = [...new Set(rows.map(r => r.department_id))];
+        const deptRows = deptIds.length
+          ? ((await db.from('departments').select('id, department_number, tower_id').in('id', deptIds)).data || [])
+          : [];
+        const towerIds = [...new Set((deptRows as Array<{ tower_id: string }>).map(d => d.tower_id))];
+        const towers = towerIds.length
+          ? ((await db.from('towers').select('id, code').in('id', towerIds)).data || [])
+          : [];
+        const deptMap = new Map((deptRows as Array<{ id: string; department_number: string; tower_id: string }>).map(d => [d.id, d]));
+        const towerMap = new Map((towers as Array<{ id: string; code: string }>).map(t => [t.id, t]));
+
+        const byDept = new Map<string, { total_fine: number; count: number; pending: number; cobrada: number }>();
+        for (const r of rows) {
+          const acc = byDept.get(r.department_id) || { total_fine: 0, count: 0, pending: 0, cobrada: 0 };
+          acc.total_fine += Number(r.penalty_amount) || 0;
+          acc.count += 1;
+          if (r.penalty_status === 'PENDIENTE') acc.pending += Number(r.penalty_amount) || 0;
+          else acc.cobrada += Number(r.penalty_amount) || 0;
+          byDept.set(r.department_id, acc);
+        }
+
+        const summary = [...byDept.entries()].map(([deptId, acc]) => {
+          const dept = deptMap.get(deptId);
+          const tower = dept ? towerMap.get(dept.tower_id) : undefined;
+          return { department_id: deptId, department_number: dept?.department_number || null, tower_code: tower?.code || null, ...acc };
+        }).sort((a, b) => b.total_fine - a.total_fine);
+
+        return json({ success: true, data: summary, error: null }, 200);
+      }
+
       default:
         return json({ success: false, data: null, error: { code: 'METHOD_NOT_ALLOWED', message: 'Acción desconocida' } }, 405);
     }
@@ -202,6 +262,38 @@ export default async function(req: Request): Promise<Response> {
     console.error('Error in cart-lending:', error);
     return json({ success: false, data: null, error: { code: 'INTERNAL_ERROR', message: 'Error interno' } }, 500);
   }
+}
+
+function computeFine(config: { fine_enabled: boolean; fine_type: string; grace_period_minutes: number; fine_amount: number; fine_interval_minutes: number }, overtimeMinutes: number): number {
+  let fine = 0;
+  if (config.fine_enabled && overtimeMinutes > config.grace_period_minutes) {
+    const excess = overtimeMinutes - config.grace_period_minutes;
+    if (config.fine_type === 'FIXED' || (config.fine_type === 'FIXED_OR_PER_INTERVAL' && excess <= config.fine_interval_minutes)) {
+      fine = config.fine_amount;
+    } else {
+      fine = Math.ceil(excess / config.fine_interval_minutes) * config.fine_amount;
+    }
+  }
+  return fine;
+}
+
+function normalizeCartType(v: unknown): string {
+  const t = String(v || 'CARGA').trim().toUpperCase();
+  return CART_TYPES.includes(t) ? t : 'CARGA';
+}
+
+function normalizeGate(v: unknown, config: { gates_count: number }): number | null {
+  if (v === undefined || v === null || v === '') return null;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 1 || n > config.gates_count) return null;
+  return Math.round(n);
+}
+
+async function gateHasCapacity(db: { from(t: string): any }, gate: number, excludeId: string | null, config: { carts_per_gate: number }): Promise<boolean> {
+  let q = db.from('carts').select('*', { count: 'exact', head: true }).eq('gate', gate);
+  if (excludeId) q = q.neq('id', excludeId);
+  const { count } = await q;
+  return (count || 0) < config.carts_per_gate;
 }
 
 async function getModuleConfig(client: ReturnType<typeof createAdminClient>, schemaName: string) {
@@ -217,7 +309,7 @@ async function getModuleConfig(client: ReturnType<typeof createAdminClient>, sch
   } catch {
     return null;
   }
-  return config as { max_loan_minutes: number; fine_enabled: boolean; fine_type: string; grace_period_minutes: number; fine_amount: number; fine_interval_minutes: number };
+  return config as { max_loan_minutes: number; fine_enabled: boolean; fine_type: string; grace_period_minutes: number; fine_amount: number; fine_interval_minutes: number; gates_count: number; carts_per_gate: number };
 }
 
 async function isAdminForSchema(req: Request, client: ReturnType<typeof createAdminClient>, schemaName: string): Promise<boolean> {
@@ -251,12 +343,8 @@ async function currentUserId(req: Request, client: ReturnType<typeof createAdmin
   } catch { return null; }
 }
 
-function forbidden(c: Record<string, string>): Response {
+function forbidden(): Response {
   return json({ success: false, data: null, error: { code: 'FORBIDDEN', message: 'No tienes permisos para esta acción' } }, 403);
-}
-
-function corsCat(): Record<string, string> {
-  return { ...CORS, 'Content-Type': 'application/json' };
 }
 
 function json(body: unknown, status: number): Response {
