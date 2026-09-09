@@ -531,39 +531,48 @@ export default async function(req: Request): Promise<Response> {
         if (body.status) updates.status = body.status;
         if (body.tenant_id) updates.tenant_id = body.tenant_id;
 
+        let tu: { id?: string; user_id?: string } | null = null;
+
         if (Object.keys(updates).length > 0) {
-          const { data: tu, error } = await client.database
+          const { data, error } = await client.database
             .from('tenant_users')
             .update(updates)
             .eq('id', id)
             .select()
             .single();
-
           if (error) throw error;
+          tu = data;
+        } else {
+          const { data } = await client.database
+            .from('tenant_users')
+            .select('id, user_id')
+            .eq('id', id)
+            .single();
+          tu = data || null;
+        }
 
-          if (tu?.user_id) {
-            if (body.email) {
-              const dupe = await findUserGlobalByEmail(client, String(body.email));
-              if (dupe && dupe.id !== tu.user_id) {
-                return new Response(
-                  JSON.stringify({ success: false, data: null, error: { code: 'EMAIL_EXISTS', message: 'Ya existe otro usuario con ese correo' } }),
-                  { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-                );
-              }
+        if (tu?.user_id) {
+          if (body.email) {
+            const dupe = await findUserGlobalByEmail(client, String(body.email));
+            if (dupe && dupe.id !== tu.user_id) {
+              return new Response(
+                JSON.stringify({ success: false, data: null, error: { code: 'EMAIL_EXISTS', message: 'Ya existe otro usuario con ese correo' } }),
+                { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
             }
-            const hasProfileUpdate = body.email || body.name || body.document_type || body.document_number || body.phone;
-            if (hasProfileUpdate) {
-              try {
-                const ugUpdate: Record<string, unknown> = {};
-                if (body.email) ugUpdate.email = body.email;
-                if (body.name) ugUpdate.name = body.name;
-                if (body.document_type) ugUpdate.document_type = body.document_type;
-                if (body.document_number) ugUpdate.document_number = body.document_number;
-                if (body.phone) ugUpdate.phone = body.phone;
-                await client.database.from('users_global').update(ugUpdate).eq('id', tu.user_id);
-                if (body.email) await syncAuthEmail(client, tu.user_id, String(body.email));
-              } catch (e) { console.error('users_global update error:', e); }
-            }
+          }
+          const hasProfileUpdate = body.email || body.name || body.document_type || body.document_number || body.phone;
+          if (hasProfileUpdate) {
+            try {
+              const ugUpdate: Record<string, unknown> = {};
+              if (body.email) ugUpdate.email = body.email;
+              if (body.name) ugUpdate.name = body.name;
+              if (body.document_type) ugUpdate.document_type = body.document_type;
+              if (body.document_number) ugUpdate.document_number = body.document_number;
+              if (body.phone) ugUpdate.phone = body.phone;
+              await client.database.from('users_global').update(ugUpdate).eq('id', tu.user_id);
+              if (body.email) await syncAuthEmail(client, tu.user_id, String(body.email));
+            } catch (e) { console.error('users_global update error:', e); }
           }
         }
 
