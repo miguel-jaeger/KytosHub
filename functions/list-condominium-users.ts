@@ -343,6 +343,17 @@ export default async function(req: Request): Promise<Response> {
 
         let userId: string | null = null;
 
+        // An email identifies a single global identity; do not silently re-use it
+        // to create what the admin thinks is a new user in another condominium
+        // (that made later email edits affect both).
+        const existingUser = await resolveUserIdByEmail(email);
+        if (existingUser) {
+          return new Response(
+            JSON.stringify({ success: false, data: null, error: { code: 'EMAIL_EXISTS', message: 'Ya existe un usuario con ese correo. No se puede crear otro usuario con el mismo correo; víncule la cuenta existente en el condominio.' } }),
+            { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
         const { data: signUpData, error: signUpError } = await client.auth.signUp({
           email,
           password: defaultPassword,
@@ -466,6 +477,16 @@ export default async function(req: Request): Promise<Response> {
 
           // Keep users_global in sync when this resident is linked to an account
           if ((data as { user_id?: string } | null)?.user_id) {
+            const linkedUserId = (data as { user_id: string }).user_id;
+            if (body.email) {
+              const dupe = await findUserGlobalByEmail(client, String(body.email));
+              if (dupe && dupe.id !== linkedUserId) {
+                return new Response(
+                  JSON.stringify({ success: false, data: null, error: { code: 'EMAIL_EXISTS', message: 'Ya existe otro usuario con ese correo' } }),
+                  { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                );
+              }
+            }
             try {
               const ugUpdate: Record<string, unknown> = {};
               if (body.name) ugUpdate.name = body.name;
@@ -473,7 +494,8 @@ export default async function(req: Request): Promise<Response> {
               if (body.document_type) ugUpdate.document_type = body.document_type;
               if (body.document_number) ugUpdate.document_number = body.document_number;
               if (body.phone) ugUpdate.phone = body.phone;
-              await client.database.from('users_global').update(ugUpdate).eq('id', (data as { user_id: string }).user_id);
+              await client.database.from('users_global').update(ugUpdate).eq('id', linkedUserId);
+              if (body.email) await syncAuthEmail(client, linkedUserId, String(body.email));
             } catch (e) { console.error('users_global resident sync error:', e); }
           }
 
@@ -509,27 +531,39 @@ export default async function(req: Request): Promise<Response> {
         if (body.status) updates.status = body.status;
         if (body.tenant_id) updates.tenant_id = body.tenant_id;
 
-        const { data: tu, error } = await client.database
-          .from('tenant_users')
-          .update(updates)
-          .eq('id', id)
-          .select()
-          .single();
+        if (Object.keys(updates).length > 0) {
+          const { data: tu, error } = await client.database
+            .from('tenant_users')
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
 
-        if (error) throw error;
+          if (error) throw error;
 
-        if (tu?.user_id) {
-          const hasProfileUpdate = body.email || body.name || body.document_type || body.document_number || body.phone;
-          if (hasProfileUpdate) {
-            try {
-              const ugUpdate: Record<string, unknown> = {};
-              if (body.email) ugUpdate.email = body.email;
-              if (body.name) ugUpdate.name = body.name;
-              if (body.document_type) ugUpdate.document_type = body.document_type;
-              if (body.document_number) ugUpdate.document_number = body.document_number;
-              if (body.phone) ugUpdate.phone = body.phone;
-              await client.database.from('users_global').update(ugUpdate).eq('id', tu.user_id);
-            } catch (e) { console.error('users_global update error:', e); }
+          if (tu?.user_id) {
+            if (body.email) {
+              const dupe = await findUserGlobalByEmail(client, String(body.email));
+              if (dupe && dupe.id !== tu.user_id) {
+                return new Response(
+                  JSON.stringify({ success: false, data: null, error: { code: 'EMAIL_EXISTS', message: 'Ya existe otro usuario con ese correo' } }),
+                  { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                );
+              }
+            }
+            const hasProfileUpdate = body.email || body.name || body.document_type || body.document_number || body.phone;
+            if (hasProfileUpdate) {
+              try {
+                const ugUpdate: Record<string, unknown> = {};
+                if (body.email) ugUpdate.email = body.email;
+                if (body.name) ugUpdate.name = body.name;
+                if (body.document_type) ugUpdate.document_type = body.document_type;
+                if (body.document_number) ugUpdate.document_number = body.document_number;
+                if (body.phone) ugUpdate.phone = body.phone;
+                await client.database.from('users_global').update(ugUpdate).eq('id', tu.user_id);
+                if (body.email) await syncAuthEmail(client, tu.user_id, String(body.email));
+              } catch (e) { console.error('users_global update error:', e); }
+            }
           }
         }
 
@@ -635,6 +669,20 @@ function normalizeDocumentType(value: string): string | null {
   if (['ce', 'carnetdeextranjeria', 'carnetdeextranjera', 'extranjeria', 'extranjera', 'carnetextranjeria', 'carnetextranjera'].includes(v)) return 'CE';
   if (['pasaporte', 'passport', 'passeport', 'pasaport'].includes(v)) return 'PASAPORTE';
   return null;
+}
+
+async function findUserGlobalByEmail(client: ReturnType<typeof createAdminClient>, email: string) {
+  const normalized = String(email).trim().toLowerCase();
+  try {
+    const { data } = await client.database.from('users_global').select('id').eq('email', normalized).single();
+    return data || null;
+  } catch { return null; }
+}
+
+async function syncAuthEmail(client: ReturnType<typeof createAdminClient>, userId: string, email: string) {
+  try {
+    await client.database.rpc('sync_auth_email', { p_user_id: userId, p_email: String(email).trim().toLowerCase() });
+  } catch (e) { console.error('sync_auth_email error:', e); }
 }
 
 async function resolveUserIdByEmail(email: string): Promise<string | null> {
