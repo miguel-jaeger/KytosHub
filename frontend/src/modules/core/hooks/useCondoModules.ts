@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import type { ModuleInfo } from '../types';
 
@@ -7,7 +8,7 @@ export interface ModulesListResult {
 }
 
 export function useCondoModules() {
-  const list = async (schemaName: string): Promise<ModulesListResult> => {
+  const list = useCallback(async (schemaName: string): Promise<ModulesListResult> => {
     const { data, error } = await invokeFunction<{ success: boolean; data: ModulesListResult | null; error: { message: string } | null }>('condo-modules', {
       method: 'POST',
       body: { action: 'list', schema_name: schemaName }
@@ -15,9 +16,9 @@ export function useCondoModules() {
     if (error) throw error;
     if (!data?.success || !data.data) throw new Error(data?.error?.message || 'Error al cargar módulos');
     return data.data;
-  };
+  }, []);
 
-  const update = async (
+  const update = useCallback(async (
     schemaName: string,
     moduleKey: string,
     changes: { is_enabled?: boolean; config?: Record<string, unknown> }
@@ -29,7 +30,7 @@ export function useCondoModules() {
     if (error) throw error;
     if (!data?.success) throw new Error(data?.error?.message || 'Error al actualizar módulo');
     return data.data;
-  };
+  }, []);
 
   return { list, update };
 }
