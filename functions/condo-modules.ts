@@ -57,7 +57,10 @@ export default async function(req: Request): Promise<Response> {
 
     if (action === 'list') {
       const modules = await listModules(db);
-      const withFlags = modules.map(m => ({
+      // Inactive modules are not shown to non-global admins: users should not
+      // see disabled/section info, only the global admin (who toggles them).
+      const visible = isSuperAdmin ? modules : modules.filter(m => m.is_enabled);
+      const withFlags = visible.map(m => ({
         ...m,
         can_toggle: isSuperAdmin,
         can_edit_config: isSuperAdmin || isTenantAdmin
