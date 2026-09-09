@@ -103,6 +103,11 @@ export default async function(req: Request): Promise<Response> {
       await client.database.rpc('ensure_tenant_count_sync', { p_tenant_id: tenant.id });
     } catch {};
 
+    // Provision Sprint 2 module tables and feature flag defaults for the new tenant
+    try {
+      await client.database.rpc('seed_condo_modules', { p_tenant_id: tenant.id });
+    } catch (e) { console.error('seed_condo_modules failed:', e); }
+
     // Promote the registering user to SUPER_ADMIN of the tenant (if provided)
     if (body.owner_user_id) {
       await client.database.from('tenant_users').insert([
