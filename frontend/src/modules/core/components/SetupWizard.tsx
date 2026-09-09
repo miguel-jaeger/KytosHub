@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useCondominium } from '../../../contexts/CondominiumContext';
 import { useCondominiumRegistration } from '../hooks/useCondominiumRegistration';
 import { useCondoModules } from '../hooks/useCondoModules';
@@ -16,6 +16,7 @@ export function SetupWizard() {
   const { register } = useCondominiumRegistration();
   const { list: listModules } = useCondoModules();
   const navigate = useNavigate();
+  const location = useLocation();
   const [step, setStep] = useState<WizardStep>(condominium ? 'towers' : 'condominium');
   const [tab, setTab] = useState<SetupTab>('structure');
   const [cartEnabled, setCartEnabled] = useState(false);
@@ -40,6 +41,15 @@ export function SetupWizard() {
   }, [condominium?.schema_name, listModules]);
 
   useEffect(() => { void refreshCartFlag(); }, [refreshCartFlag]);
+
+  useEffect(() => {
+    const s = new URLSearchParams(location.search).get('section');
+    if (s === 'carts') {
+      setTab(cartEnabled ? 'carts' : 'modules');
+    } else if (s === 'structure' || s === 'gates' || s === 'modules') {
+      setTab(s);
+    }
+  }, [location.search, cartEnabled]);
 
   const handleCondoSubmit = async () => {
     if (!condoData.name.trim()) return;
@@ -131,7 +141,7 @@ export function SetupWizard() {
 
       {tab === 'structure' && <StructureManager />}
       {tab === 'gates' && <GatesManager schemaName={condominium?.schema_name} />}
-      {tab === 'modules' && <ModulesManager schemaName={condominium?.schema_name} />}
+      {tab === 'modules' && <ModulesManager schemaName={condominium?.schema_name} onModulesUpdated={refreshCartFlag} />}
       {tab === 'carts' && cartEnabled && <CartLendingManager schemaName={condominium?.schema_name} />}
     </div>
   );

@@ -10,7 +10,7 @@ const CART_CONFIG_FIELDS: Array<{ key: string; label: string; type: 'number' | '
   { key: 'fine_enabled', label: 'Multas por demora habilitadas', type: 'checkbox' }
 ];
 
-export function ModulesManager({ schemaName }: { schemaName?: string }) {
+export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: string; onModulesUpdated?: () => void }) {
   const { list, update } = useCondoModules();
   const [modules, setModules] = useState<ModuleInfo[]>([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -44,6 +44,7 @@ export function ModulesManager({ schemaName }: { schemaName?: string }) {
     try {
       await update(schemaName!, m.module_key, { is_enabled: enabled });
       setModules(prev => prev.map(x => x.module_key === m.module_key ? { ...x, is_enabled: enabled } : x));
+      onModulesUpdated?.();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Error');
     } finally {
@@ -66,6 +67,7 @@ export function ModulesManager({ schemaName }: { schemaName?: string }) {
       const saved = await update(schemaName!, m.module_key, { config: parsed });
       if (saved) setModules(prev => prev.map(x => x.module_key === m.module_key ? { ...x, config_json: saved.config_json } : x));
       setConfigDrafts(prev => ({ ...prev, [m.module_key]: JSON.stringify(parsed, null, 2) }));
+      onModulesUpdated?.();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Error');
     } finally {

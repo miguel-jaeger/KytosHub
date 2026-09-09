@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
+import { invokeFunction } from '../../../lib/insforge';
 import { useCartLending } from '../hooks/useCartLending';
 import { useCondoGates } from '../hooks/useCondoGates';
-import type { Cart, CartLoan, CartLendingConfig, FinesSummaryRow, Gate } from '../types';
+import type { Cart, CartLoan, CartLendingConfig, FinesSummaryRow, Gate, Tower, Floor, Department } from '../types';
 
 function fmtMoney(n: number): string {
   return `S/ ${(Number(n) || 0).toFixed(2)}`;
@@ -28,6 +29,16 @@ const PENALTY_LABELS: Record<string, string> = {
   EXONERADA: 'Exonerada'
 };
 
+interface FinesFilters {
+  start_date: string;
+  end_date: string;
+  tower_id: string;
+  floor_id: string;
+  department_id: string;
+}
+
+const emptyFilters: FinesFilters = { start_date: '', end_date: '', tower_id: '', floor_id: '', department_id: '' };
+
 export function CartLendingManager({ schemaName }: { schemaName?: string }) {
   const { listCarts, createCart, updateCart, deleteCart, listLoans, finesSummary } = useCartLending();
   const { list: listGates } = useCondoGates();
@@ -35,6 +46,10 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
   const [loans, setLoans] = useState<CartLoan[]>([]);
   const [config, setConfig] = useState<CartLendingConfig | null>(null);
   const [gates, setGates] = useState<Gate[]>([]);
+  const [towers, setTowers] = useState<Tower[]>([]);
+  const [floors, setFloors] = useState<Floor[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [filters, setFilters] = useState<FinesFilters>(emptyFilters);
   const [fines, setFines] = useState<FinesSummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +84,9 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
         await loadCarts();
         await loadLoans();
         setGates(await listGates(schemaName));
+        const towerRes = await invokeFunction<{ success: boolean; data: Tower[] | null }>('towers', { method: 'POST', body: { action: 'list', schema_name: schemaName } });
+        if (cancelled) return;
+        setTowers((towerRes?.data?.data || []).sort((a, b) => a.code.localeCompare(b.code)));
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Error de carga');
       } finally {
@@ -83,7 +101,57 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
     setError(null);
     try {
       await loadLoans();
-      setFines(await finesSummary(schemaName));
+      setFines(await finesSummary(schemaName, buildFinesFilters(filters)));
+    } catch (err) { setError(err instanceof Error ? err.message : 'Error'); }
+  };
+
+  const buildFinesFilters = (f: FinesFilters) => ({
+    start_date: f.start_date || undefined,
+    end_date: f.end_date || undefined,
+    tower_id: f.tower_id || undefined,
+    floor_id: f.floor_id || undefined,
+    department_id: f.department_id || undefined
+  });
+
+  const applyFilters = async () => {
+    if (!schemaName) return;
+    setError(null);
+    try {
+      setFines(await finesSummary(schemaName, buildFinesFilters(filters)));
+    } catch (err) { setError(err instanceof Error ? err.message : 'Error'); }
+  };
+
+  const resetFilters = () => {
+    setFilters(emptyFilters);
+    setFloors([]);
+    setDepartments([]);
+    void (schemaName ? finesSummary(schemaName).then(setFines).catch(err => setError(err instanceof Error ? err.message : 'Error')) : undefined);
+  };
+
+  const selectTower = async (id: string) => {
+    setFilters(prev => ({ ...prev, tower_id: id, floor_id: '', department_id: '' }));
+    setFloors([]);
+    setDepartments([]);
+    if (!schemaName || !id) return;
+    try {
+      const { data } = await invokeFunction<{ success: boolean; data: Floor[] | null }>('floors', {
+        method: 'POST',
+        body: { action: 'list', schema_name: schemaName, tower_id: id }
+      });
+      setFloors((data?.data || []).sort((a, b) => a.floor_number - b.floor_number));
+    } catch (err) { setError(err instanceof Error ? err.message : 'Error'); }
+  };
+
+  const selectFloor = async (id: string) => {
+    setFilters(prev => ({ ...prev, floor_id: id, department_id: '' }));
+    setDepartments([]);
+    if (!schemaName || !id || !filters.tower_id) return;
+    try {
+      const { data } = await invokeFunction<{ success: boolean; data: Department[] | null }>('departments', {
+        method: 'POST',
+        body: { action: 'list', schema_name: schemaName, tower_id: filters.tower_id, floor_id: id }
+      });
+      setDepartments((data?.data || []).sort((a, b) => a.department_number.localeCompare(b.department_number)));
     } catch (err) { setError(err instanceof Error ? err.message : 'Error'); }
   };
 
@@ -147,6 +215,8 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
   const multasEstimadas = loans
     .filter(l => l.status === 'ACTIVO' && (l.estimated_fine || 0) > 0)
     .reduce((a, l) => a + (Number(l.estimated_fine) || 0), 0);
+
+  const hasActiveFilters = !!(filters.start_date || filters.end_date || filters.tower_id || filters.floor_id || filters.department_id);
 
   return (
     <div className="cart-lending-manager">
@@ -273,6 +343,121 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
             <div className="cart-kpi cart-kpi-dispo"><span className="material-symbols-outlined">payments</span><strong>{fmtMoney(multasCobradas)}</strong> multas cobradas</div>
           </div>
 
+          {activeGates.length > 0 && (
+            <div className="cart-gates">
+              <h4>Disponibilidad por puerta</h4>
+              <div className="cart-gate-grid">
+                {activeGates.map(g => {
+                  const gateCarts = carts.filter(c => c.gate_id === g.id);
+                  const typeSummary = (type: string, capacity: number) => {
+                    const group = gateCarts.filter(c => c.cart_type === type);
+                    const disp = group.filter(c => c.status === 'DISPONIBLE').length;
+                    const prest = group.filter(c => c.status === 'PRESTADO').length;
+                    const pct = capacity > 0 ? Math.min(100, Math.round((prest / capacity) * 100)) : 0;
+                    return (
+                      <div key={type} className="cart-gate-type">
+                        <div className="cart-gate-type-head">
+                          <span className="cart-gate-type-label">{type === 'CARGA' ? 'Carga' : 'Compras'}</span>
+                          <span className="cart-gate-cap">Cap. {capacity}</span>
+                        </div>
+                        <div className={`cart-gate-bar${prest > 0 ? ' cart-gate-bar-used' : ''}`}>
+                          <span style={{ width: `${pct}%` }} />
+                        </div>
+                        <div className="cart-gate-type-counts">
+                          <span className="cart-gate-disp"><strong>{disp}</strong> disponibles</span>
+                          <span className={`cart-gate-prestado${prest > 0 ? ' has' : ''}`}><strong>{prest}</strong> prestados</span>
+                        </div>
+                      </div>
+                    );
+                  };
+                  return (
+                    <article key={g.id} className="cart-gate-card">
+                      <header className="cart-gate-head">
+                        <div className="cart-gate-titles">
+                          <span className="cart-gate-num">{g.name}</span>
+                          {g.code && <span className="cart-gate-code">{g.code}</span>}
+                        </div>
+                        {g.is_entry_exit && <span className="cart-gate-badge"><span className="material-symbols-outlined">directions_car</span>Vehículos</span>}
+                      </header>
+                      {typeSummary('CARGA', g.carts_carga)}
+                      {typeSummary('COMPRA', g.carts_compra)}
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="cart-fines">
+            <div className="modules-header">
+              <h4>Multas por departamento</h4>
+              <small>Montos pendientes y cobrados por demora en la devolución de carritos, para determinar las multas a aplicar.</small>
+            </div>
+
+            <div className="cart-filter-bar">
+              <div className="form-group">
+                <label>Desde</label>
+                <input type="date" value={filters.start_date} onChange={e => setFilters(prev => ({ ...prev, start_date: e.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label>Hasta</label>
+                <input type="date" value={filters.end_date} onChange={e => setFilters(prev => ({ ...prev, end_date: e.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label>Torre</label>
+                <select value={filters.tower_id} onChange={e => void selectTower(e.target.value)}>
+                  <option value="">Todas</option>
+                  {towers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Piso</label>
+                <select value={filters.floor_id} onChange={e => void selectFloor(e.target.value)} disabled={!filters.tower_id}>
+                  <option value="">Todos</option>
+                  {floors.map(f => <option key={f.id} value={f.id}>Piso {f.floor_number}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Departamento</label>
+                <select value={filters.department_id} onChange={e => setFilters(prev => ({ ...prev, department_id: e.target.value }))} disabled={!filters.floor_id}>
+                  <option value="">Todos</option>
+                  {departments.map(d => <option key={d.id} value={d.id}>{d.department_number}</option>)}
+                </select>
+              </div>
+              <div className="cart-filter-actions">
+                <button onClick={applyFilters} disabled={!hasActiveFilters}>Aplicar filtros</button>
+                <button className="btn-cancel" onClick={resetFilters}>Limpiar</button>
+              </div>
+            </div>
+
+            <table className="residents-table residents-desktop">
+              <thead>
+                <tr>
+                  <th>Departamento</th>
+                  <th>Torre</th>
+                  <th>Veces</th>
+                  <th>Pendiente</th>
+                  <th>Cobrado</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fines.length === 0 ? (
+                  <tr><td colSpan={6} className="empty-text">{hasActiveFilters ? 'No hay multas que coincidan con los filtros.' : 'No hay multas registradas por este concepto.'}</td></tr>
+                ) : fines.map(f => (
+                  <tr key={f.department_id}>
+                    <td>{f.department_number || '-'}</td>
+                    <td>{f.tower_code || '-'}</td>
+                    <td>{f.count}</td>
+                    <td>{f.pending > 0 ? fmtMoney(f.pending) : '-'}</td>
+                    <td>{f.cobrada > 0 ? fmtMoney(f.cobrada) : '-'}</td>
+                    <td className="fines-total">{fmtMoney(f.total_fine)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
           <div className="cart-loans-table">
             <h4>Historial de préstamos</h4>
             <table className="residents-table residents-desktop">
@@ -312,39 +497,6 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
                             </div>
                           : <span className="text-muted">—</span>)}
                     </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="cart-fines">
-            <div className="modules-header">
-              <h4>Multas por departamento</h4>
-              <small>Montos pendientes y cobrados por demora en la devolución de carritos, para determinar las multas a aplicar.</small>
-            </div>
-            <table className="residents-table residents-desktop">
-              <thead>
-                <tr>
-                  <th>Departamento</th>
-                  <th>Torre</th>
-                  <th>Veces</th>
-                  <th>Pendiente</th>
-                  <th>Cobrado</th>
-                  <th>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {fines.length === 0 ? (
-                  <tr><td colSpan={6} className="empty-text">No hay multas registradas por este concepto.</td></tr>
-                ) : fines.map(f => (
-                  <tr key={f.department_id}>
-                    <td>{f.department_number || '-'}</td>
-                    <td>{f.tower_code || '-'}</td>
-                    <td>{f.count}</td>
-                    <td>{f.pending > 0 ? fmtMoney(f.pending) : '-'}</td>
-                    <td>{f.cobrada > 0 ? fmtMoney(f.cobrada) : '-'}</td>
-                    <td className="fines-total">{fmtMoney(f.total_fine)}</td>
                   </tr>
                 ))}
               </tbody>

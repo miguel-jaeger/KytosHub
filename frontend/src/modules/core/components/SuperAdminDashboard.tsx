@@ -217,6 +217,9 @@ export function SuperAdminDashboard() {
                     </div>
 
                     <div className="condo-card-actions">
+                      <button className="icon-btn" onClick={() => openSection(c, 'carts')} title="Carritos: configuración y estadísticas">
+                        <span className="material-symbols-outlined">shopping_cart</span>
+                      </button>
                       <button className="icon-btn" onClick={() => startEdit(c)} title="Editar condominio">
                         <span className="material-symbols-outlined">edit</span>
                       </button>

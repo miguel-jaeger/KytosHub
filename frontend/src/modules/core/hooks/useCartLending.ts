@@ -7,6 +7,14 @@ export interface LoansResult {
   config: CartLendingConfig;
 }
 
+export interface FinesFilters {
+  start_date?: string;
+  end_date?: string;
+  tower_id?: string;
+  floor_id?: string;
+  department_id?: string;
+}
+
 export function useCartLending() {
   const listCarts = useCallback(async (schemaName: string): Promise<Cart[]> => {
     const { data, error } = await invokeFunction<{ success: boolean; data: Cart[] | null; error: { message: string } | null }>('cart-lending', {
@@ -57,10 +65,10 @@ export function useCartLending() {
     return data.data;
   }, []);
 
-  const finesSummary = useCallback(async (schemaName: string): Promise<FinesSummaryRow[]> => {
+  const finesSummary = useCallback(async (schemaName: string, filters: FinesFilters = {}): Promise<FinesSummaryRow[]> => {
     const { data, error } = await invokeFunction<{ success: boolean; data: FinesSummaryRow[] | null; error: { message: string } | null }>('cart-lending', {
       method: 'POST',
-      body: { action: 'fines-summary', schema_name: schemaName }
+      body: { action: 'fines-summary', schema_name: schemaName, ...filters }
     });
     if (error) throw error;
     if (!data?.success) throw new Error(data?.error?.message || 'Error al cargar multas');

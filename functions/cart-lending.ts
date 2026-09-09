@@ -230,17 +230,36 @@ export default async function(req: Request): Promise<Response> {
 
       case 'fines-summary': {
         if (!isAdmin) return forbidden();
-        const { data: fines, error } = await db.from('cart_loans')
+        const startDate = typeof body.start_date === 'string' && body.start_date ? String(body.start_date).replace(/T.*$/, '') + 'T00:00:00' : null;
+        const endDateRaw = typeof body.end_date === 'string' && body.end_date ? String(body.end_date).replace(/T.*$/, '') : null;
+        const endDate = endDateRaw ? endDateRaw + 'T23:59:59.999' : null;
+        const towerId = typeof body.tower_id === 'string' && body.tower_id ? String(body.tower_id) : null;
+        const floorId = typeof body.floor_id === 'string' && body.floor_id ? String(body.floor_id) : null;
+        const departmentId = typeof body.department_id === 'string' && body.department_id ? String(body.department_id) : null;
+
+        let q = db.from('cart_loans')
           .select('department_id, penalty_amount, penalty_status, status')
           .gt('penalty_amount', 0)
           .in('penalty_status', ['PENDIENTE', 'COBRADA']);
+        if (startDate) q = q.gte('checkout_time', startDate);
+        if (endDate) q = q.lte('checkout_time', endDate);
+        const { data: fines, error } = await q;
         if (error) throw error;
 
         const rows = (fines || []) as Array<{ department_id: string; penalty_amount: number; penalty_status: string }>;
         const deptIds = [...new Set(rows.map(r => r.department_id))];
-        const deptRows = deptIds.length
-          ? ((await db.from('departments').select('id, department_number, tower_id').in('id', deptIds)).data || [])
+        let deptRows = deptIds.length
+          ? ((await db.from('departments').select('id, department_number, tower_id, floor_id').in('id', deptIds)).data || [])
           : [];
+        deptRows = (deptRows as Array<{ id: string; department_number: string; tower_id: string; floor_id: string | null }>).filter(d => {
+          if (towerId && d.tower_id !== towerId) return false;
+          if (floorId && d.floor_id !== floorId) return false;
+          if (departmentId && d.id !== departmentId) return false;
+          return true;
+        });
+        const validDeptIds = new Set((deptRows as Array<{ id: string }>).map(d => d.id));
+        const filteredRows = rows.filter(r => validDeptIds.has(r.department_id));
+
         const towerIds = [...new Set((deptRows as Array<{ tower_id: string }>).map(d => d.tower_id))];
         const towers = towerIds.length
           ? ((await db.from('towers').select('id, code').in('id', towerIds)).data || [])
@@ -249,7 +268,7 @@ export default async function(req: Request): Promise<Response> {
         const towerMap = new Map((towers as Array<{ id: string; code: string }>).map(t => [t.id, t]));
 
         const byDept = new Map<string, { total_fine: number; count: number; pending: number; cobrada: number }>();
-        for (const r of rows) {
+        for (const r of filteredRows) {
           const acc = byDept.get(r.department_id) || { total_fine: 0, count: 0, pending: 0, cobrada: 0 };
           acc.total_fine += Number(r.penalty_amount) || 0;
           acc.count += 1;
