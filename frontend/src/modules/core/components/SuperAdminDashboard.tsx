@@ -5,7 +5,6 @@ import { useCondominium } from '../../../contexts/CondominiumContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { invokeFunction } from '../../../lib/insforge';
 import { PaginationBar, paginate } from '../../../components/Pagination';
-import { ModulesManager } from './ModulesManager';
 
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '';
@@ -39,7 +38,6 @@ export function SuperAdminDashboard() {
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState<number | 'all'>(10);
-  const [modulesCondo, setModulesCondo] = useState<{ name: string; schema_name: string } | null>(null);
 
   const { slice: pagedCondos } = paginate(visibleCondominiums, page, perPage === 'all' ? visibleCondominiums.length : perPage);
 
@@ -222,9 +220,6 @@ export function SuperAdminDashboard() {
                       <button className="icon-btn" onClick={() => startEdit(c)} title="Editar condominio">
                         <span className="material-symbols-outlined">edit</span>
                       </button>
-                      <button className="icon-btn" onClick={() => setModulesCondo({ name: c.name, schema_name: c.schema_name })} title="Configurar módulos">
-                        <span className="material-symbols-outlined">tune</span>
-                      </button>
                       <button className="icon-btn danger" onClick={() => handleDelete(c.id, c.name)} title="Eliminar condominio">
                         <span className="material-symbols-outlined">delete</span>
                       </button>
@@ -244,23 +239,6 @@ export function SuperAdminDashboard() {
             itemLabel="condominio"
           />
         </>
-      )}
-
-      {modulesCondo && (
-        <div className="modal-overlay" onClick={() => setModulesCondo(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div>
-                <h3>Módulos</h3>
-                <p className="text-on-surface-variant">{modulesCondo.name}</p>
-              </div>
-              <button className="modal-close" onClick={() => setModulesCondo(null)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
-            </div>
-            <div className="modal-body">
-              <ModulesManager schemaName={modulesCondo.schema_name} />
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
