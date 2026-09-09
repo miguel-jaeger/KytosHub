@@ -100,7 +100,7 @@ export function GatesManager({ schemaName }: { schemaName?: string }) {
     <div>
       <div className="modules-header">
         <h3>Puertas del Condominio</h3>
-        <small>Define las puertas/garitas con su nombre y cuántos carritos de cada tipo están asignados. Se reutilizan como puntos de ingreso/salida del estacionamiento.</small>
+        <small>Define las puertas/garitas con su nombre y cuántos carritos de cada tipo están asignados. Se generan automáticamente los carritos físicos según la capacidad. Se reutilizan como puntos de ingreso/salida del estacionamiento.</small>
       </div>
 
       {message && <div className="success-message" onClick={() => setMessage(null)}>{message} — clic para cerrar</div>}

@@ -54,6 +54,7 @@ export default async function(req: Request): Promise<Response> {
         is_active: body.is_active !== false
       }]).select().single();
       if (error) throw error;
+      await syncGateCarts(db, data);
       return json({ success: true, data: normalizeRow(data), error: null }, 201);
     }
 
@@ -77,6 +78,7 @@ export default async function(req: Request): Promise<Response> {
 
       const { data, error } = await db.from('condo_gates').update(updates).eq('id', id).select().single();
       if (error) throw error;
+      await syncGateCarts(db, data);
       return json({ success: true, data: normalizeRow(data), error: null }, 200);
     }
 
@@ -97,6 +99,41 @@ export default async function(req: Request): Promise<Response> {
   } catch (error) {
     console.error('Error in condo-gates:', error);
     return json({ success: false, data: null, error: { code: 'INTERNAL_ERROR', message: 'Error interno' } }, 500);
+  }
+}
+
+async function syncGateCarts(db: { from(t: string): any }, gate: Record<string, unknown>) {
+  const gateId = String(gate.id);
+  const code = String(gate.code || `G${gate.sort_order || ''}`).toUpperCase();
+  const isActive = gate.is_active !== false;
+
+  if (!isActive) return;
+
+  const targets: Array<[string, number]> = [
+    ['CARGA', Number(gate.carts_carga) || 0],
+    ['COMPRA', Number(gate.carts_compra) || 0]
+  ];
+
+  for (const [cartType, capacity] of targets) {
+    if (capacity <= 0) continue;
+    const { data: existing } = await db.from('carts')
+      .select('code_identifier')
+      .eq('gate_id', gateId)
+      .eq('cart_type', cartType);
+    const existingCodes = new Set((existing || []).map((c: { code_identifier: string }) => c.code_identifier));
+    const needed = capacity - existingCodes.size;
+    if (needed <= 0) continue;
+
+    let n = 1;
+    const inserts: Array<Record<string, unknown>> = [];
+    while (inserts.length < needed) {
+      const candidate = `${code}_${cartType}_${n}`;
+      n += 1;
+      if (existingCodes.has(candidate)) continue;
+      existingCodes.add(candidate);
+      inserts.push({ code_identifier: candidate, status: 'DISPONIBLE', gate_id: gateId, cart_type: cartType, notes: null });
+    }
+    if (inserts.length > 0) await db.from('carts').insert(inserts);
   }
 }
 
