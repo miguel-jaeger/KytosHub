@@ -971,6 +971,19 @@ html.dark .status-cart-disponible { background: rgba(81, 207, 102, 0.18); color:
 html.dark .status-cart-prestado { background: rgba(233, 30, 99, 0.18); color: #f06595; }
 html.dark .status-cart-mantenimiento { background: rgba(255, 193, 7, 0.18); color: #ffd43b; }
 
+.status-warn {
+  background: rgba(255, 193, 7, 0.18);
+  color: #b26b00;
+}
+
+.status-late {
+  background: rgba(230, 57, 70, 0.15);
+  color: #e63946;
+}
+
+html.dark .status-warn { background: rgba(255, 193, 7, 0.18); color: #ffd43b; }
+html.dark .status-late { background: rgba(230, 57, 70, 0.2); color: #ff8a8a; }
+
 .empty-state {
   text-align: center;
   color: #76777d;

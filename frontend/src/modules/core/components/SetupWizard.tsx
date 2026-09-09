@@ -1,20 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCondominium } from '../../../contexts/CondominiumContext';
 import { useCondominiumRegistration } from '../hooks/useCondominiumRegistration';
+import { useCondoModules } from '../hooks/useCondoModules';
 import { StructureManager } from './StructureManager';
 import { ModulesManager } from './ModulesManager';
 import { GatesManager } from './GatesManager';
+import { CartLendingManager } from './CartLendingManager';
 import type { WizardStep } from '../types';
 
-type SetupTab = 'structure' | 'gates' | 'modules';
+type SetupTab = 'structure' | 'gates' | 'modules' | 'carts';
 
 export function SetupWizard() {
   const { condominium, setCondominium } = useCondominium();
   const { register } = useCondominiumRegistration();
+  const { list: listModules } = useCondoModules();
   const navigate = useNavigate();
   const [step, setStep] = useState<WizardStep>(condominium ? 'towers' : 'condominium');
   const [tab, setTab] = useState<SetupTab>('structure');
+  const [cartEnabled, setCartEnabled] = useState(false);
 
   const [condoData, setCondoData] = useState({
     name: condominium?.name || '',
@@ -25,6 +29,17 @@ export function SetupWizard() {
   const [condoImageFile, setCondoImageFile] = useState<File | null>(null);
   const [condoError, setCondoError] = useState<string | null>(null);
   const [condoLoading, setCondoLoading] = useState(false);
+
+  const refreshCartFlag = useCallback(async () => {
+    if (!condominium?.schema_name) return;
+    try {
+      const result = await listModules(condominium.schema_name);
+      const cart = result.modules.find(m => m.module_key === 'cart_lending');
+      setCartEnabled(Boolean(cart?.is_enabled));
+    } catch { /* keep current state */ }
+  }, [condominium?.schema_name, listModules]);
+
+  useEffect(() => { void refreshCartFlag(); }, [refreshCartFlag]);
 
   const handleCondoSubmit = async () => {
     if (!condoData.name.trim()) return;
@@ -111,11 +126,13 @@ export function SetupWizard() {
         <button className={tab === 'structure' ? 'active' : ''} onClick={() => setTab('structure')}>Estructura</button>
         <button className={tab === 'gates' ? 'active' : ''} onClick={() => setTab('gates')}>Puertas</button>
         <button className={tab === 'modules' ? 'active' : ''} onClick={() => setTab('modules')}>Módulos</button>
+        {cartEnabled && <button className={tab === 'carts' ? 'active' : ''} onClick={() => setTab('carts')}>Carritos</button>}
       </div>
 
       {tab === 'structure' && <StructureManager />}
       {tab === 'gates' && <GatesManager schemaName={condominium?.schema_name} />}
       {tab === 'modules' && <ModulesManager schemaName={condominium?.schema_name} />}
+      {tab === 'carts' && cartEnabled && <CartLendingManager schemaName={condominium?.schema_name} />}
     </div>
   );
 }
