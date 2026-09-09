@@ -7,31 +7,11 @@ interface ModuleDef {
   default_config: Record<string, unknown>;
 }
 
+// Modules managed per condominium. Sprint 1 core areas (condominiums, users,
+// structure, residents) are always available and are NOT presented here:
+// this section only lists the NEW modules (managed by the global admin
+// through the per-condominium activation toggle).
 const MODULES: Record<string, ModuleDef> = {
-  core_structure: {
-    name: 'Estructura (Torres, Pisos, Departamentos)',
-    description: 'Gestión de torres, pisos, departamentos y residentes del condominio.',
-    default_enabled: true,
-    default_config: {}
-  },
-  residents: {
-    name: 'Padrón de Residentes',
-    description: 'Registro y asignación de residentes a los departamentos.',
-    default_enabled: true,
-    default_config: {}
-  },
-  users: {
-    name: 'Usuarios y Roles',
-    description: 'Gestión de usuarios, roles y accesos del condominio.',
-    default_enabled: true,
-    default_config: {}
-  },
-  condominiums: {
-    name: 'Condominios',
-    description: 'Registro y administración de condominios.',
-    default_enabled: true,
-    default_config: {}
-  },
   cart_lending: {
     name: 'Préstamo de Carritos y Multas',
     description: 'Préstamo de carritos de carga con tiempos, períodos de gracia y multas por demora.',
@@ -42,7 +22,9 @@ const MODULES: Record<string, ModuleDef> = {
       fine_type: 'FIXED_OR_PER_INTERVAL',
       grace_period_minutes: 10,
       fine_amount: 5,
-      fine_interval_minutes: 30
+      fine_interval_minutes: 30,
+      gates_count: 2,
+      carts_per_gate: 5
     }
   }
 };
