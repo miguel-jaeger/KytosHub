@@ -2373,6 +2373,18 @@ html.dark .resident-grid-label { color: #aaa; }
     flex-direction: column;
   }
 
+  .cart-loans-table, .cart-fines, .cart-crud {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .cart-loans-table .residents-desktop,
+  .cart-fines .residents-desktop,
+  .cart-crud .residents-desktop {
+    display: table;
+    min-width: 720px;
+  }
+
   .resident-search .residents-table,
   .resident-search .residents-table tbody,
   .resident-search .residents-table tr,
