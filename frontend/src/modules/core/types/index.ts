@@ -92,3 +92,50 @@ export interface ApiResponse<T> {
 }
 
 export type WizardStep = 'condominium' | 'towers' | 'residents';
+
+export interface ModuleInfo {
+  module_key: string;
+  name: string;
+  description: string;
+  is_enabled: boolean;
+  config_json: Record<string, unknown>;
+  editable?: boolean;
+}
+
+export interface CartLendingConfig {
+  max_loan_minutes: number;
+  fine_enabled: boolean;
+  fine_type: string;
+  grace_period_minutes: number;
+  fine_amount: number;
+  fine_interval_minutes: number;
+}
+
+export interface Cart {
+  id: string;
+  code_identifier: string;
+  qr_code_hash?: string | null;
+  status: 'DISPONIBLE' | 'PRESTADO' | 'MANTENIMIENTO';
+  notes?: string | null;
+  created_at: string;
+}
+
+export interface CartLoan {
+  id: string;
+  cart_id: string;
+  department_id: string;
+  requested_by_user_id?: string | null;
+  guard_checkout_user_id?: string | null;
+  guard_checkin_user_id?: string | null;
+  checkout_time: string;
+  due_time: string;
+  checkin_time?: string | null;
+  status: 'ACTIVO' | 'DEVUELTO' | 'ATRASADO';
+  penalty_amount: number;
+  penalty_status: 'NINGUNA' | 'PENDIENTE' | 'COBRADA' | 'EXONERADA';
+  created_at: string;
+  cart_code?: string | null;
+  department_number?: string | null;
+  tower_code?: string | null;
+  overtime_minutes?: number;
+}

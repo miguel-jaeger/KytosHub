@@ -1502,6 +1502,62 @@ html.dark .theme-switch input:checked + .theme-switch-track { background: #006c4
 .struct-tab.active { background: #006c49; border-color: #006c49; color: #fff; }
 .struct-tab .material-symbols-outlined { font-size: 16px; }
 
+/* Setup section tabs */
+.setup-tabs { display: flex; gap: 0.5rem; margin: 0 0 1rem; flex-wrap: wrap; }
+.setup-tabs button { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.9rem; border: 1px solid #c6c6cd; background: #fff; color: #45464d; border-radius: 8px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; }
+.setup-tabs button:hover { background: #eff4ff; }
+.setup-tabs button.active { background: #006c49; border-color: #006c49; color: #fff; }
+
+/* Modules manager */
+.modules-manager { padding: 0.5rem 0; }
+.modules-header { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 1rem; }
+.modules-header h3 { margin: 0; color: #0b1c30; }
+.modules-header small { color: #76777d; }
+.modules-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.9rem; }
+.module-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 1rem; }
+.module-card.module-disabled { opacity: 0.85; }
+.module-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; }
+.module-card-head h4 { margin: 0 0 0.25rem; color: #0b1c30; font-size: 1rem; }
+.module-card-head p { margin: 0; color: #76777d; font-size: 0.85rem; }
+.module-toggle { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.75rem; color: #0b1c30; font-size: 0.9rem; }
+.module-config { margin-top: 0.85rem; border-top: 1px solid #e5e7eb; padding-top: 0.75rem; }
+.module-config .btn-primary { margin-top: 0.6rem; }
+.cart-config-form { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.cart-config-form label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.8rem; color: #45464d; }
+.cart-config-form input[type='number'], .module-json { padding: 0.4rem 0.5rem; border: 1px solid #c6c6cd; border-radius: 6px; background: #f8f9ff; color: #0b1c30; font-size: 0.85rem; }
+.cart-config-form input[type='checkbox'] { width: 1.1rem; height: 1.1rem; }
+.module-json { width: 100%; font-family: monospace; resize: vertical; }
+
+/* Toggle switch */
+.switch { position: relative; display: inline-block; width: 40px; height: 22px; flex: 0 0 auto; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch .slider { position: absolute; cursor: pointer; inset: 0; background: #bbb; border-radius: 22px; transition: 0.2s; }
+.switch .slider:before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: 0.2s; }
+.switch input:checked + .slider { background: #006c49; }
+.switch input:checked + .slider:before { transform: translateX(18px); }
+
+/* Cart lending */
+.cart-lending-manager { padding: 0.5rem 0; }
+.cart-crud, .cart-loans { margin-top: 0.75rem; }
+.cart-form, .cart-checkout-form { background: #f8f9ff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
+.cart-form h4, .cart-checkout-form h4 { margin: 0 0 0.75rem; color: #0b1c30; }
+.cart-form .form-actions, .cart-checkout-form .form-actions { justify-content: flex-start; }
+
+html.dark .modules-header h3,
+html.dark .module-card-head h4,
+html.dark .cart-form h4,
+html.dark .cart-checkout-form h4 { color: #e5e7eb; }
+html.dark .module-card { background: #1e1e1e; border-color: #333; }
+html.dark .module-card-head p { color: #aaa; }
+html.dark .module-toggle { color: #e5e7eb; }
+html.dark .cart-config-form label { color: #c8cad1; }
+html.dark .cart-config-form input[type='number'],
+html.dark .module-json { background: #2a2a2a; border-color: #444; color: #e5e7eb; }
+html.dark .cart-form, html.dark .cart-checkout-form { background: #1e1e1e; border-color: #333; }
+html.dark .setup-tabs button { background: #1e1e1e; border-color: #3a3a3a; color: #c8cad1; }
+html.dark .setup-tabs button:hover { background: #2a2a2a; }
+html.dark .setup-tabs button.active { background: #006c49; border-color: #006c49; color: #fff; }
+
 /* Condominium count links */
 .condo-counts { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e5e7eb; }
 .count-link { display: inline-flex; align-items: center; gap: 0.25rem; background: #f1f5f9; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.3rem 0.5rem; cursor: pointer; color: #0b1c30; font-size: 0.75rem; transition: all 0.2s; }

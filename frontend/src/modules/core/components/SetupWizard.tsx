@@ -1,15 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCondominium } from '../../../contexts/CondominiumContext';
 import { useCondominiumRegistration } from '../hooks/useCondominiumRegistration';
+import { useCondoModules } from '../hooks/useCondoModules';
 import { StructureManager } from './StructureManager';
+import { ModulesManager } from './ModulesManager';
+import { CartLendingManager } from './CartLendingManager';
 import type { WizardStep } from '../types';
+
+type SetupTab = 'structure' | 'modules' | 'carts';
 
 export function SetupWizard() {
   const { condominium, setCondominium } = useCondominium();
   const { register } = useCondominiumRegistration();
+  const { list: listModules } = useCondoModules();
   const navigate = useNavigate();
   const [step, setStep] = useState<WizardStep>(condominium ? 'towers' : 'condominium');
+  const [tab, setTab] = useState<SetupTab>('structure');
+  const [cartEnabled, setCartEnabled] = useState(false);
 
   const [condoData, setCondoData] = useState({
     name: condominium?.name || '',
@@ -20,6 +28,17 @@ export function SetupWizard() {
   const [condoImageFile, setCondoImageFile] = useState<File | null>(null);
   const [condoError, setCondoError] = useState<string | null>(null);
   const [condoLoading, setCondoLoading] = useState(false);
+
+  const refreshCartFlag = useCallback(async () => {
+    if (!condominium?.schema_name) return;
+    try {
+      const result = await listModules(condominium.schema_name);
+      const cart = result.modules.find(m => m.module_key === 'cart_lending');
+      setCartEnabled(Boolean(cart?.is_enabled));
+    } catch { /* keep current state */ }
+  }, [condominium?.schema_name, listModules]);
+
+  useEffect(() => { void refreshCartFlag(); }, [refreshCartFlag]);
 
   const handleCondoSubmit = async () => {
     if (!condoData.name.trim()) return;
@@ -45,6 +64,7 @@ export function SetupWizard() {
       const condo = await register({ ...condoData, image_url: imageUrl });
       setCondominium({ tenant_id: condo.tenant_id, name: condo.name, slug: condo.slug, short_name: condo.short_name, schema_name: condo.schema_name, image_url: imageUrl || null });
       setStep('towers');
+      setTab('structure');
     } catch (err) {
       setCondoError(err instanceof Error ? err.message : 'Error al registrar');
     } finally {
@@ -97,10 +117,19 @@ export function SetupWizard() {
   return (
     <div className="setup-wizard">
       <div className="wizard-steps">
-<span className="done">1. Datos del condominio</span>
+        <span className="done">1. Datos del condominio</span>
         <span className="active">2. Estructura</span>
       </div>
-      <StructureManager />
+
+      <div className="setup-tabs">
+        <button className={tab === 'structure' ? 'active' : ''} onClick={() => setTab('structure')}>Estructura</button>
+        <button className={tab === 'modules' ? 'active' : ''} onClick={() => setTab('modules')}>Módulos</button>
+        {cartEnabled && <button className={tab === 'carts' ? 'active' : ''} onClick={() => setTab('carts')}>Carritos</button>}
+      </div>
+
+      {tab === 'structure' && <StructureManager />}
+      {tab === 'modules' && <ModulesManager schemaName={condominium?.schema_name} />}
+      {tab === 'carts' && cartEnabled && <CartLendingManager schemaName={condominium?.schema_name} />}
     </div>
   );
 }
