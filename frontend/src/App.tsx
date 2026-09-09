@@ -6,6 +6,7 @@ import { useUserRole } from './hooks/useUserRole';
 import { Sidebar } from './components/Sidebar';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { GaritaPage } from './pages/GaritaPage';
 import { SetupWizard } from './modules/core/components/SetupWizard';
 import { SuperAdminDashboard } from './modules/core/components/SuperAdminDashboard';
 import { CondominioAdminDashboard } from './modules/core/components/CondominioAdminDashboard';
@@ -38,6 +39,7 @@ function AppShell() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/garita" element={<GaritaPage />} />
           <Route path="/admin/condominiums" element={<SuperAdminDashboard />} />
           <Route path="/admin/users" element={<AdminUsersRoute><CondominioAdminDashboard /></AdminUsersRoute>} />
           <Route path="/setup" element={<SetupWizard />} />
@@ -54,6 +56,7 @@ function Dashboard() {
   const navigate = useNavigate();
   const canManageUsers = role === 'super' || role === 'admin';
   const canManageCondo = role === 'admin';
+  const isSecurity = role === 'security';
 
   const openMyCondominium = async () => {
     if (!user) return;
@@ -92,7 +95,7 @@ function Dashboard() {
     <div className="dashboard">
       <h2>Panel de Control</h2>
 
-      {!canManageUsers ? (
+      {(!canManageUsers && !isSecurity) ? (
         <div className="welcome-card">
           <span className="material-symbols-outlined">waving_hand</span>
           <h3>¡Bienvenido{user?.name ? `, ${user.name}` : ''}!</h3>
@@ -105,6 +108,20 @@ function Dashboard() {
               <span className="material-symbols-outlined">apartment</span>
               <h3>Administrar Condominios</h3>
               <p>Ver, registrar y gestionar condominios</p>
+            </Link>
+          )}
+          {isSecurity && (
+            <Link to="/garita" className="action-card">
+              <span className="material-symbols-outlined">shield</span>
+              <h3>Panel de Garita</h3>
+              <p>Registrar préstamos y devoluciones de carritos</p>
+            </Link>
+          )}
+          {canManageCondo && (
+            <Link to="/garita" className="action-card">
+              <span className="material-symbols-outlined">shield</span>
+              <h3>Panel de Garita</h3>
+              <p>Registrar préstamos y devoluciones de carritos</p>
             </Link>
           )}
           {canManageCondo && (

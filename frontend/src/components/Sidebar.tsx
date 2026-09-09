@@ -25,6 +25,7 @@ export function Sidebar() {
   const displayRole = role === 'super' ? 'Super Admin' : useRoleLabel(role);
   const canManageUsers = role === 'super' || role === 'admin';
   const canManageCondo = role === 'admin';
+  const isSecurity = role === 'security';
 
   const openMyCondominium = async () => {
     if (!user) return;
@@ -66,6 +67,13 @@ export function Sidebar() {
           <span className="material-symbols-outlined">dashboard</span>
           {!collapsed && <span className="mobile-nav-label">Inicio</span>}
         </Link>
+
+        {(isSecurity || canManageCondo) && (
+          <Link to="/garita" className={`mobile-nav-link ${location.pathname === '/garita' ? 'active' : ''}`}>
+            <span className="material-symbols-outlined">shield</span>
+            {!collapsed && <span className="mobile-nav-label">Garita</span>}
+          </Link>
+        )}
 
         {isSuperAdmin && (
           <Link to="/admin/condominiums" className={`mobile-nav-link ${location.pathname === '/admin/condominiums' ? 'active' : ''}`}>
@@ -122,6 +130,13 @@ export function Sidebar() {
           <span className="material-symbols-outlined">dashboard</span>
           {!collapsed && <span className="sidebar-label">Inicio</span>}
         </Link>
+
+        {(isSecurity || canManageCondo) && (
+          <Link to="/garita" className={linkClass('/garita')} title={collapsed ? 'Garita' : undefined}>
+            <span className="material-symbols-outlined">shield</span>
+            {!collapsed && <span className="sidebar-label">Garita</span>}
+          </Link>
+        )}
 
         {isSuperAdmin && (
           <Link to="/admin/condominiums" className={linkClass('/admin/condominiums')} title={collapsed ? 'Condominios' : undefined}>
