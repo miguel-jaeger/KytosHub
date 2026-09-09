@@ -147,8 +147,7 @@ export function ModulesManager({ schemaName }: { schemaName?: string }) {
                     <div className="module-example">
                       <span className="material-symbols-outlined">info</span>
                       <span>
-                        Ejemplo: con <strong>2 puertas</strong> y <strong>5 carritos por puerta</strong> se adminarán hasta{' '}
-                        <strong>10 carritos</strong> (cada uno se registra como <em>carro de carga</em> o <em>coche de compras</em>).
+                        Parámetros de préstamo y multas por demora. Las <strong>puertas</strong> y su capacidad por tipo de carrito se configuran en la pestaña <strong>Puertas</strong>.
                       </span>
                     </div>
                   </>

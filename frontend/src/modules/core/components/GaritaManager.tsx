@@ -2,12 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import { useCartLending } from '../hooks/useCartLending';
 import { useCondoGates } from '../hooks/useCondoGates';
-import type { Cart, CartLoan, CartLendingConfig, Department, Gate, Tower } from '../types';
-
-interface DeptOption {
-  id: string;
-  label: string;
-}
+import { CartCheckoutForm } from './CartCheckoutForm';
+import type { Cart, CartLoan, CartLendingConfig, Department, Floor, Gate, Tower } from '../types';
 
 function fmtMinutes(total: number): string {
   if (!Number.isFinite(total) || total <= 0) return '0 min';
@@ -20,8 +16,6 @@ function fmtMoney(n: number): string {
   return `S/ ${(Number(n) || 0).toFixed(2)}`;
 }
 
-const CART_TYPE_LABELS: Record<string, string> = { CARGA: 'Carro de carga', COMPRA: 'Coche de compras' };
-
 export function GaritaManager({ schemaName }: { schemaName?: string }) {
   const { listCarts, listLoans, checkout, checkin } = useCartLending();
   const { list: listGates } = useCondoGates();
@@ -29,13 +23,13 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
   const [loans, setLoans] = useState<CartLoan[]>([]);
   const [config, setConfig] = useState<CartLendingConfig | null>(null);
   const [gates, setGates] = useState<Gate[]>([]);
-  const [deptOptions, setDeptOptions] = useState<DeptOption[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [towers, setTowers] = useState<Tower[]>([]);
+  const [floors, setFloors] = useState<Floor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const [checkoutCartId, setCheckoutCartId] = useState('');
-  const [checkoutDeptId, setCheckoutDeptId] = useState('');
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkinBusyId, setCheckinBusyId] = useState<string | null>(null);
 
@@ -63,14 +57,11 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
         await Promise.all([loadCarts(), loadLoans(), listGates(schemaName).then(setGates)]);
         const deptRes = await invokeFunction<{ success: boolean; data: Department[] | null }>('departments', { method: 'POST', body: { action: 'list', schema_name: schemaName } });
         const towerRes = await invokeFunction<{ success: boolean; data: Tower[] | null }>('towers', { method: 'POST', body: { action: 'list', schema_name: schemaName } });
+        const floorRes = await invokeFunction<{ success: boolean; data: Floor[] | null }>('floors', { method: 'POST', body: { action: 'list', schema_name: schemaName } });
         if (cancelled) return;
-        const deptData: Department[] = deptRes?.data?.data || [];
-        const towerData: Tower[] = towerRes?.data?.data || [];
-        const towerCode = new Map(towerData.map(t => [t.id, t.code]));
-        setDeptOptions(deptData.map(d => ({
-          id: d.id,
-          label: `Dpto ${d.department_number}${towerCode.get(d.tower_id) ? ` (Torre ${towerCode.get(d.tower_id)})` : ''}`
-        })));
+        setDepartments(deptRes?.data?.data || []);
+        setTowers(towerRes?.data?.data || []);
+        setFloors(floorRes?.data?.data || []);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Error de carga');
       } finally {
@@ -85,19 +76,17 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
     await Promise.all([loadCarts(), loadLoans(), listGates(schemaName).then(setGates)]);
   };
 
-  const handleCheckout = async () => {
+  const handleCheckout = async (cartId: string, departmentId: string) => {
     if (!schemaName) return;
-    if (!checkoutCartId || !checkoutDeptId) { alert('Seleccione carrito y departamento'); return; }
     setCheckoutBusy(true);
     setError(null);
     try {
-      const loan = await checkout(schemaName, checkoutCartId, checkoutDeptId);
+      const loan = await checkout(schemaName, cartId, departmentId);
       setMessage(`Préstamo registrado${loan && loan.due_time ? ` — vence ${new Date(loan.due_time).toLocaleString('es-PE')}` : ''}`);
-      setCheckoutCartId('');
-      setCheckoutDeptId('');
       await refreshAll();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error');
+      throw err;
     } finally {
       setCheckoutBusy(false);
     }
@@ -123,7 +112,6 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
 
   if (loading) return <div className="loading-message">Cargando garita...</div>;
 
-  const availableCarts = carts.filter(c => c.status === 'DISPONIBLE');
   const activeLoans = loans.filter(l => l.status === 'ACTIVO');
   const prestados = carts.filter(c => c.status === 'PRESTADO').length;
   const mantenimiento = carts.filter(c => c.status === 'MANTENIMIENTO').length;
@@ -175,31 +163,15 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
           </div>
         )}
 
-        <div className="cart-checkout-form">
-          <h4>Registrar Préstamo</h4>
-          <p className="cart-checkout-hint">Se registra la torre y el departamento del residente que toma el carrito.</p>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Carrito</label>
-              <select value={checkoutCartId} onChange={e => setCheckoutCartId(e.target.value)}>
-                <option value="">Seleccionar...</option>
-                {availableCarts.map(c => <option key={c.id} value={c.id}>{c.code_identifier}{c.gate?.name ? ` (${c.gate.name})` : ''} · {CART_TYPE_LABELS[c.cart_type || 'CARGA']}</option>)}
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Departamento del residente</label>
-              <select value={checkoutDeptId} onChange={e => setCheckoutDeptId(e.target.value)}>
-                <option value="">Seleccionar...</option>
-                {deptOptions.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
-              </select>
-            </div>
-          </div>
-          <div className="form-actions">
-            <button onClick={handleCheckout} disabled={checkoutBusy || availableCarts.length === 0 || deptOptions.length === 0}>
-              {checkoutBusy ? 'Prestado...' : 'Prestar'}
-            </button>
-          </div>
-        </div>
+        <CartCheckoutForm
+          carts={carts}
+          departments={departments}
+          towers={towers}
+          floors={floors}
+          gates={activeGates}
+          busy={checkoutBusy}
+          onCheckout={handleCheckout}
+        />
 
         <div className="cart-loans-table">
           <h4>Carritos prestados</h4>

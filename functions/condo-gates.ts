@@ -38,7 +38,7 @@ export default async function(req: Request): Promise<Response> {
       const name = String(body.name || '').trim();
       if (!name) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'El nombre de la puerta es obligatorio' } }, 400);
 
-      const existing = await db.from('condo_gates').select('id').eq('name', name).single();
+      const { data: existing } = await db.from('condo_gates').select('id').eq('name', name).single();
       if (existing) return json({ success: false, data: null, error: { code: 'DUPLICATE', message: 'Ya existe una puerta con ese nombre' } }, 409);
 
       const { data: maxRow } = await db.from('condo_gates').select('sort_order').order('sort_order', { ascending: false }).limit(1).single();
@@ -84,8 +84,8 @@ export default async function(req: Request): Promise<Response> {
       if (!isAdmin) return forbidden();
       const id = body.id as string;
       if (!id) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'id es requerido' } }, 400);
-      const { data: used } = await db.from('carts').select('id', { count: 'exact', head: true }).eq('gate_id', id);
-      if ((used?.count ?? 0) > 0) {
+      const { count: usedCount } = await db.from('carts').select('id', { count: 'exact', head: true }).eq('gate_id', id);
+      if ((usedCount ?? 0) > 0) {
         return json({ success: false, data: null, error: { code: 'GATE_IN_USE', message: 'No se puede eliminar: hay carritos asignados a esta puerta. Desasígnalos primero.' } }, 409);
       }
       const { error } = await db.from('condo_gates').delete().eq('id', id);

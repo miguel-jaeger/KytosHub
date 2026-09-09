@@ -1548,6 +1548,16 @@ html.dark .theme-switch input:checked + .theme-switch-track { background: #006c4
 .module-example code { background: #fff; border: 1px solid #e5e7eb; border-radius: 4px; padding: 0 0.25rem; }
 .cart-checkout-hint { margin: 0 0 0.6rem; font-size: 0.8rem; color: #76777d; }
 
+.checkout-field { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.85rem; }
+.checkout-field > label { font-size: 0.8rem; font-weight: 600; color: #45464d; }
+.checkout-field select { padding: 0.6rem 0.6rem; border: 1px solid #c6c6cd; border-radius: 8px; background: #fff; color: #0b1c30; font-size: 0.95rem; min-height: 44px; }
+.checkout-tower-chips { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.35rem; -webkit-overflow-scrolling: touch; }
+.checkout-chip { flex: 0 0 auto; min-width: 56px; text-align: center; padding: 0.55rem 0.75rem; border: 1.5px solid #c6c6cd; background: #fff; color: #45464d; border-radius: 10px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+.checkout-chip.active { background: #006c49; border-color: #006c49; color: #fff; }
+.checkout-chip-code { display: block; }
+.checkout-hint-inline { font-size: 0.78rem; color: #76777d; }
+.checkout-submit { width: 100%; justify-content: center; padding: 0.7rem !important; font-size: 0.95rem; min-height: 46px; }
+
 .cart-kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.6rem; margin-bottom: 1rem; }
 .cart-kpi { display: flex; flex-direction: column; gap: 0.2rem; align-items: center; justify-content: center; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 0.7rem; font-size: 0.8rem; color: #45464d; text-align: center; }
 .cart-kpi strong { font-size: 1.3rem; color: #0b1c30; }
@@ -1580,6 +1590,10 @@ html.dark .cart-config-form label { color: #c8cad1; }
 html.dark .cart-config-form input[type='number'],
 html.dark .module-json { background: #2a2a2a; border-color: #444; color: #e5e7eb; }
 html.dark .cart-form, html.dark .cart-checkout-form { background: #1e1e1e; border-color: #333; }
+html.dark .checkout-field > label { color: #c8cad1; }
+html.dark .checkout-field select { background: #2a2a2a; border-color: #444; color: #e5e7eb; }
+html.dark .checkout-chip { background: #2a2a2a; border-color: #444; color: #c8cad1; }
+html.dark .checkout-chip.active { background: #006c49; border-color: #006c49; color: #fff; }
 html.dark .setup-tabs button { background: #1e1e1e; border-color: #3a3a3a; color: #c8cad1; }
 html.dark .setup-tabs button:hover { background: #2a2a2a; }
 html.dark .setup-tabs button.active { background: #006c49; border-color: #006c49; color: #fff; }
