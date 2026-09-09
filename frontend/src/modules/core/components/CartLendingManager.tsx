@@ -10,9 +10,10 @@ function fmtMoney(n: number): string {
 
 function fmtDateTime(iso: string): string {
   const d = new Date(iso);
-  const hh = String(d.getHours()).padStart(2, '0');
+  const hh = d.getHours() % 12 || 12;
   const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${d.toLocaleDateString('es-PE')}, ${hh}:${mm}`;
+  const ap = d.getHours() >= 12 ? 'PM' : 'AM';
+  return `${d.toLocaleDateString('es-PE')}, ${hh}:${mm} ${ap}`;
 }
 
 const CART_TYPE_LABELS: Record<string, string> = { CARGA: 'Carro de carga', COMPRA: 'Coche de compras' };
