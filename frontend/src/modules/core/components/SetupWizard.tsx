@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useCondominium } from '../../../contexts/CondominiumContext';
 import { useCondominiumRegistration } from '../hooks/useCondominiumRegistration';
@@ -42,13 +42,17 @@ export function SetupWizard() {
 
   useEffect(() => { void refreshCartFlag(); }, [refreshCartFlag]);
 
+  const sectionHandledRef = useRef<string | null>(null);
   useEffect(() => {
     const s = new URLSearchParams(location.search).get('section');
-    if (s === 'carts') {
-      setTab(cartEnabled ? 'carts' : 'modules');
-    } else if (s === 'structure' || s === 'gates' || s === 'modules') {
+    if (sectionHandledRef.current === s) return;
+    sectionHandledRef.current = s;
+    if (s === 'structure' || s === 'gates' || s === 'modules') {
       setTab(s);
+    } else if (s === 'carts') {
+      setTab(cartEnabled ? 'carts' : 'modules');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search, cartEnabled]);
 
   const handleCondoSubmit = async () => {

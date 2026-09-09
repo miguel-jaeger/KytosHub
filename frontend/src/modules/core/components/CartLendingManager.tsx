@@ -40,7 +40,7 @@ interface FinesFilters {
 const emptyFilters: FinesFilters = { start_date: '', end_date: '', tower_id: '', floor_id: '', department_id: '' };
 
 export function CartLendingManager({ schemaName }: { schemaName?: string }) {
-  const { listCarts, createCart, updateCart, deleteCart, listLoans, finesSummary } = useCartLending();
+  const { listCarts, createCart, updateCart, deleteCart, listLoans, finesSummary, updateFineStatus } = useCartLending();
   const { list: listGates } = useCondoGates();
   const [carts, setCarts] = useState<Cart[]>([]);
   const [loans, setLoans] = useState<CartLoan[]>([]);
@@ -191,6 +191,21 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
       await deleteCart(schemaName, c.id);
       setMessage('Carrito eliminado');
       setCarts(await listCarts(schemaName));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error');
+    }
+  };
+
+  const handleFineStatus = async (loan: CartLoan, status: 'PENDIENTE' | 'COBRADA' | 'EXONERADA') => {
+    if (!schemaName) return;
+    const label = status === 'COBRADA' ? 'cobrada' : status === 'EXONERADA' ? 'exonerada' : 'pendiente';
+    if (!confirm(`¿Marcar la multa de ${loan.cart_code || 'este préstamo'} como ${label}?`)) return;
+    setError(null);
+    try {
+      await updateFineStatus(schemaName, loan.id, status);
+      setMessage('Estado de multa actualizado');
+      await loadLoans();
+      setFines(await finesSummary(schemaName, buildFinesFilters(filters)));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error');
     }
@@ -471,11 +486,12 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
                   <th>Devolución</th>
                   <th>Estado</th>
                   <th>Multa</th>
+                  <th>Acción</th>
                 </tr>
               </thead>
               <tbody>
                 {loans.length === 0 ? (
-                  <tr><td colSpan={8} className="empty-text">Aún no hay préstamos registrados.</td></tr>
+                  <tr><td colSpan={9} className="empty-text">Aún no hay préstamos registrados.</td></tr>
                 ) : loans.map(l => (
                   <tr key={l.id}>
                     <td>{l.cart_code || '-'}</td>
@@ -496,6 +512,20 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
                               <small className="text-muted">{PENALTY_LABELS[l.penalty_status] || l.penalty_status}</small>
                             </div>
                           : <span className="text-muted">—</span>)}
+                    </td>
+                    <td>
+                      {(Number(l.penalty_amount) || 0) > 0 && l.status !== 'ACTIVO' ? (
+                        l.penalty_status === 'PENDIENTE' ? (
+                          <div className="resident-row-actions">
+                            <button className="btn-edit" onClick={() => handleFineStatus(l, 'COBRADA')} title="Marcar como cobrada">Cobrar</button>
+                            <button className="btn-edit" onClick={() => handleFineStatus(l, 'EXONERADA')} title="Exonerar la multa">Exonerar</button>
+                          </div>
+                        ) : (
+                          <button className="btn-edit" onClick={() => handleFineStatus(l, 'PENDIENTE')} title="Reabrir la multa">Reabrir</button>
+                        )
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}

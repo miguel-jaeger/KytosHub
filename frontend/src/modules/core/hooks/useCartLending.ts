@@ -95,5 +95,15 @@ export function useCartLending() {
     return data.data;
   }, []);
 
-  return { listCarts, createCart, updateCart, deleteCart, listLoans, checkout, checkin, finesSummary };
+  const updateFineStatus = useCallback(async (schemaName: string, loanId: string, penaltyStatus: 'PENDIENTE' | 'COBRADA' | 'EXONERADA') => {
+    const { data, error } = await invokeFunction<{ success: boolean; data: CartLoan | null; error: { message: string } | null }>('cart-lending', {
+      method: 'POST',
+      body: { action: 'update-fine-status', schema_name: schemaName, loan_id: loanId, penalty_status: penaltyStatus }
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error?.message || 'Error al actualizar el estado de la multa');
+    return data.data;
+  }, []);
+
+  return { listCarts, createCart, updateCart, deleteCart, listLoans, checkout, checkin, finesSummary, updateFineStatus };
 }

@@ -286,6 +286,24 @@ export default async function(req: Request): Promise<Response> {
         return json({ success: true, data: summary, error: null }, 200);
       }
 
+      case 'update-fine-status': {
+        if (!isAdmin) return forbidden();
+        const loanId = body.loan_id as string;
+        const status = String(body.penalty_status || '').trim().toUpperCase();
+        if (!loanId) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'loan_id es requerido' } }, 400);
+        if (!['PENDIENTE', 'COBRADA', 'EXONERADA'].includes(status)) {
+          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Estado de multa no válido' } }, 400);
+        }
+        const { data: loan } = await db.from('cart_loans').select('id, penalty_amount, penalty_status').eq('id', loanId).single();
+        if (!loan) return json({ success: false, data: null, error: { code: 'NOT_FOUND', message: 'Préstamo no encontrado' } }, 404);
+        if (Number(loan.penalty_amount) <= 0) {
+          return json({ success: false, data: null, error: { code: 'BAD_STATE', message: 'Este préstamo no tiene multa que gestionar' } }, 409);
+        }
+        const { data, error } = await db.from('cart_loans').update({ penalty_status: status }).eq('id', loanId).select().single();
+        if (error) throw error;
+        return json({ success: true, data: data, error: null }, 200);
+      }
+
       default:
         return json({ success: false, data: null, error: { code: 'METHOD_NOT_ALLOWED', message: 'Acción desconocida' } }, 405);
     }
