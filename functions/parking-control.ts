@@ -35,7 +35,8 @@ export default async function(req: Request): Promise<Response> {
 
     const db = client.database.schema(schemaName);
     const isAdmin = await isAdminForSchema(req, client, schemaName);
-    const isOperator = isAdmin || await isSecurityForSchema(req, client, schemaName);
+    const isSecurity = await isSecurityForSchema(req, client, schemaName);
+    const isOperator = isAdmin || isSecurity;
     const uid = await currentUserId(req, client);
     const myDepartmentId = uid ? await departmentOfUser(db, uid) : null;
 
@@ -163,7 +164,7 @@ export default async function(req: Request): Promise<Response> {
       // ---------- VEHICLES ----------
       case 'list-vehicles': {
         let q = db.from('vehicles').select('*');
-        if (isOperator) {
+        if (isAdmin) {
           if (body.department_id) q = q.eq('department_id', body.department_id);
         } else {
           if (!myDepartmentId) return json({ success: true, data: [], error: null }, 200);
@@ -181,9 +182,13 @@ export default async function(req: Request): Promise<Response> {
           return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'license_plate es requerido' } }, 400);
         }
         let departmentId = body.department_id as string;
-        if (!isOperator) {
-          if (!myDepartmentId) return forbidden();
-          departmentId = myDepartmentId;
+        if (!isAdmin) {
+          if (!isSecurity && myDepartmentId) {
+            // resident registers for their own department only
+            departmentId = myDepartmentId;
+          } else {
+            return forbidden();
+          }
         }
         if (!departmentId) {
           return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'department_id es requerido' } }, 400);
@@ -211,7 +216,7 @@ export default async function(req: Request): Promise<Response> {
         if (!id) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'id es requerido' } }, 400);
         const { data: current } = await db.from('vehicles').select('department_id').eq('id', id).single();
         if (!current) return json({ success: false, data: null, error: { code: 'NOT_FOUND', message: 'Vehículo no encontrado' } }, 404);
-        if (!isOperator && current.department_id !== myDepartmentId) return forbidden();
+        if (!isAdmin && (current.department_id !== myDepartmentId || isSecurity)) return forbidden();
 
         const updates: Record<string, unknown> = {};
         if (body.license_plate !== undefined) updates.license_plate = String(body.license_plate).trim().toUpperCase();
@@ -231,7 +236,7 @@ export default async function(req: Request): Promise<Response> {
         if (!id) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'id es requerido' } }, 400);
         const { data: current } = await db.from('vehicles').select('department_id').eq('id', id).single();
         if (!current) return json({ success: false, data: null, error: { code: 'NOT_FOUND', message: 'Vehículo no encontrado' } }, 404);
-        if (!isOperator && current.department_id !== myDepartmentId) return forbidden();
+        if (!isAdmin && (current.department_id !== myDepartmentId || isSecurity)) return forbidden();
         const { error } = await db.from('vehicles').delete().eq('id', id);
         if (error) throw error;
         return json({ success: true, data: null, error: null }, 200);
@@ -240,7 +245,7 @@ export default async function(req: Request): Promise<Response> {
       // ---------- LOANS (owner lends parking spot) ----------
       case 'list-loans': {
         let q = db.from('parking_loans').select('*');
-        if (isOperator) {
+        if (isAdmin) {
           if (body.spot_id) q = q.eq('spot_id', body.spot_id);
           if (body.lender_department_id) q = q.eq('lender_department_id', body.lender_department_id);
         } else {
