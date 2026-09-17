@@ -27,6 +27,7 @@ const ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN: 'Super Admin',
   ADMIN: 'Administrador',
   SECURITY_AGENT: 'Agente de Seguridad',
+  SUPERVISOR: 'Supervisor',
   RESIDENT: 'Residente',
   VISITOR: 'Visitante'
 };

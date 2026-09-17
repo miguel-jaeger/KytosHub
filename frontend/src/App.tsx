@@ -59,6 +59,7 @@ function Dashboard() {
   const canManageUsers = role === 'super' || role === 'admin';
   const canManageCondo = role === 'admin';
   const isSecurity = role === 'security';
+  const isGaritaOperator = role === 'super' || role === 'admin' || role === 'security';
 
   const openMyCondominium = async () => {
     if (!user) return;
@@ -112,7 +113,7 @@ function Dashboard() {
               <p>Ver, registrar y gestionar condominios</p>
             </Link>
           )}
-          {isSecurity && (
+          {isGaritaOperator && (
             <Link to="/garita" className="action-card">
               <span className="material-symbols-outlined">shield</span>
               <h3>Panel de Garita</h3>
@@ -125,13 +126,6 @@ function Dashboard() {
               <h3>Mi Condominio</h3>
               <p>Estructura, puertas, módulos activos, carritos y estacionamiento</p>
             </button>
-          )}
-          {canManageCondo && (
-            <Link to="/garita" className="action-card">
-              <span className="material-symbols-outlined">shield</span>
-              <h3>Panel de Garita</h3>
-              <p>Préstamo de carritos y control de estacionamiento</p>
-            </Link>
           )}
           {canManageUsers && (
             <Link to="/admin/users" className="action-card">

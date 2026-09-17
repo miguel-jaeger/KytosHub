@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import { useParking } from '../hooks/useParking';
-import type { ParkingLoan, ParkingSpot, RentalDurationUnit, Vehicle, VehicleType } from '../types';
+import type { Department, Floor, ParkingLoan, ParkingSpot, RentalDurationUnit, Vehicle, VehicleType } from '../types';
 
-interface DepartmentOption {
+interface TowerOption {
   id: string;
-  department_number: string;
-  tower_code: string;
+  code: string;
+  name: string;
 }
 
 const LOAN_STATUS_LABELS: Record<string, string> = {
@@ -35,7 +35,7 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
   const [spots, setSpots] = useState<ParkingSpot[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loans, setLoans] = useState<ParkingLoan[]>([]);
-  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [towers, setTowers] = useState<TowerOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -44,15 +44,23 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
   const [showVehicleForm, setShowVehicleForm] = useState(false);
   const [loanForm, setLoanForm] = useState({
     spot_id: '',
-    borrower_department_id: '',
-    borrower_vehicle_plate: '',
     occupant_name: '',
     occupant_document_type: 'DNI',
     occupant_document_number: '',
+    borrower_vehicle_plate: '',
+    borrower_vehicle_type: 'AUTO' as VehicleType,
+    borrower_department_id: '',
     duration_unit: '',
     start_time: toLocalInput(''),
     end_time: toLocalInput(new Date(Date.now() + 24 * 3600 * 1000).toISOString())
   });
+  const [loanTowerId, setLoanTowerId] = useState('');
+  const [loanFloorId, setLoanFloorId] = useState('');
+  const [loanTowerDeptId, setLoanTowerDeptId] = useState('');
+  const [loanFloors, setLoanFloors] = useState<Floor[]>([]);
+  const [loanDepts, setLoanDepts] = useState<Department[]>([]);
+  const [loadingLoanStep, setLoadingLoanStep] = useState<string | null>(null);
+  const [useDepartment, setUseDepartment] = useState(false);
   const [showLoanForm, setShowLoanForm] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -78,27 +86,51 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
 
   useEffect(() => { void load(); }, [load]);
 
-  const loadDepartments = useCallback(async () => {
+  const loadTowers = useCallback(async () => {
     if (!schemaName) return;
     try {
-      const { data } = await invokeFunction<{ success: boolean; data: Array<{ id: string; department_number: string; tower_id: string }> | null }>('departments', {
+      const { data } = await invokeFunction<{ success: boolean; data: Array<{ id: string; code: string; name?: string }> | null }>('towers', {
         method: 'POST',
         body: { action: 'list', schema_name: schemaName }
       });
-      const { data: towers } = await invokeFunction<{ success: boolean; data: Array<{ id: string; code: string }> | null }>('towers', {
-        method: 'POST',
-        body: { action: 'list', schema_name: schemaName }
-      });
-      const towerMap = new Map((towers?.data || []).map((t: { id: string; code: string }) => [t.id, t.code]));
-      setDepartments((data?.data || []).map((d: { id: string; department_number: string; tower_id: string }) => ({
-        id: d.id,
-        department_number: d.department_number,
-        tower_code: towerMap.get(d.tower_id) || ''
-      })).sort((a, b) => a.tower_code.localeCompare(b.tower_code) || a.department_number.localeCompare(b.department_number)));
+      setTowers((data?.data || []).map((t: { id: string; code: string; name?: string }) => ({ id: t.id, code: t.code, name: t.name || t.code })));
     } catch {}
   }, [schemaName]);
 
-  useEffect(() => { void loadDepartments(); }, [loadDepartments]);
+  useEffect(() => { void loadTowers(); }, [loadTowers]);
+
+  const loadLoanFloors = async (towerId: string) => {
+    if (!schemaName) return;
+    setLoadingLoanStep('pisos');
+    setLoanFloors([]);
+    setLoanFloorId('');
+    setLoanTowerDeptId('');
+    try {
+      const { data } = await invokeFunction<{ success: boolean; data: Floor[] | null }>('floors', {
+        method: 'POST',
+        body: { action: 'list', schema_name: schemaName, tower_id: towerId }
+      });
+      setLoanFloors((data?.data || []).sort((a, b) => a.floor_number - b.floor_number));
+    } finally {
+      setLoadingLoanStep(null);
+    }
+  };
+
+  const loadLoanDepts = async (floorId: string) => {
+    if (!schemaName) return;
+    setLoadingLoanStep('departamentos');
+    setLoanDepts([]);
+    setLoanTowerDeptId('');
+    try {
+      const { data } = await invokeFunction<{ success: boolean; data: Department[] | null }>('departments', {
+        method: 'POST',
+        body: { action: 'list', schema_name: schemaName, tower_id: loanTowerId, floor_id: floorId }
+      });
+      setLoanDepts((data?.data || []).sort((a, b) => a.department_number.localeCompare(b.department_number)));
+    } finally {
+      setLoadingLoanStep(null);
+    }
+  };
 
   const handleVehicleSave = async () => {
     if (!schemaName || !vehicleForm.license_plate.trim()) { alert('Indica la placa'); return; }
@@ -125,18 +157,23 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
   const handleLoanSave = async () => {
     if (!schemaName) return;
     if (!loanForm.spot_id) { alert('Selecciona la bahía a prestar'); return; }
-    if (!loanForm.borrower_department_id && !loanForm.borrower_vehicle_plate.trim()) {
-      alert('Indica el departamento o la placa del vehículo que usará la bahía'); return;
+    if (!loanForm.occupant_name.trim() || !loanForm.occupant_document_number.trim()) {
+      alert('Registra los datos de la persona a la que se prestará (nombre y documento)'); return;
     }
+    if (!loanForm.borrower_vehicle_plate.trim()) {
+      alert('Indica la placa del vehículo que usará la bahía'); return;
+    }
+    const effectiveDept = useDepartment ? loanTowerDeptId : loanForm.borrower_department_id;
     setSaving(true);
     try {
       await createLoan(schemaName, {
         spot_id: loanForm.spot_id,
-        borrower_department_id: loanForm.borrower_department_id || undefined,
-        borrower_vehicle_plate: loanForm.borrower_vehicle_plate.trim().toUpperCase() || undefined,
-        occupant_name: loanForm.occupant_name.trim() || undefined,
-        occupant_document_type: loanForm.occupant_document_type || undefined,
-        occupant_document_number: loanForm.occupant_document_number.trim() || undefined,
+        occupant_name: loanForm.occupant_name.trim(),
+        occupant_document_type: loanForm.occupant_document_type,
+        occupant_document_number: loanForm.occupant_document_number.trim(),
+        borrower_vehicle_plate: loanForm.borrower_vehicle_plate.trim().toUpperCase(),
+        borrower_vehicle_type: loanForm.borrower_vehicle_type,
+        borrower_department_id: effectiveDept || undefined,
         duration_unit: (loanForm.duration_unit || undefined) as RentalDurationUnit | undefined,
         start_time: new Date(loanForm.start_time).toISOString(),
         end_time: new Date(loanForm.end_time).toISOString()
@@ -276,22 +313,13 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
                 {lendableSpots.map(s => <option key={s.id} value={s.id}>Bahía {s.spot_number}</option>)}
               </select>
             </div>
-            <div className="form-group">
-              <label>Departamento que recibirá la bahía</label>
-              <select value={loanForm.borrower_department_id} onChange={e => setLoanForm({ ...loanForm, borrower_department_id: e.target.value })}>
-                <option value="">— Seleccionar (o usa la placa) —</option>
-                {departments.map(d => <option key={d.id} value={d.id}>Dpto {d.department_number} (T{d.tower_code})</option>)}
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Placa del vehículo que la usará (opcional)</label>
-              <input type="text" value={loanForm.borrower_vehicle_plate} onChange={e => setLoanForm({ ...loanForm, borrower_vehicle_plate: e.target.value })} placeholder="ABC-123" />
-            </div>
-            <div className="form-group">
-              <label>Persona que ocupará la bahía (si no eres tú)</label>
-              <input type="text" value={loanForm.occupant_name} onChange={e => setLoanForm({ ...loanForm, occupant_name: e.target.value })} placeholder="Nombre y apellido" />
-            </div>
+
+            <h4>Datos de la persona que recibirá la bahía</h4>
             <div className="form-row">
+              <div className="form-group">
+                <label>Nombre completo</label>
+                <input type="text" value={loanForm.occupant_name} onChange={e => setLoanForm({ ...loanForm, occupant_name: e.target.value })} placeholder="Nombre y apellido" />
+              </div>
               <div className="form-group">
                 <label>Tipo de documento</label>
                 <select value={loanForm.occupant_document_type} onChange={e => setLoanForm({ ...loanForm, occupant_document_type: e.target.value })}>
@@ -300,11 +328,81 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
                   <option value="PASAPORTE">Pasaporte</option>
                 </select>
               </div>
+            </div>
+            <div className="form-group">
+              <label>Número de documento</label>
+              <input type="text" value={loanForm.occupant_document_number} onChange={e => setLoanForm({ ...loanForm, occupant_document_number: e.target.value })} placeholder="12345678" />
+            </div>
+
+            <h4>Datos del vehículo</h4>
+            <div className="form-row">
               <div className="form-group">
-                <label>Número de documento</label>
-                <input type="text" value={loanForm.occupant_document_number} onChange={e => setLoanForm({ ...loanForm, occupant_document_number: e.target.value })} placeholder="12345678" />
+                <label>Placa</label>
+                <input type="text" value={loanForm.borrower_vehicle_plate} onChange={e => setLoanForm({ ...loanForm, borrower_vehicle_plate: e.target.value })} placeholder="ABC-123" />
+              </div>
+              <div className="form-group">
+                <label>Tipo de vehículo</label>
+                <select value={loanForm.borrower_vehicle_type} onChange={e => setLoanForm({ ...loanForm, borrower_vehicle_type: e.target.value as VehicleType })}>
+                  <option value="AUTO">Auto</option>
+                  <option value="MOTO">Moto</option>
+                </select>
               </div>
             </div>
+
+            <label className="checkbox-row">
+              <input type="checkbox" checked={useDepartment} onChange={e => { setUseDepartment(e.target.checked); if (!e.target.checked) { setLoanForm(f => ({ ...f, borrower_department_id: '' })); } }} />
+              <span>Vincular a un departamento del condominio (opcional)</span>
+            </label>
+
+            {useDepartment && (
+              <div className="loan-department-picker">
+                <div className="checkout-field">
+                  <label>1. Torre</label>
+                  <select value={loanTowerId} onChange={e => { setLoanTowerId(e.target.value); setLoanFloorId(''); setLoanTowerDeptId(''); void loadLoanFloors(e.target.value); }}>
+                    <option value="">— Seleccionar torre —</option>
+                    {towers.map(t => <option key={t.id} value={t.id}>Torre {t.code} - {t.name}</option>)}
+                  </select>
+                </div>
+                {loanTowerId !== '' && (
+                  <div className="checkout-field">
+                    <label>2. Piso</label>
+                    {loadingLoanStep === 'pisos' ? (
+                      <span className="text-muted">Cargando pisos...</span>
+                    ) : loanFloors.length === 0 ? (
+                      <span className="text-muted">Esa torre no tiene pisos.</span>
+                    ) : (
+                      <div className="checkout-chip-grid">
+                        {loanFloors.map(f => (
+                          <button key={f.id} type="button" className={`checkout-chip ${loanFloorId === f.id ? 'active' : ''}`} onClick={() => { setLoanFloorId(f.id); setLoanTowerDeptId(''); void loadLoanDepts(f.id); }}>
+                            {f.floor_number}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {loanTowerId !== '' && loanFloorId !== '' && (
+                  <div className="checkout-field">
+                    <label>3. Departamento</label>
+                    {loadingLoanStep === 'departamentos' ? (
+                      <span className="text-muted">Cargando departamentos...</span>
+                    ) : loanDepts.length === 0 ? (
+                      <span className="text-muted">Ese piso no tiene departamentos.</span>
+                    ) : (
+                      <div className="checkout-chip-grid">
+                        {loanDepts.map(d => (
+                          <button key={d.id} type="button" className={`checkout-chip ${loanTowerDeptId === d.id ? 'active' : ''}`} onClick={() => setLoanTowerDeptId(d.id)}>
+                            {d.department_number}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <h4>Duración del préstamo</h4>
             <div className="form-group">
               <label>Registrar duración como</label>
               <select value={loanForm.duration_unit} onChange={e => setLoanForm({ ...loanForm, duration_unit: e.target.value })}>
@@ -343,7 +441,7 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
                 <tr key={l.id}>
                   <td>{l.spot_number || '-'}</td>
                   <td>{l.occupant_name || (l.borrower_department ? `Dpto ${l.borrower_department.department_number} (T${l.borrower_department.tower_code || '-'})` : (l.borrower_vehicle_plate ? 'Visitante' : '-'))}</td>
-                  <td>{l.borrower_vehicle_plate || '-'}</td>
+                  <td>{(l.borrower_vehicle_type === 'MOTO' ? 'Moto' : l.borrower_vehicle_type === 'AUTO' ? 'Auto' : '')}{l.borrower_vehicle_plate ? ` · ${l.borrower_vehicle_plate}` : '-'}</td>
                   <td>{fmtDT(l.start_time)}</td>
                   <td>{fmtDT(l.end_time)}</td>
                   <td>{l.duration_unit ? l.duration_unit.toLowerCase() : '-'}</td>

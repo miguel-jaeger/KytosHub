@@ -8,6 +8,7 @@ export const ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN: 'Super Admin',
   ADMIN: 'Administrador',
   SECURITY_AGENT: 'Agente de Seguridad',
+  SUPERVISOR: 'Supervisor',
   RESIDENT: 'Residente',
   VISITOR: 'Visitante'
 };
@@ -31,7 +32,7 @@ export function useUserRole(): UserRole {
       if (data?.success && data.data) {
         const active = data.data.filter(x => x.status === 'ACTIVE');
         const isManager = active.some(x => x.role === 'SUPER_ADMIN' || x.role === 'ADMIN');
-        const isSecurity = active.some(x => x.role === 'SECURITY_AGENT');
+        const isSecurity = active.some(x => x.role === 'SECURITY_AGENT' || x.role === 'SUPERVISOR');
         setRole(isManager ? 'admin' : isSecurity ? 'security' : 'resident');
       } else {
         setRole('resident');

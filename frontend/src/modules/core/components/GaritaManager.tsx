@@ -7,6 +7,7 @@ import { PaginationBar, paginate } from '../../../components/Pagination';
 import { CartCheckoutForm } from './CartCheckoutForm';
 import { GuardGateBar } from './GuardGateBar';
 import { ParkingGaritaPanel } from './ParkingGaritaPanel';
+import { ParkingLogsTab } from './ParkingLogsTab';
 import type { Cart, CartLoan, CartLendingConfig, Gate, GuardGateSession, Tower } from '../types';
 
 function fmtDuration(totalSeconds: number): string {
@@ -62,7 +63,7 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
   const [modulesReady, setModulesReady] = useState(false);
   const [cartEnabled, setCartEnabled] = useState(false);
   const [parkingEnabled, setParkingEnabled] = useState(false);
-  const [activeTab, setActiveTab] = useState<'carts' | 'parking'>('carts');
+  const [activeTab, setActiveTab] = useState<'carts' | 'parking' | 'logs'>('carts');
   const [carts, setCarts] = useState<Cart[]>([]);
   const [loans, setLoans] = useState<CartLoan[]>([]);
   const [config, setConfig] = useState<CartLendingConfig | null>(null);
@@ -131,11 +132,12 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
     return () => { cancelled = true; };
   }, [schemaName, loadCarts, loadLoans, listGates, listModules]);
 
-  // Auto-select the first available module when the active one is disabled
+  // Auto-select the first available view when the active one is disabled
   useEffect(() => {
     if (!modulesReady) return;
     if (activeTab === 'carts' && !cartEnabled) setActiveTab(parkingEnabled ? 'parking' : 'carts');
     if (activeTab === 'parking' && !parkingEnabled) setActiveTab(cartEnabled ? 'carts' : 'parking');
+    if (activeTab === 'logs' && !parkingEnabled) setActiveTab(cartEnabled ? 'carts' : 'parking');
   }, [modulesReady, activeTab, cartEnabled, parkingEnabled]);
 
   const refreshAll = async () => {
@@ -211,6 +213,11 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
           {parkingEnabled && (
             <button className={activeTab === 'parking' ? 'active' : ''} onClick={() => setActiveTab('parking')}>
               <span className="material-symbols-outlined">local_parking</span> Estacionamiento
+            </button>
+          )}
+          {parkingEnabled && (
+            <button className={activeTab === 'logs' ? 'active' : ''} onClick={() => setActiveTab('logs')}>
+              <span className="material-symbols-outlined">history</span> Registros de acceso
             </button>
           )}
         </div>
@@ -348,6 +355,10 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
 
       {parkingEnabled && activeTab === 'parking' && (
         <ParkingGaritaPanel schemaName={schemaName} guardGate={guardSession} />
+      )}
+
+      {parkingEnabled && activeTab === 'logs' && (
+        <ParkingLogsTab schemaName={schemaName} />
       )}
     </div>
   );

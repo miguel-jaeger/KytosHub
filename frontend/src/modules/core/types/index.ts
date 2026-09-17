@@ -222,6 +222,7 @@ export interface ParkingLoan {
   lender_department_id: string;
   borrower_department_id: string | null;
   borrower_vehicle_plate: string | null;
+  borrower_vehicle_type: VehicleType | null;
   occupant_name: string | null;
   occupant_document_type: string | null;
   occupant_document_number: string | null;

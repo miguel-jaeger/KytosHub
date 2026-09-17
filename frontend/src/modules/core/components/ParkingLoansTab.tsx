@@ -90,7 +90,7 @@ export function ParkingLoansTab({ schemaName }: { schemaName?: string }) {
                 <tr key={l.id}>
                   <td>{l.spot_number || '-'} ({l.spot_type || ''})</td>
                   <td>{l.occupant_name || (l.lender_department ? `Dpto ${l.lender_department.department_number} (T${l.lender_department.tower_code || '-'})` : '-')}</td>
-                  <td>{l.borrower_vehicle_plate || '-'}</td>
+                  <td>{(l.borrower_vehicle_type === 'MOTO' ? 'Moto' : l.borrower_vehicle_type === 'AUTO' ? 'Auto' : '')}{l.borrower_vehicle_plate ? ` · ${l.borrower_vehicle_plate}` : '-'}</td>
                   <td>{fmtDateTime(l.start_time)}</td>
                   <td>{fmtDateTime(l.end_time)}</td>
                   <td>{l.duration_unit ? l.duration_unit.toLowerCase() : '-'}</td>
