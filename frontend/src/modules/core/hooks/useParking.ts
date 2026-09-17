@@ -172,7 +172,7 @@ export function useParking() {
     return data.data;
   }, []);
 
-  const listLogs = useCallback(async (schemaName: string, opts: { inside_only?: boolean; limit?: number } = {}): Promise<ParkingAccessLog[]> => {
+  const listLogs = useCallback(async (schemaName: string, opts: { inside_only?: boolean; limit?: number; license_plate?: string; driver_name?: string; from_date?: string; to_date?: string } = {}): Promise<ParkingAccessLog[]> => {
     const { data, error } = await invokeFunction<{ success: boolean; data: ParkingAccessLog[] | null; error: { message: string } | null }>('parking-control', {
       method: 'POST',
       body: { action: 'list-logs', schema_name: schemaName, ...opts }

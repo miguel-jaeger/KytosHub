@@ -555,7 +555,20 @@ export default async function(req: Request): Promise<Response> {
         if (!isOperator) return forbidden();
         let q = db.from('parking_access_logs').select('*');
         if (body.inside_only === true) q = q.is('exit_time', null);
-        const { data, error } = await q.order('entry_time', { ascending: false }).limit(Number(body.limit) || 100);
+
+        const plateFilter = body.license_plate ? String(body.license_plate).trim().toUpperCase() : null;
+        if (plateFilter) q = q.ilike('license_plate', `%${plateFilter}%`);
+
+        const driverFilter = body.driver_name ? String(body.driver_name).trim() : null;
+        if (driverFilter) q = q.ilike('driver_name', `%${driverFilter}%`);
+
+        const fromDate = body.from_date ? String(body.from_date).replace(/T.*$/, '') + 'T00:00:00' : null;
+        if (fromDate) q = q.gte('entry_time', fromDate);
+
+        const toDateRaw = body.to_date ? String(body.to_date).replace(/T.*$/, '') : null;
+        if (toDateRaw) q = q.lte('entry_time', toDateRaw + 'T23:59:59.999');
+
+        const { data, error } = await q.order('entry_time', { ascending: false }).limit(Number(body.limit) || 500);
         if (error) throw error;
         const enriched = await enrichLogs(db, data || [], client, schemaName);
         return json({ success: true, data: enriched, error: null }, 200);

@@ -21,25 +21,47 @@ export function ParkingLogsTab({ schemaName }: { schemaName?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [insideOnly, setInsideOnly] = useState(false);
 
+  const [plateFilter, setPlateFilter] = useState('');
+  const [driverFilter, setDriverFilter] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState<number | 'all'>(10);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (filters?: { license_plate?: string; driver_name?: string; from_date?: string; to_date?: string }) => {
     if (!schemaName) { setLoading(false); return; }
     setLoading(true);
     setError(null);
     try {
-      const rows = await listLogs(schemaName, { inside_only: insideOnly, limit: 300 });
+      const opts = {
+        inside_only: insideOnly,
+        license_plate: plateFilter.trim() || undefined,
+        driver_name: driverFilter.trim() || undefined,
+        from_date: fromDate || undefined,
+        to_date: toDate || undefined,
+        ...filters
+      };
+      const rows = await listLogs(schemaName, { ...opts, limit: 500 });
       setLogs(rows);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar registros de acceso');
     } finally {
       setLoading(false);
     }
-  }, [schemaName, listLogs, insideOnly]);
+  }, [schemaName, listLogs, insideOnly, plateFilter, driverFilter, fromDate, toDate]);
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { setPage(1); }, [logs.length]);
+
+  const applyFilters = () => { setPage(1); void load(); };
+  const clearFilters = () => {
+    setPlateFilter('');
+    setDriverFilter('');
+    setFromDate('');
+    setToDate('');
+    setPage(1);
+  };
 
   if (loading) return <div className="loading-message">Cargando accesos...</div>;
 
@@ -58,10 +80,35 @@ export function ParkingLogsTab({ schemaName }: { schemaName?: string }) {
         </label>
       </div>
 
+      <div className="condo-search-panel">
+        <div className="form-row">
+          <div className="form-group">
+            <label>Placa</label>
+            <input type="text" value={plateFilter} onChange={e => setPlateFilter(e.target.value)} placeholder="ABC o 123" onKeyDown={e => { if (e.key === 'Enter') applyFilters(); }} />
+          </div>
+          <div className="form-group">
+            <label>Conductor</label>
+            <input type="text" value={driverFilter} onChange={e => setDriverFilter(e.target.value)} placeholder="Nombre" onKeyDown={e => { if (e.key === 'Enter') applyFilters(); }} />
+          </div>
+          <div className="form-group">
+            <label>Desde</label>
+            <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label>Hasta</label>
+            <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} />
+          </div>
+        </div>
+        <div className="form-actions">
+          <button className="btn-primary" onClick={applyFilters}>Filtrar</button>
+          <button className="btn-cancel" onClick={clearFilters}>Limpiar</button>
+        </div>
+      </div>
+
       {error && <div className="error-message">{error}</div>}
 
       {logs.length === 0 ? (
-        <div className="empty-state"><p>{insideOnly ? 'No hay vehículos dentro del estacionamiento.' : 'Aún no hay registros de acceso.'}</p></div>
+        <div className="empty-state"><p>{insideOnly ? 'No hay vehículos dentro del estacionamiento.' : 'Aún no hay registros de acceso con esos filtros.'}</p></div>
       ) : (
         <table className="residents-table residents-desktop cart-scroll-table">
           <thead>
