@@ -4,7 +4,7 @@ import { useParking } from '../hooks/useParking';
 import { PaginationBar, paginate } from '../../../components/Pagination';
 import type { Department, Floor, Tower, Vehicle, VehicleType } from '../types';
 
-const emptyVehicleForm = { license_plate: '', vehicle_type: 'AUTO' as VehicleType, brand: '', model: '', color: '' };
+const emptyVehicleForm = { license_plate: '', vehicle_type: 'AUTO' as VehicleType, driver_name: '', brand: '', model: '', color: '' };
 const VEHICLE_TYPE_LABELS: Record<VehicleType, string> = { AUTO: 'Auto', MOTO: 'Moto' };
 
 export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
@@ -119,6 +119,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
       const payload = {
         license_plate: vehicleForm.license_plate.trim().toUpperCase(),
         vehicle_type: vehicleForm.vehicle_type,
+        driver_name: vehicleForm.driver_name.trim() || null,
         brand: vehicleForm.brand.trim() || null,
         model: vehicleForm.model.trim() || null,
         color: vehicleForm.color.trim() || null
@@ -148,7 +149,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
 
   const startVehicleEdit = (v: Vehicle) => {
     setEditingVehicle(v);
-    setVehicleForm({ license_plate: v.license_plate, vehicle_type: v.vehicle_type || 'AUTO', brand: v.brand || '', model: v.model || '', color: v.color || '' });
+    setVehicleForm({ license_plate: v.license_plate, vehicle_type: v.vehicle_type || 'AUTO', driver_name: v.driver_name || '', brand: v.brand || '', model: v.model || '', color: v.color || '' });
     setShowVehicleForm(true);
   };
 
@@ -285,6 +286,14 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
           </div>
           <div className="form-row">
             <div className="form-group">
+              <label>Conductor (dueño o responsable)</label>
+              <input type="text" value={vehicleForm.driver_name} onChange={e => setVehicleForm({ ...vehicleForm, driver_name: e.target.value })} placeholder="Nombre de quien conduce normalmente" />
+              <small className="text-muted">Se mostrará automáticamente en el registro de ingreso en garita.</small>
+            </div>
+            <div className="form-group"></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
               <label>Marca</label>
               <input type="text" value={vehicleForm.brand} onChange={e => setVehicleForm({ ...vehicleForm, brand: e.target.value })} placeholder="Toyota" />
             </div>
@@ -315,6 +324,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
             <tr>
               <th>Placa</th>
               <th>Vehículo</th>
+              <th>Conductor</th>
               <th>Color</th>
               <th>Departamento</th>
               <th>Estado</th>
@@ -326,6 +336,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
               <tr key={v.id}>
                 <td><strong>{v.license_plate}</strong></td>
                 <td>{VEHICLE_TYPE_LABELS[v.vehicle_type] || v.vehicle_type} · {[v.brand, v.model].filter(Boolean).join(' ') || '-'}</td>
+                <td>{v.driver_name || <span className="text-muted">Sin conductor</span>}</td>
                 <td>{v.color || '-'}</td>
                 <td>{v.departments ? `${v.departments.department_number} (T${v.departments.towers?.code || '-'})` : '-'}</td>
                 <td><span className={`status-badge ${v.is_active ? 'status-occupied' : 'status-vacant'}`}>{v.is_active ? 'Activo' : 'Inactivo'}</span></td>

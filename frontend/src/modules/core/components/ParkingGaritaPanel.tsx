@@ -20,7 +20,7 @@ function fmtDateTime(iso: string | null): string {
 const VEHICLE_TYPE_LABELS: Record<VehicleType, string> = { AUTO: 'Auto', MOTO: 'Moto' };
 
 export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
-  const { listSpots, getLayout, plateStatus, registerEntry, registerExit, ocrPlate } = useParking();
+  const { listSpots, getLayout, plateStatus, registerEntry, registerExit, ocrPlate, ocrConfigured } = useParking();
   const [spots, setSpots] = useState<ParkingSpot[]>([]);
   const [layout, setLayout] = useState<ParkingLayout | null>(null);
   const [plate, setPlate] = useState('');
@@ -30,6 +30,7 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
   const [spotOverride, setSpotOverride] = useState('');
   const [loading, setLoading] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrReady, setOcrReady] = useState(false);
   const [busy, setBusy] = useState<'enter' | 'exit' | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +46,13 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
   }, [schemaName, listSpots, getLayout]);
 
   useEffect(() => { void loadMap(); }, [loadMap]);
+
+  // Hide the scan button until the OCR module (Google Vision key) is configured
+  useEffect(() => {
+    let cancelled = false;
+    ocrConfigured().then(ok => { if (!cancelled) setOcrReady(ok); }).catch(() => { if (!cancelled) setOcrReady(false); });
+    return () => { cancelled = true; };
+  }, [ocrConfigured]);
 
   const normalizePlate = (v: string) => v.trim().toUpperCase().replace(/\s+/g, '');
 
@@ -157,16 +165,12 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
       {message && <div className="success-message" onClick={() => setMessage(null)}>{message} — clic para cerrar</div>}
       {error && <div className="error-message" onClick={() => setError(null)}>{error} — clic para cerrar</div>}
 
-      <div className="parking-map-wrap">
-        <ParkingMap spots={spots} layout={layout} showLegend />
-      </div>
-
       <div className="parking-search">
-        <div className="search-bar">
+        <div className="search-bar parking-plate-search">
           <span className="material-symbols-outlined search-icon">directions_car</span>
           <input
             type="text"
-            placeholder="Ingresar placa manualmente (ej: ABC-123) o escanear"
+            placeholder="Ingresar placa manualmente (ej: ABC-123)"
             value={plate}
             onChange={e => setPlate(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') void consult(); }}
@@ -174,15 +178,17 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
           <button className="btn-primary" onClick={() => void consult()} disabled={loading || ocrLoading}>
             {loading ? 'Consultando...' : 'Consultar'}
           </button>
-          <button
-            className="btn-edit"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={ocrLoading}
-            title="Escanear matrícula con cámara/imagen"
-          >
-            <span className="material-symbols-outlined">{ocrLoading ? 'hourglass_top' : 'document_scanner'}</span>
-            {ocrLoading ? 'Leyendo...' : 'Escanear'}
-          </button>
+          {ocrReady && (
+            <button
+              className="btn-edit"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={ocrLoading}
+              title="Escanear matrícula con cámara/imagen"
+            >
+              <span className="material-symbols-outlined">{ocrLoading ? 'hourglass_top' : 'document_scanner'}</span>
+              {ocrLoading ? 'Leyendo...' : 'Escanear'}
+            </button>
+          )}
           <input
             ref={fileInputRef}
             type="file"
@@ -192,6 +198,10 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
             onChange={e => void handleScan(e.target.files?.[0] || null)}
           />
         </div>
+      </div>
+
+      <div className="parking-map-wrap">
+        <ParkingMap spots={spots} layout={layout} showLegend />
       </div>
 
       {status && (

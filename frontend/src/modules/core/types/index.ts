@@ -202,6 +202,7 @@ export interface Vehicle {
   department_id: string;
   license_plate: string;
   vehicle_type: VehicleType;
+  driver_name: string | null;
   brand: string | null;
   model: string | null;
   color: string | null;
@@ -259,6 +260,7 @@ export interface ParkingAccessLog {
 export interface PlateStatus {
   license_plate: string;
   vehicle: Vehicle | null;
+  driver_name: string | null;
   inside: boolean;
   current_log: ParkingAccessLog | null;
   inside_spot: { id: string; spot_number: string; type: string } | null;

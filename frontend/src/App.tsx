@@ -7,7 +7,6 @@ import { Sidebar } from './components/Sidebar';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { GaritaPage } from './pages/GaritaPage';
-import { ParkingPage } from './pages/ParkingPage';
 import { SetupWizard } from './modules/core/components/SetupWizard';
 import { SuperAdminDashboard } from './modules/core/components/SuperAdminDashboard';
 import { CondominioAdminDashboard } from './modules/core/components/CondominioAdminDashboard';
@@ -41,7 +40,6 @@ function AppShell() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/garita" element={<GaritaPage />} />
-          <Route path="/parking" element={<ParkingPage />} />
           <Route path="/admin/condominiums" element={<SuperAdminDashboard />} />
           <Route path="/admin/users" element={<AdminUsersRoute><CondominioAdminDashboard /></AdminUsersRoute>} />
           <Route path="/setup" element={<SetupWizard />} />
@@ -116,22 +114,22 @@ function Dashboard() {
             <Link to="/garita" className="action-card">
               <span className="material-symbols-outlined">shield</span>
               <h3>Panel de Garita</h3>
-              <p>Registrar préstamos y devoluciones de carritos</p>
-            </Link>
-          )}
-          {canManageCondo && (
-            <Link to="/garita" className="action-card">
-              <span className="material-symbols-outlined">shield</span>
-              <h3>Panel de Garita</h3>
-              <p>Registrar préstamos y devoluciones de carritos</p>
+              <p>Préstamo de carritos y control de estacionamiento</p>
             </Link>
           )}
           {canManageCondo && (
             <button onClick={openMyCondominium} className="action-card action-card-btn">
               <span className="material-symbols-outlined">home_work</span>
               <h3>Mi Condominio</h3>
-              <p>Administrar torres, pisos, departamentos y residentes</p>
+              <p>Estructura, puertas, módulos activos, carritos y estacionamiento</p>
             </button>
+          )}
+          {canManageCondo && (
+            <Link to="/garita" className="action-card">
+              <span className="material-symbols-outlined">shield</span>
+              <h3>Panel de Garita</h3>
+              <p>Préstamo de carritos y control de estacionamiento</p>
+            </Link>
           )}
           {canManageUsers && (
             <Link to="/admin/users" className="action-card">

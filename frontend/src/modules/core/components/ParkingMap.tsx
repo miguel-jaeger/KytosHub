@@ -107,11 +107,11 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend }: Props) {
 
       {showLegend && (
         <div className="plaza-legend">
-          <span className="plaza-legend-item plaza-free">Asignada · libre</span>
-          <span className="plaza-legend-item plaza-unassigned">Sin asignar</span>
-          <span className="plaza-legend-item plaza-occupied">Ocupada</span>
-          <span className="plaza-legend-item plaza-visita">Visita</span>
-          <span className="plaza-legend-item plaza-rented">Alquilada</span>
+          <span className="plaza-legend-item plaza-free"><span className="material-symbols-outlined">check_circle</span>Asignada · libre</span>
+          <span className="plaza-legend-item plaza-unassigned"><span className="material-symbols-outlined">local_parking</span>Sin asignar</span>
+          <span className="plaza-legend-item plaza-occupied"><span className="material-symbols-outlined">directions_car_filled</span>Ocupada</span>
+          <span className="plaza-legend-item plaza-visita"><span className="material-symbols-outlined">handshake</span>Visita</span>
+          <span className="plaza-legend-item plaza-rented"><span className="material-symbols-outlined">key</span>Alquilada</span>
         </div>
       )}
     </div>

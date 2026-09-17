@@ -75,11 +75,6 @@ export function Sidebar() {
           </Link>
         )}
 
-        <Link to="/parking" className={`mobile-nav-link ${location.pathname === '/parking' ? 'active' : ''}`}>
-          <span className="material-symbols-outlined">local_parking</span>
-          {!collapsed && <span className="mobile-nav-label">Estacionamiento</span>}
-        </Link>
-
         {isSuperAdmin && (
           <Link to="/admin/condominiums" className={`mobile-nav-link ${location.pathname === '/admin/condominiums' ? 'active' : ''}`}>
             <span className="material-symbols-outlined">apartment</span>
@@ -142,11 +137,6 @@ export function Sidebar() {
             {!collapsed && <span className="sidebar-label">Garita</span>}
           </Link>
         )}
-
-        <Link to="/parking" className={linkClass('/parking')} title={collapsed ? 'Estacionamiento' : undefined}>
-          <span className="material-symbols-outlined">local_parking</span>
-          {!collapsed && <span className="sidebar-label">Estacionamiento</span>}
-        </Link>
 
         {isSuperAdmin && (
           <Link to="/admin/condominiums" className={linkClass('/admin/condominiums')} title={collapsed ? 'Condominios' : undefined}>

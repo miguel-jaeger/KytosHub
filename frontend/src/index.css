@@ -2536,6 +2536,25 @@ html.dark .guard-gate-change { background: #1e1e1e; border-color: #6a5730; color
 .parking-search .search-bar { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
 .parking-search .search-bar input { flex: 1; padding: 0.7rem 0.75rem 0.7rem 2.9rem; }
 .parking-search .search-bar .search-icon { position: absolute; left: 0.75rem; color: #76777d; font-size: 20px; pointer-events: none; }
+.parking-plate-search {
+  border: 1.5px solid #c6c6cd;
+  border-radius: 10px;
+  padding: 0.4rem;
+  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.parking-plate-search:focus-within {
+  border-color: #006c49;
+  box-shadow: 0 0 0 3px rgba(0, 108, 73, 0.12);
+}
+.parking-plate-search input {
+  border: none;
+  background: transparent;
+  outline: none;
+  box-shadow: none;
+}
+.parking-plate-search .btn-primary { white-space: nowrap; }
+.parking-plate-search .btn-edit { white-space: nowrap; }
 .parking-status {
   background: #f8f9ff;
   border: 1px solid #e5e7eb;
@@ -2563,6 +2582,9 @@ html.dark .parking-status { background: #1e1e1e; border-color: #333; }
 html.dark .parking-status-cell { background: #2a2a2a; border-color: #333; }
 html.dark .parking-status-cell span { color: #e5e7eb; }
 html.dark .parking-search .search-bar input { background: #1e1e1e; color: #e5e7eb; border-color: #444; }
+html.dark .parking-plate-search { background: #1e1e1e; border-color: #444; }
+html.dark .parking-plate-search input { background: transparent; color: #e5e7eb; }
+html.dark .parking-plate-search:focus-within { border-color: #69db7c; box-shadow: 0 0 0 3px rgba(105, 219, 124, 0.15); }
 
 /* ---------- Parking manager (admin / resident) ---------- */
 .parking-spots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(120px, 100%), 1fr)); gap: 0.6rem; margin-bottom: 1rem; }
@@ -2589,17 +2611,17 @@ html.dark .parking-spot-number { color: #e5e7eb; }
 .vehicles-entry { display: inline-flex; align-items: center; gap: 0.3rem; }
 
 /* ---------- Parking layout config + map ---------- */
-.parking-map-wrap { margin-bottom: 1rem; }
-.plaza-map { display: flex; flex-direction: column; gap: 0.75rem; }
+.parking-map-wrap { margin: 0.5rem 0 1rem; }
+.plaza-map { display: flex; flex-direction: column; gap: 0.5rem; }
 .plaza-map-title { font-weight: 700; color: #0b1c30; }
-.plaza-map-grid { display: flex; flex-direction: column; gap: 0.5rem; }
-.plaza-row { display: flex; align-items: flex-start; gap: 0.5rem; }
-.plaza-row-label { font-size: 0.75rem; font-weight: 700; color: #76777d; min-width: 42px; padding-top: 0.5rem; text-transform: uppercase; }
-.plaza-row-spots { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-.plaza-row-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(74px, 100%), 1fr)); flex: 1; }
+.plaza-map-grid { display: flex; flex-direction: column; gap: 0.6rem; }
+.plaza-row { display: flex; align-items: flex-start; gap: 0.6rem; }
+.plaza-row-label { font-size: 0.75rem; font-weight: 700; color: #76777d; min-width: 42px; padding-top: 0.55rem; text-transform: uppercase; }
+.plaza-row-spots { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.plaza-row-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(74px, 100%), 1fr)); flex: 1; gap: 0.5rem; }
 .plaza-cell {
   min-width: 64px;
-  min-height: 48px;
+  min-height: 50px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2607,7 +2629,7 @@ html.dark .parking-spot-number { color: #e5e7eb; }
   gap: 0.1rem;
   border-radius: 8px;
   border: 1.5px solid transparent;
-  padding: 0.35rem;
+  padding: 0.45rem 0.5rem;
   font-size: 0.85rem;
   font-weight: 700;
   color: #fff;
@@ -2617,20 +2639,58 @@ html.dark .parking-spot-number { color: #e5e7eb; }
 .plaza-cell-dept { display: block; }
 .plaza-cell-clickable { cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
 .plaza-cell-clickable:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(11, 28, 48, 0.2); }
-.plaza-cell-empty { background: transparent; border: 1px dashed #e2e3e7; color: transparent; min-width: 64px; min-height: 48px; }
+.plaza-cell-empty { background: transparent; border: 1px dashed #e2e3e7; color: transparent; min-width: 64px; min-height: 50px; }
 .plaza-free { background: #2e9e63; }
 .plaza-occupied { background: #c62828; }
 .plaza-visita { background: #2f80ed; }
 .plaza-rented { background: #e8890c; }
 .plaza-unassigned { background: #9aa0aa; }
-.plaza-legend { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0.4rem 0; }
-.plaza-legend-item { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.78rem; font-weight: 600; color: #45464d; }
-.plaza-legend-item::before { content: ''; display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
+.plaza-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  margin-top: 0.75rem;
+  background: #f8f9ff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+.plaza-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #45464d;
+  padding: 0.4rem 0.6rem;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+.plaza-legend-item .material-symbols-outlined { font-size: 18px; }
+.plaza-legend-item::before { content: ''; display: inline-block; width: 12px; height: 12px; border-radius: 4px; }
 .plaza-legend-item.plaza-free::before { background: #2e9e63; }
+.plaza-legend-item.plaza-free .material-symbols-outlined { color: #2e9e63; }
+.plaza-legend-item.plaza-free { border-color: #a7dcbf; background: #f1faf4; }
+.plaza-legend-item.plaza-unassigned::before { background: #8d959f; }
+.plaza-legend-item.plaza-unassigned .material-symbols-outlined { color: #8d959f; }
+.plaza-legend-item.plaza-unassigned { border-color: #c9ced6; background: #f2f4f6; }
 .plaza-legend-item.plaza-occupied::before { background: #c62828; }
+.plaza-legend-item.plaza-occupied .material-symbols-outlined { color: #c62828; }
+.plaza-legend-item.plaza-occupied { border-color: #efb0ad; background: #fdf2f1; }
 .plaza-legend-item.plaza-visita::before { background: #2f80ed; }
+.plaza-legend-item.plaza-visita .material-symbols-outlined { color: #2f80ed; }
+.plaza-legend-item.plaza-visita { border-color: #b7d5fa; background: #f0f6fe; }
 .plaza-legend-item.plaza-rented::before { background: #e8890c; }
-.plaza-legend-item.plaza-unassigned::before { background: #9aa0aa; }
+.plaza-legend-item.plaza-rented .material-symbols-outlined { color: #e8890c; }
+.plaza-legend-item.plaza-rented { border-color: #f5d3a4; background: #fef7ec; }
+html.dark .plaza-legend { background: #1e1e1e; border-color: #333; }
+html.dark .plaza-legend-item { background: #2a2a2a; border-color: #444; color: #c8cad1; }
+html.dark .plaza-legend-item.plaza-free { background: #15281c; border-color: #2e7d5b; }
+html.dark .plaza-legend-item.plaza-unassigned { background: #22252a; border-color: #565b63; }
+html.dark .plaza-legend-item.plaza-occupied { background: #2b1717; border-color: #8d3a3a; }
+html.dark .plaza-legend-item.plaza-visita { background: #142438; border-color: #2f68a8; }
+html.dark .plaza-legend-item.plaza-rented { background: #2b2212; border-color: #9a6a1e; }
 .plaza-empty { text-align: center; color: #76777d; padding: 0.75rem 0; }
 .plaza-total-preview { display: flex; align-items: center; font-size: 0.9rem; color: #45464d; }
 .plaza-total-preview strong { font-size: 1.2rem; color: #006c49; margin: 0 0.35rem; }

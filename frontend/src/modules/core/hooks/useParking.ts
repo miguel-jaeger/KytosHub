@@ -192,11 +192,19 @@ export function useParking() {
     return data.data || { plate: null, full_text: '', detected: [] };
   }, []);
 
+  const ocrConfigured = useCallback(async (): Promise<boolean> => {
+    const { data } = await invokeFunction<{ success: boolean; data: { configured: boolean } | null }>('plate-ocr', {
+      method: 'POST',
+      body: { action: 'status' }
+    });
+    return Boolean(data?.success && data.data?.configured);
+  }, []);
+
   return {
     listSpots, createSpot, updateSpot, deleteSpot,
     listVehicles, createVehicle, updateVehicle, deleteVehicle,
     listLoans, createLoan, updateLoanStatus,
     plateStatus, registerEntry, registerExit, listLogs,
-    getLayout, provisionLayout, ocrPlate
+    getLayout, provisionLayout, ocrPlate, ocrConfigured
   };
 }
