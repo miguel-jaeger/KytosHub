@@ -10,6 +10,10 @@ const CART_CONFIG_FIELDS: Array<{ key: string; label: string; type: 'number' | '
   { key: 'fine_enabled', label: 'Multas por demora habilitadas', type: 'checkbox' }
 ];
 
+function parseDraft(draft: string): Record<string, unknown> {
+  try { const p = JSON.parse(draft); return p && typeof p === 'object' ? p as Record<string, unknown> : {}; } catch { return {}; }
+}
+
 export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: string; onModulesUpdated?: () => void }) {
   const { list, update } = useCondoModules();
   const [modules, setModules] = useState<ModuleInfo[]>([]);
@@ -83,6 +87,24 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
     setConfigDrafts(prev => ({ ...prev, [m.module_key]: JSON.stringify(parsed, null, 2) }));
   };
 
+  const updateParkingLayoutField = (m: ModuleInfo, key: 'rows' | 'spots_per_row', value: number) => {
+    const current = configDrafts[m.module_key] || '{}';
+    const parsed = parseDraft(current);
+    const layout = (parsed.layout && typeof parsed.layout === 'object') ? { ...(parsed.layout as Record<string, unknown>) } : {};
+    layout[key] = Math.max(1, Math.min(50, value));
+    parsed.layout = layout;
+    setConfigDrafts(prev => ({ ...prev, [m.module_key]: JSON.stringify(parsed, null, 2) }));
+  };
+
+  const parkingLayoutOf = (m: ModuleInfo): { rows: number; spots_per_row: number } => {
+    const cfg = parseDraft(configDrafts[m.module_key] || '{}');
+    const layout = cfg.layout && typeof cfg.layout === 'object' ? cfg.layout as Record<string, unknown> : {};
+    return {
+      rows: Number(layout.rows) || 2,
+      spots_per_row: Number(layout.spots_per_row) || 4
+    };
+  };
+
   if (loading) return <div className="loading-message">Cargando módulos...</div>;
   if (error) return <div className="error-message">{error}</div>;
   if (!schemaName) return <div className="empty-state"><p>Seleccione un condominio para ver sus módulos.</p></div>;
@@ -103,6 +125,7 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
       <div className="modules-grid">
         {visibleModules.map(m => {
           const cartConfig = m.module_key === 'cart_lending';
+          const parkingConfig = m.module_key === 'parking_control';
           const canToggle = m.can_toggle ?? isSuperAdmin;
           const canEdit = m.can_edit_config ?? isSuperAdmin;
           return (
@@ -154,6 +177,39 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
                       <span className="material-symbols-outlined">info</span>
                       <span>
                         Parámetros de préstamo y multas por demora. Las <strong>puertas</strong> y su capacidad por tipo de carrito se configuran en la pestaña <strong>Puertas</strong>.
+                      </span>
+                    </div>
+                  </>
+                ) : parkingConfig ? (
+                  <>
+                    <div className="cart-config-form">
+                      <label>
+                        Filas de estacionamiento
+                        <input
+                          type="number"
+                          min={1}
+                          max={50}
+                          disabled={!canEdit}
+                          value={String(parkingLayoutOf(m).rows)}
+                          onChange={e => updateParkingLayoutField(m, 'rows', Number(e.target.value))}
+                        />
+                      </label>
+                      <label>
+                        Plazas por fila
+                        <input
+                          type="number"
+                          min={1}
+                          max={50}
+                          disabled={!canEdit}
+                          value={String(parkingLayoutOf(m).spots_per_row)}
+                          onChange={e => updateParkingLayoutField(m, 'spots_per_row', Number(e.target.value))}
+                        />
+                      </label>
+                    </div>
+                    <div className="module-example">
+                      <span className="material-symbols-outlined">info</span>
+                      <span>
+                        El layout visual (filas × plazas por fila) y el mapa de plazas se administran en la pestaña <strong>Estacionamiento</strong>. Guardado aquí solo persiste el layout indicado.
                       </span>
                     </div>
                   </>
