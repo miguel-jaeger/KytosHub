@@ -1720,6 +1720,28 @@ html.dark .cart-gate-card { background: #1e1e1e; border-color: #333; color: #c8c
 html.dark .text-muted { color: #888; }
 
 /* Condominium count links */
+.checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #45464d;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  white-space: nowrap;
+}
+.checkbox-row input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: #006c49;
+  cursor: pointer;
+  margin: 0;
+}
+html.dark .checkbox-row { background: #1e1e1e; border-color: #333; color: #c8cad1; }
+
 .condo-counts { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e5e7eb; }
 .count-link { display: inline-flex; align-items: center; gap: 0.25rem; background: #f1f5f9; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.3rem 0.5rem; cursor: pointer; color: #0b1c30; font-size: 0.75rem; transition: all 0.2s; }
 .condo-counts .count-link:hover { background: #e8f5ec; border-color: #006c49; color: #006c49; }
