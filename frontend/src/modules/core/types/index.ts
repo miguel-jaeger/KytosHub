@@ -210,7 +210,8 @@ export interface Vehicle {
   created_at: string;
   departments?: {
     department_number: string;
-    towers?: { name: string; code: string };
+    floor_number?: number | null;
+    towers?: { id: string; name: string; code: string };
   };
 }
 

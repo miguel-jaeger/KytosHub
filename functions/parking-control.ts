@@ -857,18 +857,33 @@ async function enrichSpots(db: { from(t: string): any }, spots: Array<Record<str
 async function enrichVehicles(db: { from(t: string): any }, vehicles: Array<Record<string, unknown>>): Promise<Array<Record<string, unknown>>> {
   const deptIds = [...new Set(vehicles.map(v => v.department_id as string).filter(Boolean))];
   const deptRows = deptIds.length
-    ? ((await db.from('departments').select('id, department_number, tower_id').in('id', deptIds)).data || [])
+    ? ((await db.from('departments').select('id, department_number, tower_id, floor_id').in('id', deptIds)).data || [])
     : [];
   const towerIds = [...new Set((deptRows as Array<{ tower_id: string }>).map(d => d.tower_id))];
   const towerRows = towerIds.length
     ? ((await db.from('towers').select('id, name, code').in('id', towerIds)).data || [])
     : [];
-  const deptMap = new Map((deptRows as Array<{ id: string; department_number: string; tower_id: string }>).map(d => [d.id, d]));
+  const floorIds = [...new Set((deptRows as Array<{ floor_id: string }>).map(d => d.floor_id).filter(Boolean))];
+  const floorRows = floorIds.length
+    ? ((await db.from('floors').select('id, floor_number').in('id', floorIds)).data || [])
+    : [];
+  const deptMap = new Map((deptRows as Array<{ id: string; department_number: string; tower_id: string; floor_id: string }>).map(d => [d.id, d]));
   const towerMap = new Map((towerRows as Array<{ id: string; name: string; code: string }>).map(t => [t.id, t]));
+  const floorMap = new Map((floorRows as Array<{ id: string; floor_number: number }>).map(f => [f.id, f]));
   return vehicles.map(v => {
     const dept = deptMap.get(v.department_id as string);
     const tower = dept ? towerMap.get(dept.tower_id) : undefined;
-    return { ...v, departments: dept ? { department_number: dept.department_number, towers: tower ? { name: tower.name, code: tower.code } : undefined } : undefined };
+    const floor = dept ? floorMap.get(dept.floor_id) : undefined;
+    return {
+      ...v,
+      departments: dept
+        ? {
+            department_number: dept.department_number,
+            floor_number: floor?.floor_number ?? null,
+            towers: tower ? { id: tower.id, name: tower.name, code: tower.code } : undefined
+          }
+        : undefined
+    };
   });
 }
 

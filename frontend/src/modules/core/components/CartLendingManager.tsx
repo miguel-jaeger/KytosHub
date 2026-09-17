@@ -79,6 +79,8 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
   const [cartForm, setCartForm] = useState({ code_identifier: '', status: 'DISPONIBLE', gate_id: '', cart_type: 'CARGA', notes: '' });
   const [editingCart, setEditingCart] = useState<Cart | null>(null);
   const [savingCart, setSavingCart] = useState(false);
+  const [showCartModal, setShowCartModal] = useState(false);
+  const [cartSearch, setCartSearch] = useState('');
 
   const loadCarts = useCallback(async () => {
     if (!schemaName) return [];
@@ -189,6 +191,7 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
       }
       setCartForm({ code_identifier: '', status: 'DISPONIBLE', gate_id: '', cart_type: 'CARGA', notes: '' });
       setEditingCart(null);
+      setShowCartModal(false);
       setMessage('Carrito guardado');
       setCarts(await listCarts(schemaName));
     } catch (err) {
@@ -202,6 +205,7 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
     setEditingCart(c);
     setCartForm({ code_identifier: c.code_identifier, status: c.status, gate_id: c.gate_id || c.gate?.id || '', cart_type: c.cart_type || 'CARGA', notes: c.notes || '' });
     setTab('carts');
+    setShowCartModal(true);
   };
 
   const handleDeleteCart = async (c: Cart) => {
@@ -253,7 +257,6 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
 
   const hasActiveFilters = !!(filters.start_date || filters.end_date || filters.tower_id || filters.floor_id || filters.department_id);
 
-  const cartsPageItems = cartsPerPage === 'all' ? carts : paginate(carts, cartsPage, cartsPerPage).slice;
   const finesPageItems = finesPerPage === 'all' ? fines : paginate(fines, finesPage, finesPerPage).slice;
   const loansPageItems = loansPerPage === 'all' ? loans : paginate(loans, loansPage, loansPerPage).slice;
 
@@ -282,90 +285,124 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
           <div className="modules-header">
             <h4>Configuración de carritos</h4>
             <small>Registra o edita los carritos físicos, su código, puerta de origen, tipo y estado. Los préstamos y devoluciones se realizan desde el Panel de Garita.</small>
+            <button onClick={() => { setEditingCart(null); setCartForm({ code_identifier: '', status: 'DISPONIBLE', gate_id: '', cart_type: 'CARGA', notes: '' }); setShowCartModal(true); }}>
+              <span className="material-symbols-outlined">add</span> Adicionar
+            </button>
           </div>
 
-          <div className="cart-form">
-            <h4>{editingCart ? 'Editar Carrito' : 'Registrar Carrito'}</h4>
-            <div className="form-row">
-              <div className="form-group">
-                <label>Código</label>
-                <input type="text" value={cartForm.code_identifier} onChange={e => setCartForm({ ...cartForm, code_identifier: e.target.value })} placeholder="Ej: CART-01" />
-              </div>
-              <div className="form-group">
-                <label>Puerta</label>
-                <select value={cartForm.gate_id} onChange={e => setCartForm({ ...cartForm, gate_id: e.target.value })}>
-                  <option value="">Sin puerta</option>
-                  {activeGates.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label>Tipo</label>
-                <select value={cartForm.cart_type} onChange={e => setCartForm({ ...cartForm, cart_type: e.target.value })}>
-                  <option value="CARGA">Carro de carga</option>
-                  <option value="COMPRA">Coche de compras</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Estado</label>
-                <select value={cartForm.status} onChange={e => setCartForm({ ...cartForm, status: e.target.value })}>
-                  <option value="DISPONIBLE">Disponible</option>
-                  <option value="PRESTADO">Prestado</option>
-                  <option value="MANTENIMIENTO">Mantenimiento</option>
-                </select>
-              </div>
-            </div>
+          <div className="filter-bar">
             <div className="form-group">
-              <label>Notas</label>
-              <input type="text" value={cartForm.notes} onChange={e => setCartForm({ ...cartForm, notes: e.target.value })} placeholder="Observaciones" />
+              <label>Buscar carrito por nombre</label>
+              <input type="text" value={cartSearch} onChange={e => { setCartSearch(e.target.value); setCartsPage(1); }} placeholder="Código o nombre..." />
             </div>
-            <div className="form-actions">
-              {editingCart && <button className="btn-cancel" onClick={() => { setEditingCart(null); setCartForm({ code_identifier: '', status: 'DISPONIBLE', gate_id: '', cart_type: 'CARGA', notes: '' }); }}>Cancelar</button>}
-              <button onClick={handleAddOrUpdateCart} disabled={savingCart}>{savingCart ? 'Guardando...' : editingCart ? 'Guardar' : 'Registrar'}</button>
+            <div className="filter-actions">
+              <button className="btn-cancel" onClick={() => { setCartSearch(''); setCartsPage(1); }}>Limpiar</button>
             </div>
           </div>
 
-          <table className="residents-table residents-desktop cart-scroll-table">
-            <thead>
-              <tr>
-                <th>Código</th>
-                <th>Puerta</th>
-                <th>Tipo</th>
-                <th>Estado</th>
-                <th>Notas</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {carts.length === 0 ? (
-                <tr><td colSpan={6} className="empty-text">No hay carritos registrados.</td></tr>
-              ) : cartsPageItems.map(c => (
-                <tr key={c.id}>
-                  <td>{c.code_identifier}</td>
-                  <td>{c.gate?.name || '-'}</td>
-                  <td>{CART_TYPE_LABELS[c.cart_type || 'CARGA']}</td>
-                  <td><span className={`status-badge status-cart-${(c.status || '').toLowerCase()}`}>{c.status}</span></td>
-                  <td>{c.notes || '-'}</td>
-                  <td>
-                    <div className="resident-row-actions">
-                      <button className="btn-edit" onClick={() => startEditCart(c)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
-                      <button className="btn-danger" onClick={() => handleDeleteCart(c)} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {(() => {
+            const q = cartSearch.trim().toLowerCase();
+            const filteredCarts = !q ? carts : carts.filter(c => (c.code_identifier || '').toLowerCase().includes(q));
+            const items = cartsPerPage === 'all' ? filteredCarts : paginate(filteredCarts, cartsPage, cartsPerPage).slice;
+            return (
+              <>
+                <table className="residents-table residents-desktop cart-scroll-table">
+                  <thead>
+                    <tr>
+                      <th>Código</th>
+                      <th>Puerta</th>
+                      <th>Tipo</th>
+                      <th>Estado</th>
+                      <th>Notas</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredCarts.length === 0 ? (
+                      <tr><td colSpan={6} className="empty-text">{q ? 'No hay carritos que coincidan con la búsqueda.' : 'No hay carritos registrados.'}</td></tr>
+                    ) : items.map(c => (
+                      <tr key={c.id}>
+                        <td>{c.code_identifier}</td>
+                        <td>{c.gate?.name || '-'}</td>
+                        <td>{CART_TYPE_LABELS[c.cart_type || 'CARGA']}</td>
+                        <td><span className={`status-badge status-cart-${(c.status || '').toLowerCase()}`}>{c.status}</span></td>
+                        <td>{c.notes || '-'}</td>
+                        <td>
+                          <div className="resident-row-actions">
+                            <button className="btn-edit" onClick={() => startEditCart(c)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
+                            <button className="btn-danger" onClick={() => handleDeleteCart(c)} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
 
-          <PaginationBar
-            total={carts.length}
-            page={cartsPage}
-            perPage={cartsPerPage}
-            onPageChange={setCartsPage}
-            onPerPageChange={(n) => { setCartsPerPage(n); setCartsPage(1); }}
-            itemLabel="carrito"
-          />
+                <PaginationBar
+                  total={filteredCarts.length}
+                  page={cartsPage}
+                  perPage={cartsPerPage}
+                  onPageChange={setCartsPage}
+                  onPerPageChange={(n) => { setCartsPerPage(n); setCartsPage(1); }}
+                  itemLabel="carrito"
+                />
+              </>
+            );
+          })()}
+        </div>
+      )}
+
+      {showCartModal && (
+        <div className="modal-overlay" onClick={() => setShowCartModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>{editingCart ? 'Editar Carrito' : 'Registrar Carrito'}</h3>
+                <p>{editingCart ? `Código: ${editingCart.code_identifier}` : 'Registra un nuevo carrito físico del condominio.'}</p>
+              </div>
+              <button className="modal-close" onClick={() => setShowCartModal(false)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
+            </div>
+            <div className="modal-body">
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Código</label>
+                  <input type="text" value={cartForm.code_identifier} onChange={e => setCartForm({ ...cartForm, code_identifier: e.target.value })} placeholder="Ej: CART-01" autoFocus />
+                </div>
+                <div className="form-group">
+                  <label>Puerta</label>
+                  <select value={cartForm.gate_id} onChange={e => setCartForm({ ...cartForm, gate_id: e.target.value })}>
+                    <option value="">Sin puerta</option>
+                    {activeGates.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Tipo</label>
+                  <select value={cartForm.cart_type} onChange={e => setCartForm({ ...cartForm, cart_type: e.target.value })}>
+                    <option value="CARGA">Carro de carga</option>
+                    <option value="COMPRA">Coche de compras</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Estado</label>
+                  <select value={cartForm.status} onChange={e => setCartForm({ ...cartForm, status: e.target.value })}>
+                    <option value="DISPONIBLE">Disponible</option>
+                    <option value="PRESTADO">Prestado</option>
+                    <option value="MANTENIMIENTO">Mantenimiento</option>
+                  </select>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Notas</label>
+                <input type="text" value={cartForm.notes} onChange={e => setCartForm({ ...cartForm, notes: e.target.value })} placeholder="Observaciones" />
+              </div>
+              <div className="form-actions">
+                <button className="btn-cancel" onClick={() => setShowCartModal(false)}>Cancelar</button>
+                <button onClick={handleAddOrUpdateCart} disabled={savingCart}>{savingCart ? 'Guardando...' : editingCart ? 'Guardar' : 'Registrar'}</button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

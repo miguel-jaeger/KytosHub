@@ -30,6 +30,14 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
   const [vehPage, setVehPage] = useState(1);
   const [vehPerPage, setVehPerPage] = useState<number | 'all'>(10);
 
+  const [plateFilter, setPlateFilter] = useState('');
+  const [driverFilter, setDriverFilter] = useState('');
+  const [filterTowerId, setFilterTowerId] = useState('');
+  const [filterFloorId, setFilterFloorId] = useState('');
+  const [filterDeptId, setFilterDeptId] = useState('');
+  const [filterFloors, setFilterFloors] = useState<Floor[]>([]);
+  const [filterDepartments, setFilterDepartments] = useState<Department[]>([]);
+
   const load = useCallback(async () => {
     if (!schemaName) { setLoading(false); return; }
     setLoading(true);
@@ -46,6 +54,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { setVehPage(1); }, [vehicles.length]);
+  useEffect(() => { setVehPage(1); }, [plateFilter, driverFilter, filterTowerId, filterFloorId, filterDeptId]);
 
   const loadTowers = useCallback(async () => {
     if (!schemaName) return;
@@ -108,6 +117,59 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
     setFloorId(id);
     setDeptId('');
     void loadDepartments(id);
+  };
+
+  const loadFilterFloors = async (tid: string) => {
+    if (!schemaName) return;
+    setFilterFloors([]);
+    setFilterFloorId('');
+    setFilterDeptId('');
+    setFilterDepartments([]);
+    try {
+      const { data } = await invokeFunction<{ success: boolean; data: Floor[] | null }>('floors', {
+        method: 'POST',
+        body: { action: 'list', schema_name: schemaName, tower_id: tid }
+      });
+      setFilterFloors((data?.data || []).sort((a, b) => a.floor_number - b.floor_number));
+    } catch {}
+  };
+
+  const loadFilterDepartments = async (fid: string) => {
+    if (!schemaName || !filterTowerId) return;
+    setFilterDepartments([]);
+    setFilterDeptId('');
+    try {
+      const { data } = await invokeFunction<{ success: boolean; data: Department[] | null }>('departments', {
+        method: 'POST',
+        body: { action: 'list', schema_name: schemaName, tower_id: filterTowerId, floor_id: fid }
+      });
+      setFilterDepartments((data?.data || []).sort((a, b) => a.department_number.localeCompare(b.department_number)));
+    } catch {}
+  };
+
+  const selectFilterTower = (id: string) => {
+    setFilterTowerId(id);
+    setFilterFloorId('');
+    setFilterDeptId('');
+    setFilterDepartments([]);
+    void loadFilterFloors(id);
+  };
+
+  const selectFilterFloor = (id: string) => {
+    setFilterFloorId(id);
+    setFilterDeptId('');
+    void loadFilterDepartments(id);
+  };
+
+  const clearFilters = () => {
+    setPlateFilter('');
+    setDriverFilter('');
+    setFilterTowerId('');
+    setFilterFloorId('');
+    setFilterDeptId('');
+    setFilterFloors([]);
+    setFilterDepartments([]);
+    setVehPage(1);
   };
 
   const handleVehicleSave = async () => {
@@ -178,7 +240,19 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
 
   if (loading) return <div className="loading-message">Cargando vehículos...</div>;
 
-  const vehPageItems = vehPerPage === 'all' ? vehicles : paginate(vehicles, vehPage, vehPerPage).slice;
+  const qPlate = plateFilter.trim().toLowerCase();
+  const qDriver = driverFilter.trim().toLowerCase();
+  const filterFloorNumber = filterFloors.find(f => f.id === filterFloorId)?.floor_number;
+  const filteredVehicles = vehicles.filter(v => {
+    if (qPlate && !v.license_plate.toLowerCase().includes(qPlate)) return false;
+    if (qDriver && !(v.driver_name || '').toLowerCase().includes(qDriver)) return false;
+    if (filterTowerId && v.departments?.towers?.id !== filterTowerId) return false;
+    if (filterFloorId && v.departments?.floor_number != null && v.departments.floor_number !== filterFloorNumber) return false;
+    if (filterDeptId && v.department_id !== filterDeptId) return false;
+    return true;
+  });
+
+  const vehPageItems = vehPerPage === 'all' ? filteredVehicles : paginate(filteredVehicles, vehPage, vehPerPage).slice;
 
   return (
     <div>
@@ -316,8 +390,45 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
         </div>
       )}
 
+      <div className="filter-bar">
+        <div className="form-group">
+          <label>Placa</label>
+          <input type="text" value={plateFilter} onChange={e => setPlateFilter(e.target.value)} placeholder="ABC-123 o 123" />
+        </div>
+        <div className="form-group">
+          <label>Conductor</label>
+          <input type="text" value={driverFilter} onChange={e => setDriverFilter(e.target.value)} placeholder="Nombre" />
+        </div>
+        <div className="form-group">
+          <label>Torre</label>
+          <select value={filterTowerId} onChange={e => selectFilterTower(e.target.value)}>
+            <option value="">Todas</option>
+            {towers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </div>
+        <div className="form-group">
+          <label>Piso</label>
+          <select value={filterFloorId} onChange={e => selectFilterFloor(e.target.value)} disabled={!filterTowerId}>
+            <option value="">Todos</option>
+            {filterFloors.map(f => <option key={f.id} value={f.id}>Piso {f.floor_number}</option>)}
+          </select>
+        </div>
+        <div className="form-group">
+          <label>Departamento</label>
+          <select value={filterDeptId} onChange={e => setFilterDeptId(e.target.value)} disabled={!filterFloorId}>
+            <option value="">Todos</option>
+            {filterDepartments.map(d => <option key={d.id} value={d.id}>{d.department_number}</option>)}
+          </select>
+        </div>
+        <div className="filter-actions">
+          <button className="btn-cancel" onClick={clearFilters}>Limpiar</button>
+        </div>
+      </div>
+
       {vehicles.length === 0 ? (
         <div className="empty-state"><p>No hay vehículos registrados.</p></div>
+      ) : filteredVehicles.length === 0 ? (
+        <div className="empty-state"><p>No hay vehículos que coincidan con los filtros.</p></div>
       ) : (
         <table className="residents-table residents-desktop">
           <thead>
@@ -338,7 +449,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
                 <td>{VEHICLE_TYPE_LABELS[v.vehicle_type] || v.vehicle_type} · {[v.brand, v.model].filter(Boolean).join(' ') || '-'}</td>
                 <td>{v.driver_name || <span className="text-muted">Sin conductor</span>}</td>
                 <td>{v.color || '-'}</td>
-                <td>{v.departments ? `${v.departments.department_number} (T${v.departments.towers?.code || '-'})` : '-'}</td>
+                <td>{v.departments ? `${v.departments.department_number} (T${v.departments.towers?.code || '-'} · P${v.departments.floor_number ?? '-'})` : '-'}</td>
                 <td><span className={`status-badge ${v.is_active ? 'status-occupied' : 'status-vacant'}`}>{v.is_active ? 'Activo' : 'Inactivo'}</span></td>
                 <td>
                   <div className="resident-row-actions">
@@ -351,7 +462,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
           </tbody>
         </table>
       )}
-      <PaginationBar total={vehicles.length} page={vehPage} perPage={vehPerPage} onPageChange={setVehPage} onPerPageChange={(n) => { setVehPerPage(n); setVehPage(1); }} itemLabel="vehículo" />
+      <PaginationBar total={filteredVehicles.length} page={vehPage} perPage={vehPerPage} onPageChange={setVehPage} onPerPageChange={(n) => { setVehPerPage(n); setVehPage(1); }} itemLabel="vehículo" />
     </div>
   );
 }

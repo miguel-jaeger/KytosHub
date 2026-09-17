@@ -1,9 +1,10 @@
 -- KytosHub: condo_stats — cached aggregate statistics per condominium schema.
 -- The frontend reads this single row instead of recomputing aggregates from the
 -- full tables (logs, vehicles, loans, spots) on every page load, which was slow.
--- Values are refreshed by statement-level triggers whenever a cart loan is
--- created/returned, a cart changes state, a vehicle enters/exits or a spot,
--- vehicle or parking loan changes. A one-time backfill captures current values.
+-- A refresh function recomputes the counters. Statement-level triggers call it
+-- whenever a cart loan is created/returned, a cart changes state, a vehicle
+-- enters/exits or a spot, vehicle or parking loan changes. A one-time backfill
+-- captures current values.
 
 CREATE OR REPLACE FUNCTION public.seed_condo_stats(p_tenant_id uuid)
 RETURNS void
@@ -13,10 +14,6 @@ SET search_path = pg_catalog, public, pg_temp
 AS $$
 DECLARE
     v_schema text;
-    v_fn_body text;
-    v_cart_cols text := '';
-    v_cart_vals text := '';
-    v_cart_upd text := '';
 BEGIN
     SELECT schema_name INTO v_schema FROM public.tenants WHERE id = p_tenant_id;
     IF v_schema IS NULL THEN RETURN; END IF;
@@ -50,13 +47,14 @@ BEGIN
         EXECUTE format('CREATE POLICY "read stats" ON %I.condo_stats FOR SELECT TO anon, authenticated USING (true)', v_schema);
     END IF;
 
-    v_fn_body := format($body$
-CREATE OR REPLACE FUNCTION %1$I.recompute_condo_stats()
-RETURNS trigger
+    -- Refresh function: recomputes every counter (safe to call directly).
+    EXECUTE format($f1$
+CREATE OR REPLACE FUNCTION %1$I.refresh_condo_stats()
+RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp
-AS $f$
+AS $f2$
 DECLARE
     v_access_total bigint;
     v_access_inside bigint;
@@ -120,15 +118,27 @@ BEGIN
         cart_loans_total = EXCLUDED.cart_loans_total,
         cart_loans_active = EXCLUDED.cart_loans_active,
         updated_at = now();
+END;
+$f2$
+$f1$, v_schema, v_schema || '.carts');
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %I.refresh_condo_stats() TO public', v_schema);
+
+    -- Statement-level trigger wrapper (fires once per statement, even multi-row)
+    EXECUTE format($t1$
+CREATE OR REPLACE FUNCTION %1$I.recompute_condo_stats()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp
+AS $t2$
+BEGIN
+    PERFORM %1$I.refresh_condo_stats();
     RETURN NULL;
 END;
-$f$;
-$body$, v_schema, v_schema || '.carts');
-    EXECUTE v_fn_body;
-
+$t2$
+$t1$, v_schema);
     EXECUTE format('GRANT EXECUTE ON FUNCTION %I.recompute_condo_stats() TO public', v_schema);
 
-    -- Statement-level triggers (recompute once per statement, even multi-row)
     EXECUTE format('DROP TRIGGER IF EXISTS trg_condo_stats_access ON %I.parking_access_logs', v_schema);
     EXECUTE format('CREATE TRIGGER trg_condo_stats_access AFTER INSERT OR UPDATE OR DELETE ON %I.parking_access_logs FOR EACH STATEMENT EXECUTE FUNCTION %I.recompute_condo_stats()', v_schema, v_schema);
     EXECUTE format('DROP TRIGGER IF EXISTS trg_condo_stats_spots ON %I.parking_spots', v_schema);
@@ -146,54 +156,7 @@ $body$, v_schema, v_schema || '.carts');
     END IF;
 
     -- Backfill: capture current values once
-    IF to_regclass(v_schema || '.carts') IS NOT NULL THEN
-        v_cart_cols := ', carts_total, carts_disponible, carts_prestado, carts_mantenimiento, cart_loans_total, cart_loans_active';
-        v_cart_vals := format($s$,
-            ', (SELECT COUNT(*) FROM %1$I.carts),
-               (SELECT COUNT(*) FROM %1$I.carts WHERE status = 'DISPONIBLE'),
-               (SELECT COUNT(*) FROM %1$I.carts WHERE status = 'PRESTADO'),
-               (SELECT COUNT(*) FROM %1$I.carts WHERE status = 'MANTENIMIENTO'),
-               (SELECT COUNT(*) FROM %1$I.cart_loans),
-               (SELECT COUNT(*) FROM %1$I.cart_loans WHERE status IN ('ACTIVO', 'ATRASADO'))
-        $s$, v_schema);
-        v_cart_upd := format($s$,
-            ', carts_total = EXCLUDED.carts_total,
-               carts_disponible = EXCLUDED.carts_disponible,
-               carts_prestado = EXCLUDED.carts_prestado,
-               carts_mantenimiento = EXCLUDED.carts_mantenimiento,
-               cart_loans_total = EXCLUDED.cart_loans_total,
-               cart_loans_active = EXCLUDED.cart_loans_active
-        $s$);
-    END IF;
-
-    EXECUTE format($b$
-        INSERT INTO %1$I.condo_stats (id, access_total, access_inside, access_entry_today, access_exit_total, access_exit_today,
-            vehicles_total, spots_total, spots_occupied, parking_loans_total, parking_loans_active%2$s, updated_at)
-        SELECT 1,
-            (SELECT COUNT(*) FROM %1$I.parking_access_logs),
-            (SELECT COUNT(*) FROM %1$I.parking_access_logs WHERE exit_time IS NULL),
-            (SELECT COUNT(*) FROM %1$I.parking_access_logs WHERE entry_time::date = CURRENT_DATE),
-            (SELECT COUNT(*) FROM %1$I.parking_access_logs WHERE exit_time IS NOT NULL),
-            (SELECT COUNT(*) FROM %1$I.parking_access_logs WHERE exit_time IS NOT NULL AND exit_time::date = CURRENT_DATE),
-            (SELECT COUNT(*) FROM %1$I.vehicles),
-            (SELECT COUNT(*) FROM %1$I.parking_spots),
-            (SELECT COUNT(*) FROM %1$I.parking_spots WHERE status = 'OCUPADO' OR id IN (SELECT spot_id FROM %1$I.parking_access_logs WHERE exit_time IS NULL AND spot_id IS NOT NULL)),
-            (SELECT COUNT(*) FROM %1$I.parking_loans),
-            (SELECT COUNT(*) FROM %1$I.parking_loans WHERE status = 'ACTIVO')%3$s,
-            now()
-        ON CONFLICT (id) DO UPDATE SET
-            access_total = EXCLUDED.access_total,
-            access_inside = EXCLUDED.access_inside,
-            access_entry_today = EXCLUDED.access_entry_today,
-            access_exit_total = EXCLUDED.access_exit_total,
-            access_exit_today = EXCLUDED.access_exit_today,
-            vehicles_total = EXCLUDED.vehicles_total,
-            spots_total = EXCLUDED.spots_total,
-            spots_occupied = EXCLUDED.spots_occupied,
-            parking_loans_total = EXCLUDED.parking_loans_total,
-            parking_loans_active = EXCLUDED.parking_loans_active%4$s,
-            updated_at = now()
-    $b$, v_schema, v_cart_cols, v_cart_vals, v_cart_upd);
+    EXECUTE format('SELECT %I.refresh_condo_stats()', v_schema);
 END;
 $$;
 
