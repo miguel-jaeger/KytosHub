@@ -38,7 +38,7 @@ export default async function(req: Request): Promise<Response> {
     const isSecurity = await isSecurityForSchema(req, client, schemaName);
     const isOperator = isAdmin || isSecurity;
     const uid = await currentUserId(req, client);
-    const myDepartmentId = uid ? await departmentOfUser(db, uid) : null;
+    const myDepartmentId = uid ? await departmentOfUser(req, client, db, uid) : null;
 
     switch (action) {
       // ---------- SPOTS ----------
@@ -708,8 +708,45 @@ async function spotCanHostType(db: { from(t: string): any }, spotId: string, veh
   return { ok: true, message: '' };
 }
 
+// Resolves the default driver/owner name for a parking spot: the primary owner
+// of the department assigned to the spot (PROPIO), the loan occupant (PRESTAMO),
+// or null for visitors/rented.
+async function resolveSpotOwnerDriverName(db: { from(t: string): any }, spot: { id: string } | null): Promise<string | null> {
+  if (!spot) return null;
+  const { data: spotRow } = await db.from('parking_spots').select('department_id, type').eq('id', spot.id).single();
+  if (!spotRow?.department_id) return null;
+  return resolveDepartmentOwner(db, String(spotRow.department_id));
+}
+
+// Resolves the owner name of a department: prefers PROPIETARIO residents, then
+// the primary contact, then any resident.
+async function resolveDepartmentOwner(db: { from(t: string): any }, departmentId: string): Promise<string | null> {
+  const { data: owner } = await db.from('residents')
+    .select('full_name')
+    .eq('department_id', departmentId)
+    .eq('relationship_type', 'PROPIETARIO')
+    .limit(1)
+    .maybeSingle();
+  if (owner?.full_name) return String(owner.full_name).trim();
+
+  const { data: primary } = await db.from('residents')
+    .select('full_name')
+    .eq('department_id', departmentId)
+    .eq('is_primary_contact', true)
+    .limit(1)
+    .maybeSingle();
+  if (primary?.full_name) return String(primary.full_name).trim();
+
+  const { data: anyResident } = await db.from('residents')
+    .select('full_name')
+    .eq('department_id', departmentId)
+    .limit(1)
+    .maybeSingle();
+  return anyResident?.full_name ? String(anyResident.full_name).trim() : null;
+}
+
 // Resolves the driver name for an owner's registered vehicle: prefers the
-// vehicle's driver_name, then the department primary contact (owner).
+// vehicle's driver_name, then the department owner.
 async function resolveOwnerDriverName(
   db: { from(t: string): any },
   vehicle: { driver_name?: string | null; department_id?: string | null } | null
@@ -717,19 +754,7 @@ async function resolveOwnerDriverName(
   if (!vehicle) return null;
   if (vehicle.driver_name && String(vehicle.driver_name).trim()) return String(vehicle.driver_name).trim();
   if (!vehicle.department_id) return null;
-  const { data } = await db.from('residents')
-    .select('full_name')
-    .eq('department_id', vehicle.department_id)
-    .eq('is_primary_contact', true)
-    .limit(1)
-    .maybeSingle();
-  if (data?.full_name) return String(data.full_name).trim();
-  const { data: anyResident } = await db.from('residents')
-    .select('full_name')
-    .eq('department_id', vehicle.department_id)
-    .limit(1)
-    .maybeSingle();
-  return anyResident?.full_name ? String(anyResident.full_name).trim() : null;
+  return resolveDepartmentOwner(db, String(vehicle.department_id));
 }
 
 // ---------------------------------------------------------------------------
@@ -934,9 +959,36 @@ async function getLayoutConfig(db: { from(t: string): any }): Promise<{ rows: nu
   }
 }
 
-async function departmentOfUser(db: { from(t: string): any }, userId: string): Promise<string | null> {
-  const { data } = await db.from('residents').select('department_id').eq('user_id', userId).limit(1).maybeSingle();
-  return data?.department_id || null;
+async function departmentOfUser(
+  req: Request,
+  client: ReturnType<typeof createAdminClient>,
+  db: { from(t: string): any },
+  userId: string
+): Promise<string | null> {
+  // 1) Direct link: resident.user_id
+  const { data: byUser } = await db.from('residents').select('department_id').eq('user_id', userId).limit(1).maybeSingle();
+  if (byUser?.department_id) return String(byUser.department_id);
+
+  // 2) Match by global user profile (email/document) so owners registered by
+  //    document/email without a user link still resolve their department.
+  let email = '';
+  let documentNumber: string | null = null;
+  try {
+    const { data: ug } = await client.database.from('users_global').select('email, document_number').eq('id', userId).single();
+    email = String((ug as { email?: string } | null)?.email || '').toLowerCase();
+    documentNumber = (ug as { document_number?: string | null } | null)?.document_number || null;
+  } catch {}
+
+  if (email) {
+    const { data: byEmail } = await db.from('residents').select('department_id').eq('email', email).limit(1).maybeSingle();
+    if (byEmail?.department_id) return String(byEmail.department_id);
+  }
+  if (documentNumber) {
+    const { data: byDoc } = await db.from('residents').select('department_id').eq('document_number', documentNumber).limit(1).maybeSingle();
+    if (byDoc?.department_id) return String(byDoc.department_id);
+  }
+
+  return null;
 }
 
 async function isModuleEnabled(client: ReturnType<typeof createAdminClient>, schemaName: string): Promise<boolean> {

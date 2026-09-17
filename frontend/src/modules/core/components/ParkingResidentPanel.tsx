@@ -259,6 +259,14 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
           )}
         </div>
 
+        {lendableSpots.length === 0 && !showLoanForm && (
+          <p className="text-muted">
+            {mySpots.length === 0
+              ? 'No tienes plazas asignadas aún. Si crees que esto es un error, contacta a la administración.'
+              : 'No tienes plazas disponibles para prestar en este momento (todas están ocupadas o el préstamo está en curso).'}
+          </p>
+        )}
+
         {showLoanForm && (
           <div>
             <div className="form-group">
