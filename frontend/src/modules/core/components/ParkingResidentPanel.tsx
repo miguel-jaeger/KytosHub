@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import { useParking } from '../hooks/useParking';
-import { useAuth } from '../../../contexts/AuthContext';
 import type { Department, Floor, ParkingLoan, ParkingSpot, RentalDurationUnit, Vehicle, VehicleType } from '../types';
 
 interface TowerOption {
@@ -34,7 +33,6 @@ const toLocalInput = (iso: string): string => {
 };
 
 export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
-  const { user } = useAuth();
   const { listSpots, listVehicles, listLoans, createVehicle, updateVehicle, createLoan, updateLoanStatus, deleteVehicle } = useParking();
   const [spots, setSpots] = useState<ParkingSpot[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -274,7 +272,7 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
         <div className="panel-header">
           <div>
             <h4>Mis vehículos</h4>
-            <small>Puedes editar o eliminar solo los vehículos que registraste tú mismo.</small>
+            <small>Puedes editar o eliminar los vehículos de tu departamento.</small>
           </div>
           <button onClick={() => openVehicleForm(null)}><span className="material-symbols-outlined">directions_car</span> Registrar vehículo</button>
         </div>
@@ -287,48 +285,13 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
                 <tr><th>Placa</th><th>Vehículo</th><th>Color</th><th>Estado</th><th></th></tr>
               </thead>
               <tbody>
-                {vehicles.map(v => {
-                  const isOwn = Boolean(v.created_by_user_id && user && v.created_by_user_id === user.id);
-                  return (
-                    <tr key={v.id}>
-                      <td><strong>{v.license_plate}</strong></td>
-                      <td>{(v.vehicle_type === 'MOTO' ? 'Moto' : 'Auto')} · {[v.brand, v.model].filter(Boolean).join(' ') || '-'}</td>
-                      <td>{v.color || '-'}</td>
-                      <td><span className={`status-badge ${v.is_active ? 'status-occupied' : 'status-vacant'}`}>{v.is_active ? 'Activo' : 'Inactivo'}</span></td>
-                      <td>
-                        {isOwn ? (
-                          <div className="resident-row-actions">
-                            <button className="btn-edit" onClick={() => openVehicleForm(v)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
-                            <button className="btn-danger" onClick={async () => {
-                              if (!confirm(`¿Eliminar ${v.license_plate}?`)) return;
-                              try { await deleteVehicle(schemaName, v.id); setMessage('Vehículo eliminado'); await load(); }
-                              catch (err) { setError(err instanceof Error ? err.message : 'Error'); }
-                            }} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
-                          </div>
-                        ) : (
-                          <span className="text-muted">Registrado por administración</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            <div className="residents-mobile-grid">
-              {vehicles.map(v => {
-                const isOwn = Boolean(v.created_by_user_id && user && v.created_by_user_id === user.id);
-                return (
-                  <div key={v.id} className="resident-grid-card">
-                    <div className="resident-grid-main">
-                      <span className="resident-grid-name">{v.license_plate}</span>
-                      <span className="resident-grid-meta">{(v.vehicle_type === 'MOTO' ? 'Moto' : 'Auto')} · {[v.brand, v.model].filter(Boolean).join(' ') || '-'}</span>
-                    </div>
-                    <div className="resident-grid-fields">
-                      <div className="resident-grid-line"><span className="resident-grid-label">Color</span><span>{v.color || '-'}</span></div>
-                      <div className="resident-grid-line"><span className="resident-grid-label">Estado</span><span className={v.is_active ? '' : 'text-muted'}>{v.is_active ? 'Activo' : 'Inactivo'}</span></div>
-                    </div>
-                    {isOwn && (
+                {vehicles.map(v => (
+                  <tr key={v.id}>
+                    <td><strong>{v.license_plate}</strong></td>
+                    <td>{(v.vehicle_type === 'MOTO' ? 'Moto' : 'Auto')} · {[v.brand, v.model].filter(Boolean).join(' ') || '-'}</td>
+                    <td>{v.color || '-'}</td>
+                    <td><span className={`status-badge ${v.is_active ? 'status-occupied' : 'status-vacant'}`}>{v.is_active ? 'Activo' : 'Inactivo'}</span></td>
+                    <td>
                       <div className="resident-row-actions">
                         <button className="btn-edit" onClick={() => openVehicleForm(v)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
                         <button className="btn-danger" onClick={async () => {
@@ -337,10 +300,33 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
                           catch (err) { setError(err instanceof Error ? err.message : 'Error'); }
                         }} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
                       </div>
-                    )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div className="residents-mobile-grid">
+              {vehicles.map(v => (
+                <div key={v.id} className="resident-grid-card">
+                  <div className="resident-grid-main">
+                    <span className="resident-grid-name">{v.license_plate}</span>
+                    <span className="resident-grid-meta">{(v.vehicle_type === 'MOTO' ? 'Moto' : 'Auto')} · {[v.brand, v.model].filter(Boolean).join(' ') || '-'}</span>
                   </div>
-                );
-              })}
+                  <div className="resident-grid-fields">
+                    <div className="resident-grid-line"><span className="resident-grid-label">Color</span><span>{v.color || '-'}</span></div>
+                    <div className="resident-grid-line"><span className="resident-grid-label">Estado</span><span className={v.is_active ? '' : 'text-muted'}>{v.is_active ? 'Activo' : 'Inactivo'}</span></div>
+                  </div>
+                  <div className="resident-row-actions">
+                    <button className="btn-edit" onClick={() => openVehicleForm(v)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
+                    <button className="btn-danger" onClick={async () => {
+                      if (!confirm(`¿Eliminar ${v.license_plate}?`)) return;
+                      try { await deleteVehicle(schemaName, v.id); setMessage('Vehículo eliminado'); await load(); }
+                      catch (err) { setError(err instanceof Error ? err.message : 'Error'); }
+                    }} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
+                  </div>
+                </div>
+              ))}
             </div>
           </>
         )}

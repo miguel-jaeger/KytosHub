@@ -220,7 +220,6 @@ export default async function(req: Request): Promise<Response> {
         if (!current) return json({ success: false, data: null, error: { code: 'NOT_FOUND', message: 'Vehículo no encontrado' } }, 404);
         if (!isAdmin) {
           if (isSecurity || current.department_id !== myDepartmentId) return forbidden();
-          if (current.created_by_user_id && current.created_by_user_id !== uid) return forbidden();
         }
 
         const updates: Record<string, unknown> = {};
@@ -244,7 +243,6 @@ export default async function(req: Request): Promise<Response> {
         if (!current) return json({ success: false, data: null, error: { code: 'NOT_FOUND', message: 'Vehículo no encontrado' } }, 404);
         if (!isAdmin) {
           if (isSecurity || current.department_id !== myDepartmentId) return forbidden();
-          if (current.created_by_user_id && current.created_by_user_id !== uid) return forbidden();
         }
         const { error } = await db.from('vehicles').delete().eq('id', id);
         if (error) throw error;
