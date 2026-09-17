@@ -2197,7 +2197,7 @@ html.dark .condo-card-actions { border-top-color: #333; }
   padding: 1.5rem;
   box-shadow: 0 4px 24px rgba(15, 23, 42, 0.15);
   width: 100%;
-  max-width: 640px;
+  max-width: 900px;
   max-height: 90vh;
   overflow-y: auto;
 }

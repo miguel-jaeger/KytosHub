@@ -79,8 +79,34 @@ export function StructureManager() {
       </div>
 
       {showTowerForm && (
-        <div className="tower-form-section">
-          <TowerWizard onComplete={() => { setShowTowerForm(false); refresh(); }} onCancel={() => setShowTowerForm(false)} />
+        <div className="modal-overlay" onClick={() => setShowTowerForm(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <TowerWizard onComplete={() => { setShowTowerForm(false); refresh(); }} onCancel={() => setShowTowerForm(false)} />
+          </div>
+        </div>
+      )}
+
+      {floorForm.open && (
+        <div className="modal-overlay" onClick={() => setFloorForm({ towerId: '', open: false, floorNumber: '' })}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>Agregar piso</h3>
+                <p className="text-on-surface-variant">Indica el número del nuevo piso de la torre.</p>
+              </div>
+              <button className="modal-close" onClick={() => setFloorForm({ towerId: '', open: false, floorNumber: '' })} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label>Número de piso</label>
+                <input type="number" min={1} value={floorForm.floorNumber} onChange={e => setFloorForm({ ...floorForm, floorNumber: e.target.value })} placeholder="N° piso" autoFocus />
+              </div>
+              <div className="form-actions">
+                <button className="btn-cancel" onClick={() => setFloorForm({ towerId: '', open: false, floorNumber: '' })}>Cancelar</button>
+                <button onClick={handleAddFloor}><span className="material-symbols-outlined">check</span> Adicionar</button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -115,17 +141,9 @@ export function StructureManager() {
                 <div className="tower-floors">
                   <div className="tower-toolbar">
                     <span className="toolbar-title">Pisos</span>
-                    {floorForm.open && floorForm.towerId === tower.id ? (
-                      <div className="inline-add">
-                        <input type="number" value={floorForm.floorNumber} onChange={e => setFloorForm({ ...floorForm, floorNumber: e.target.value })} placeholder="N° piso" />
-                        <button onClick={handleAddFloor}><span className="material-symbols-outlined">check</span> Adicionar</button>
-                        <button onClick={() => setFloorForm({ towerId: '', open: false, floorNumber: '' })}><span className="material-symbols-outlined">close</span></button>
-                      </div>
-                    ) : (
-                      <button onClick={() => setFloorForm({ towerId: tower.id, open: true, floorNumber: String(tower.floors.length + 1) })}>
-                        <span className="material-symbols-outlined">add</span> Piso
-                      </button>
-                    )}
+                    <button onClick={() => setFloorForm({ towerId: tower.id, open: true, floorNumber: String(tower.floors.length + 1) })}>
+                      <span className="material-symbols-outlined">add</span> Piso
+                    </button>
                   </div>
 
                   {tower.floors.map(floor => (

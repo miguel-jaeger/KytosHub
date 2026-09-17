@@ -40,6 +40,7 @@ export function SuperAdminDashboard() {
   const [perPage, setPerPage] = useState<number | 'all'>(10);
 
   const { slice: pagedCondos } = paginate(visibleCondominiums, page, perPage === 'all' ? visibleCondominiums.length : perPage);
+  const editingCondo = condominiums.find(x => x.id === editingId);
 
   useEffect(() => { setPage(1); }, [visibleCondominiums.length, search]);
 
@@ -138,61 +139,17 @@ export function SuperAdminDashboard() {
           <div className="condominiums-grid">
           {pagedCondos.map(c => (
             <div key={c.id} className="condominium-card">
-              {editingId !== c.id && (
-                <div className="condo-thumb">
-                  {c.image_url && !failedImages[c.id] ? (
-                    <img src={c.image_url} alt={c.name} onError={() => setFailedImages(prev => ({ ...prev, [c.id]: true }))} />
-                  ) : (
-                    <div className="condo-thumb-placeholder">
-                      <span className="material-symbols-outlined">apartment</span>
-                    </div>
-                  )}
-                </div>
-              )}
-              <div className="condo-info">
-                {editingId === c.id ? (
-                  <div className="condo-edit-form">
-                    <div className="form-group">
-                      <label>Nombre</label>
-                      <input value={editData.name} onChange={e => setEditData({ ...editData, name: e.target.value })} />
-                    </div>
-                    <div className="form-group">
-                      <label>Dirección</label>
-                      <input value={editData.address} onChange={e => setEditData({ ...editData, address: e.target.value })} />
-                    </div>
-                    <div className="form-group">
-                      <label>Teléfono administración</label>
-                      <input value={editData.admin_phone} onChange={e => setEditData({ ...editData, admin_phone: e.target.value })} />
-                    </div>
-                    <div className="form-group">
-                      <label>Imagen del condominio</label>
-                      <div className="image-uploader">
-                        <div className="image-click-area" onClick={() => fileInputRef.current?.click()} title="Haz clic para seleccionar una imagen">
-                          {editImageFile ? (
-                            <div className="image-preview">
-                              <img src={URL.createObjectURL(editImageFile)} alt="Nueva imagen" />
-                            </div>
-                          ) : c.image_url && !failedImages[c.id] ? (
-                            <div className="image-preview">
-                              <img src={c.image_url} alt={c.name} onError={() => setFailedImages(prev => ({ ...prev, [c.id]: true }))} />
-                            </div>
-                          ) : (
-                            <div className="image-placeholder">
-                              <span className="material-symbols-outlined">add_a_photo</span>
-                              <p>Selecciona una imagen</p>
-                            </div>
-                          )}
-                        </div>
-                        <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={e => setEditImageFile(e.target.files?.[0] || null)} />
-                      </div>
-                    </div>
-                    <div className="form-actions">
-                      <button className="btn-cancel" onClick={() => setEditingId(null)}><span className="material-symbols-outlined">close</span> Cancelar</button>
-                      <button onClick={handleSaveEdit} disabled={saving}><span className="material-symbols-outlined">save</span> {saving ? 'Guardando...' : 'Guardar'}</button>
-                    </div>
-                  </div>
+              <div className="condo-thumb">
+                {c.image_url && !failedImages[c.id] ? (
+                  <img src={c.image_url} alt={c.name} onError={() => setFailedImages(prev => ({ ...prev, [c.id]: true }))} />
                 ) : (
-                  <>
+                  <div className="condo-thumb-placeholder">
+                    <span className="material-symbols-outlined">apartment</span>
+                  </div>
+                )}
+              </div>
+              <div className="condo-info">
+                <>
                     <h3>{c.name}</h3>
                     <p>{c.address || 'Sin dirección'}</p>
                     <span className={`status-badge ${c.status === 'ACTIVE' ? 'status-occupied' : 'status-vacant'}`}>{c.status}</span>
@@ -228,11 +185,63 @@ export function SuperAdminDashboard() {
                       </button>
                     </div>
                   </>
-                )}
               </div>
             </div>
           ))}
           </div>
+          {editingCondo && (
+            <div className="modal-overlay" onClick={() => setEditingId(null)}>
+              <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                  <div>
+                    <h3>Editar Condominio</h3>
+                    <p className="text-on-surface-variant">{editingCondo.name}</p>
+                  </div>
+                  <button className="modal-close" onClick={() => setEditingId(null)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
+                </div>
+                <div className="modal-body">
+                  <div className="form-group">
+                    <label>Nombre</label>
+                    <input value={editData.name} onChange={e => setEditData({ ...editData, name: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label>Dirección</label>
+                    <input value={editData.address} onChange={e => setEditData({ ...editData, address: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label>Teléfono administración</label>
+                    <input value={editData.admin_phone} onChange={e => setEditData({ ...editData, admin_phone: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label>Imagen del condominio</label>
+                    <div className="image-uploader">
+                      <div className="image-click-area" onClick={() => fileInputRef.current?.click()} title="Haz clic para seleccionar una imagen">
+                        {editImageFile ? (
+                          <div className="image-preview">
+                            <img src={URL.createObjectURL(editImageFile)} alt="Nueva imagen" />
+                          </div>
+                        ) : editingCondo.image_url && !failedImages[editingCondo.id] ? (
+                          <div className="image-preview">
+                            <img src={editingCondo.image_url} alt={editingCondo.name} onError={() => setFailedImages(prev => ({ ...prev, [editingCondo.id]: true }))} />
+                          </div>
+                        ) : (
+                          <div className="image-placeholder">
+                            <span className="material-symbols-outlined">add_a_photo</span>
+                            <p>Selecciona una imagen</p>
+                          </div>
+                        )}
+                      </div>
+                      <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={e => setEditImageFile(e.target.files?.[0] || null)} />
+                    </div>
+                  </div>
+                  <div className="form-actions">
+                    <button className="btn-cancel" onClick={() => setEditingId(null)}><span className="material-symbols-outlined">close</span> Cancelar</button>
+                    <button onClick={handleSaveEdit} disabled={saving}><span className="material-symbols-outlined">save</span> {saving ? 'Guardando...' : 'Guardar'}</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           <PaginationBar
             total={visibleCondominiums.length}
             page={page}
