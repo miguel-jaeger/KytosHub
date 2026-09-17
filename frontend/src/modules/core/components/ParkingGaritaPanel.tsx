@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useParking } from '../hooks/useParking';
 import { ParkingMap } from './ParkingMap';
-import type { ParkingLayout, ParkingSpot, PlateStatus, GuardGateSession, VehicleType } from '../types';
+import type { ParkingLayout, ParkingSpot, PlateStatus, GuardGateSession, Vehicle, VehicleType } from '../types';
 
 interface Props {
   schemaName?: string;
@@ -20,10 +20,12 @@ function fmtDateTime(iso: string | null): string {
 const VEHICLE_TYPE_LABELS: Record<VehicleType, string> = { AUTO: 'Auto', MOTO: 'Moto' };
 
 export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
-  const { listSpots, getLayout, plateStatus, registerEntry, registerExit, ocrPlate, ocrConfigured } = useParking();
+  const { listSpots, getLayout, searchPlates, plateStatus, registerEntry, registerExit, updateVehicleDriver, ocrPlate, ocrConfigured } = useParking();
   const [spots, setSpots] = useState<ParkingSpot[]>([]);
   const [layout, setLayout] = useState<ParkingLayout | null>(null);
   const [plate, setPlate] = useState('');
+  const [results, setResults] = useState<Vehicle[]>([]);
+  const [searchDone, setSearchDone] = useState(false);
   const [vehicleType, setVehicleType] = useState<VehicleType>('AUTO');
   const [driverName, setDriverName] = useState('');
   const [status, setStatus] = useState<PlateStatus | null>(null);
@@ -32,6 +34,7 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrReady, setOcrReady] = useState(false);
   const [busy, setBusy] = useState<'enter' | 'exit' | null>(null);
+  const [savingDriver, setSavingDriver] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -56,25 +59,50 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
 
   const normalizePlate = (v: string) => v.trim().toUpperCase().replace(/\s+/g, '');
 
+  // Partial search: lists matching plates, user then picks one
   const consult = useCallback(async (raw?: string) => {
     if (!schemaName) return;
-    const plateValue = normalizePlate(raw ?? plate);
-    if (!plateValue) return;
+    const query = normalizePlate(raw ?? plate);
+    if (!query) return;
     setLoading(true);
     setError(null);
     setMessage(null);
     setStatus(null);
     setSpotOverride('');
+    setDriverName('');
     try {
-      const res = await plateStatus(schemaName, plateValue);
-      setStatus(res);
-      if (res.vehicle?.vehicle_type) setVehicleType(res.vehicle.vehicle_type);
+      const res = await searchPlates(schemaName, query);
+      setResults(res);
+      setSearchDone(true);
+      if (res.length === 1) {
+        await selectVehicle(res[0]);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al consultar');
+      setError(err instanceof Error ? err.message : 'Error al buscar');
     } finally {
       setLoading(false);
     }
-  }, [schemaName, plate, plateStatus]);
+  }, [schemaName, plate, searchPlates]);
+
+  const selectVehicle = async (v: Vehicle) => {
+    if (!schemaName) return;
+    setPlate(v.license_plate);
+    setVehicleType(v.vehicle_type || 'AUTO');
+    setDriverName(v.driver_name || '');
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    // Refetch full plate status for inside/outside + spot info
+    const res = await plateStatus(schemaName, v.license_plate).catch(err => {
+      setError(err instanceof Error ? err.message : 'Error al consultar placa');
+      return null;
+    });
+    setLoading(false);
+    if (res) {
+      setStatus(res);
+      if (res.driver_name) setDriverName(res.driver_name);
+    }
+  };
 
   const handleScan = async (file: File | null) => {
     if (!file) return;
@@ -89,7 +117,10 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
           const res = await ocrPlate(dataUrl);
           if (res.plate) {
             setPlate(res.plate.toUpperCase());
-            await consult(res.plate.toUpperCase());
+            setSearchDone(false);
+            setStatus(null);
+            setDriverName('');
+            await consult(res.plate);
             setMessage(`Placa reconocida: ${res.plate.toUpperCase()}`);
           } else {
             setError(`No se pudo reconocer una matrícula clara. Texto detectado: ${res.full_text.trim() || 'ninguno'} — ingrésala manualmente.`);
@@ -108,8 +139,31 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
     }
   };
 
+  const handleSaveDriver = async () => {
+    if (!schemaName || !plate) return;
+    setSavingDriver(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const updated = await updateVehicleDriver(schemaName, plate, driverName);
+      if (updated) {
+        // refresh status so the driver is updated in the log too
+        if (status) setStatus(prev => prev ? { ...prev, vehicle: updated, driver_name: driverName } : prev);
+        setMessage(`Conductor guardado para la matrícula ${plate}`);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al guardar el conductor');
+    } finally {
+      setSavingDriver(false);
+    }
+  };
+
   const handleEnter = async () => {
     if (!schemaName || !status) return;
+    if (!guardGate) {
+      setError('Debes seleccionar tu puerta de trabajo antes de registrar el ingreso.');
+      return;
+    }
     setBusy('enter');
     setError(null);
     setMessage(null);
@@ -122,7 +176,11 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
         gate_id: guardGate?.gate.id
       });
       setStatus(prev => prev ? { ...prev, inside: true, current_log: res.log, inside_spot: res.spot } : prev);
-      setMessage(`Ingreso registrado (${VEHICLE_TYPE_LABELS[vehicleType]}) en bahía ${res.spot.spot_number}${res.entry_gate ? ` por ${res.entry_gate.name}` : ''} (${res.authorization})`);
+      setMessage(res.entry_gate
+        ? `Ingreso registrado (${VEHICLE_TYPE_LABELS[vehicleType]}) en bahía ${res.spot.spot_number} por ${res.entry_gate.name} (${res.authorization})`
+        : `Ingreso registrado en bahía ${res.spot.spot_number} (${res.authorization})`);
+      setResults([]);
+      setSearchDone(false);
       await loadMap();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar ingreso');
@@ -143,6 +201,8 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
       });
       setStatus(prev => prev ? { ...prev, inside: false, current_log: res.log } : prev);
       setMessage(`Salida registrada${res.exit_gate ? ` por ${res.exit_gate.name}` : ''} · Bahía ${status.inside_spot?.spot_number || ''}`);
+      setResults([]);
+      setSearchDone(false);
       await loadMap();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar salida');
@@ -152,6 +212,9 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
   };
 
   if (!schemaName) return <div className="parking-panel"><div className="empty-state"><p>Seleccione un condominio para operar el estacionamiento.</p></div></div>;
+
+  const showResults = searchDone && results.length > 0 && !status;
+  const showEmpty = searchDone && results.length === 0 && !status;
 
   return (
     <div className="parking-panel">
@@ -170,13 +233,13 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
           <span className="material-symbols-outlined search-icon">directions_car</span>
           <input
             type="text"
-            placeholder="Ingresar placa manualmente (ej: ABC-123)"
+            placeholder="Buscar por matrícula (parcial) (ej: ABC, 123)"
             value={plate}
-            onChange={e => setPlate(e.target.value)}
+            onChange={e => { setPlate(e.target.value); setSearchDone(false); setStatus(null); }}
             onKeyDown={e => { if (e.key === 'Enter') void consult(); }}
           />
           <button className="btn-primary" onClick={() => void consult()} disabled={loading || ocrLoading}>
-            {loading ? 'Consultando...' : 'Consultar'}
+            {loading ? 'Buscando...' : 'Buscar'}
           </button>
           {ocrReady && (
             <button
@@ -200,6 +263,32 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
         </div>
       </div>
 
+      {showResults && (
+        <div className="parking-results">
+          <h4>Vehículos encontrados ({results.length})</h4>
+          <div className="parking-results-list">
+            {results.map(v => (
+              <button key={v.id} className="parking-result-card" onClick={() => void selectVehicle(v)}>
+                <span className="material-symbols-outlined">directions_car</span>
+                <div>
+                  <strong>{v.license_plate}</strong>
+                  <small>{VEHICLE_TYPE_LABELS[v.vehicle_type] || v.vehicle_type} · {v.driver_name || <em>Sin conductor</em>} · {(v as Vehicle & { departments?: { department_number: string } }).departments?.department_number || 'General'}</small>
+                </div>
+                <span className={`status-badge ${(v as Vehicle & { inside?: boolean }).inside ? 'status-occupied' : 'status-vacant'}`}>
+                  {(v as Vehicle & { inside?: boolean }).inside ? 'Dentro' : 'Fuera'}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {showEmpty && (
+        <div className="empty-state">
+          <p>No hay vehículos registrados con esa matrícula. Verifica la placa o escanéala.</p>
+        </div>
+      )}
+
       <div className="parking-map-wrap">
         <ParkingMap spots={spots} layout={layout} showLegend />
       </div>
@@ -220,6 +309,7 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
                 ? `${VEHICLE_TYPE_LABELS[status.vehicle.vehicle_type] || status.vehicle.vehicle_type} · ${[status.vehicle.brand, status.vehicle.model].filter(Boolean).join(' ') || 'Registrado'}${status.vehicle.color ? ` · ${status.vehicle.color}` : ''}`
                 : `No registrado en el padrón · ${VEHICLE_TYPE_LABELS[vehicleType] || vehicleType}`}
             </span></div>
+            <div className="parking-status-cell"><label>Conductor</label><span>{driverName || <span className="text-muted">Sin registrar</span>}</span></div>
             {status.inside && (
               <>
                 <div className="parking-status-cell"><label>Bahía</label><span>{status.inside_spot?.spot_number || '-'} ({status.inside_spot?.type || '-'})</span></div>
@@ -256,8 +346,19 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
                 </div>
               </div>
               <div className="checkout-field">
-                <label>Nombre del conductor (opcional)</label>
-                <input type="text" value={driverName} onChange={e => setDriverName(e.target.value)} placeholder="Ej: Juan Pérez" />
+                <label>Nombre del conductor{status.vehicle ? ' (registrado)' : ' (no registrado — puedes guardarlo)'}</label>
+                <input
+                  type="text"
+                  value={driverName}
+                  onChange={e => setDriverName(e.target.value)}
+                  placeholder="Ej: Juan Pérez"
+                  onKeyDown={e => { if (e.key === 'Enter' && !status.vehicle) void handleSaveDriver(); }}
+                />
+                {status.vehicle && (
+                  <button className="btn-edit" onClick={handleSaveDriver} disabled={savingDriver}>
+                    <span className="material-symbols-outlined">save</span> {savingDriver ? 'Guardando...' : 'Guardar conductor'}
+                  </button>
+                )}
               </div>
               {[...status.visitor_spots, ...status.rented_spots].length > 0 && (
                 <div className="checkout-field">

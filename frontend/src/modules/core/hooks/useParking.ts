@@ -83,6 +83,16 @@ export function useParking() {
     return data.data;
   }, []);
 
+  const updateVehicleDriver = useCallback(async (schemaName: string, licensePlate: string, driverName: string): Promise<Vehicle | null> => {
+    const { data, error } = await invokeFunction<{ success: boolean; data: Vehicle | null; error: { message: string } | null }>('parking-control', {
+      method: 'POST',
+      body: { action: 'update-vehicle-driver', schema_name: schemaName, license_plate: licensePlate, driver_name: driverName }
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error?.message || 'Error al actualizar el conductor');
+    return data.data;
+  }, []);
+
   const deleteVehicle = useCallback(async (schemaName: string, id: string) => {
     const { data, error } = await invokeFunction<{ success: boolean; error: { message: string } | null }>('parking-control', {
       method: 'POST',
@@ -130,6 +140,16 @@ export function useParking() {
     if (error) throw error;
     if (!data?.success || !data.data) throw new Error(data?.error?.message || 'Error al consultar la placa');
     return data.data;
+  }, []);
+
+  const searchPlates = useCallback(async (schemaName: string, search: string): Promise<Vehicle[]> => {
+    const { data, error } = await invokeFunction<{ success: boolean; data: Vehicle[] | null; error: { message: string } | null }>('parking-control', {
+      method: 'POST',
+      body: { action: 'search-plates', schema_name: schemaName, search }
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error?.message || 'Error al buscar placas');
+    return data.data || [];
   }, []);
 
   const registerEntry = useCallback(async (schemaName: string, input: { license_plate: string; vehicle_type?: string; driver_name?: string; spot_id?: string; gate_id?: string }): Promise<EntryRegisterResult> => {
@@ -202,9 +222,9 @@ export function useParking() {
 
   return {
     listSpots, createSpot, updateSpot, deleteSpot,
-    listVehicles, createVehicle, updateVehicle, deleteVehicle,
+    listVehicles, createVehicle, updateVehicle, updateVehicleDriver, deleteVehicle,
     listLoans, createLoan, updateLoanStatus,
-    plateStatus, registerEntry, registerExit, listLogs,
+    plateStatus, searchPlates, registerEntry, registerExit, listLogs,
     getLayout, provisionLayout, ocrPlate, ocrConfigured
   };
 }

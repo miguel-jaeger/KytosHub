@@ -278,11 +278,18 @@ html.dark .welcome-card p { color: #aaa; }
   padding: 1.5rem;
   text-decoration: none;
   color: inherit;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
 }
 
 .action-card:hover {
-  border-color: #646cff;
+  background: #e8f5ec;
+  border-color: #b7e0c7;
+  color: #006c49;
+}
+
+.action-card:hover h3,
+.action-card:hover p {
+  color: #006c49;
 }
 
 .action-card-btn {
@@ -1373,6 +1380,8 @@ html.dark .dashboard h2, html.dark .dashboard h1, html.dark .header h2 { color: 
 html.dark .action-card { background: #1e1e1e; border-color: #333; }
 html.dark .action-card h3 { color: #90caf9; }
 html.dark .action-card p { color: #aaa; }
+html.dark .action-card:hover { background: #123b2a; border-color: #1b5e44; }
+html.dark .action-card:hover h3, html.dark .action-card:hover p { color: #69db7c; }
 html.dark .tower-card, html.dark .department-card, html.dark .wizard-container,
 html.dark .tower-structure, html.dark .residents-manager, html.dark .condo-registration { background: #1e1e1e; border-color: #333; }
 html.dark .tower-card h3, html.dark .department-number, html.dark .tower-info h3, html.dark .floor-label { color: #e5e7eb; }
