@@ -39,7 +39,25 @@ export default async function(req: Request): Promise<Response> {
       if (!userId) return new Response(JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'user_id requerido' } }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       const { data, error } = await client.database.from('tenant_users').select('tenant_id, role, status').eq('user_id', userId).eq('status', 'ACTIVE');
       if (error) throw error;
-      return new Response(JSON.stringify({ success: true, data: data || [], error: null }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      const tenantRows = data || [];
+
+      // Residents may be linked only through each tenant schema's residents.user_id
+      if (tenantRows.length === 0) {
+        try {
+          const { data: tenants } = await client.database.from('tenants').select('id, schema_name');
+          for (const t of (tenants || []) as Array<{ id: string; schema_name?: string }>) {
+            if (!t.schema_name) continue;
+            try {
+              const { data: r } = await client.database.schema(t.schema_name).from('residents').select('user_id').eq('user_id', userId).limit(1);
+              if (r && (r as Array<{ user_id: string }>).length > 0) {
+                tenantRows.push({ tenant_id: t.id, role: 'RESIDENT', status: 'ACTIVE' });
+              }
+            } catch {}
+          }
+        } catch {}
+      }
+
+      return new Response(JSON.stringify({ success: true, data: tenantRows, error: null }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     if (action === 'list-all') {

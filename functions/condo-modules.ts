@@ -24,6 +24,12 @@ const MODULES: Record<string, ModuleDef> = {
       fine_amount: 5,
       fine_interval_minutes: 30
     }
+  },
+  parking_control: {
+    name: 'Estacionamientos y Préstamos de Bahías',
+    description: 'Bahías de estacionamiento, vehículos por departamento, préstamos de bahía entre propietarios y registros de entrada/salida en garita por puerta.',
+    default_enabled: true,
+    default_config: {}
   }
 };
 
