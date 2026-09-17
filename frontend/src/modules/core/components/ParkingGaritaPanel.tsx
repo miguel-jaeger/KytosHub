@@ -177,8 +177,8 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
       });
       setStatus(prev => prev ? { ...prev, inside: true, current_log: res.log, inside_spot: res.spot } : prev);
       setMessage(res.entry_gate
-        ? `Ingreso registrado (${VEHICLE_TYPE_LABELS[vehicleType]}) en bahía ${res.spot.spot_number} por ${res.entry_gate.name} (${res.authorization})`
-        : `Ingreso registrado en bahía ${res.spot.spot_number} (${res.authorization})`);
+        ? `Ingreso registrado (${VEHICLE_TYPE_LABELS[vehicleType]}) en el estacionamiento ${res.spot.spot_number} por ${res.entry_gate.name} (${res.authorization})`
+        : `Ingreso registrado en el estacionamiento ${res.spot.spot_number} (${res.authorization})`);
       setResults([]);
       setSearchDone(false);
       await loadMap();
@@ -200,7 +200,7 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
         gate_id: guardGate?.gate.id
       });
       setStatus(prev => prev ? { ...prev, inside: false, current_log: res.log } : prev);
-      setMessage(`Salida registrada${res.exit_gate ? ` por ${res.exit_gate.name}` : ''} · Bahía ${status.inside_spot?.spot_number || ''}`);
+      setMessage(`Salida registrada${res.exit_gate ? ` por ${res.exit_gate.name}` : ''} · Estacionamiento ${status.inside_spot?.spot_number || ''}`);
       setResults([]);
       setSearchDone(false);
       await loadMap();
@@ -312,7 +312,7 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
             <div className="parking-status-cell"><label>Conductor</label><span>{driverName || <span className="text-muted">Sin registrar</span>}</span></div>
             {status.inside && (
               <>
-                <div className="parking-status-cell"><label>Bahía</label><span>{status.inside_spot?.spot_number || '-'} ({status.inside_spot?.type || '-'})</span></div>
+                <div className="parking-status-cell"><label>Estacionamiento</label><span>{status.inside_spot?.spot_number || '-'} ({status.inside_spot?.type || '-'})</span></div>
                 <div className="parking-status-cell"><label>Ingresó</label><span>{fmtDateTime(status.current_log?.entry_time || null)}</span></div>
                 <div className="parking-status-cell"><label>Por puerta</label><span>{status.entry_gate?.name || '-'}</span></div>
               </>
@@ -362,11 +362,11 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
               </div>
               {[...status.visitor_spots, ...status.rented_spots].length > 0 && (
                 <div className="checkout-field">
-                  <label>Bahía (opcional)</label>
+                  <label>Estacionamiento (opcional)</label>
                   <select value={spotOverride} onChange={e => setSpotOverride(e.target.value)}>
                     <option value="">Automática</option>
-                    {status.visitor_spots.map(s => <option key={s.id} value={s.id}>Bahía {s.spot_number} (Visita)</option>)}
-                    {status.rented_spots.map(s => <option key={s.id} value={s.id}>Bahía {s.spot_number} (Alquilada)</option>)}
+                    {status.visitor_spots.map(s => <option key={s.id} value={s.id}>Estacionamiento {s.spot_number} (Visita)</option>)}
+                    {status.rented_spots.map(s => <option key={s.id} value={s.id}>Estacionamiento {s.spot_number} (Alquilada)</option>)}
                   </select>
                 </div>
               )}

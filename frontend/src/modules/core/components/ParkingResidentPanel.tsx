@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import { useParking } from '../hooks/useParking';
+import { useAuth } from '../../../contexts/AuthContext';
 import type { Department, Floor, ParkingLoan, ParkingSpot, RentalDurationUnit, Vehicle, VehicleType } from '../types';
 
 interface TowerOption {
@@ -8,6 +9,8 @@ interface TowerOption {
   code: string;
   name: string;
 }
+
+const emptyVehicleForm = { license_plate: '', vehicle_type: 'AUTO' as VehicleType, brand: '', model: '', color: '' };
 
 const LOAN_STATUS_LABELS: Record<string, string> = {
   PENDIENTE: 'Pendiente',
@@ -31,7 +34,8 @@ const toLocalInput = (iso: string): string => {
 };
 
 export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
-  const { listSpots, listVehicles, listLoans, createVehicle, createLoan, updateLoanStatus, deleteVehicle } = useParking();
+  const { user } = useAuth();
+  const { listSpots, listVehicles, listLoans, createVehicle, updateVehicle, createLoan, updateLoanStatus, deleteVehicle } = useParking();
   const [spots, setSpots] = useState<ParkingSpot[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loans, setLoans] = useState<ParkingLoan[]>([]);
@@ -40,7 +44,8 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const [vehicleForm, setVehicleForm] = useState({ license_plate: '', vehicle_type: 'AUTO' as VehicleType, brand: '', model: '', color: '' });
+  const [vehicleForm, setVehicleForm] = useState(emptyVehicleForm);
+  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [showVehicleForm, setShowVehicleForm] = useState(false);
   const [loanForm, setLoanForm] = useState({
     spot_id: '',
@@ -136,16 +141,23 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
     if (!schemaName || !vehicleForm.license_plate.trim()) { alert('Indica la placa'); return; }
     setSaving(true);
     try {
-      await createVehicle(schemaName, {
+      const payload = {
         license_plate: vehicleForm.license_plate.trim().toUpperCase(),
         vehicle_type: vehicleForm.vehicle_type,
         brand: vehicleForm.brand.trim() || null,
         model: vehicleForm.model.trim() || null,
         color: vehicleForm.color.trim() || null
-      });
-      setVehicleForm({ license_plate: '', vehicle_type: 'AUTO', brand: '', model: '', color: '' });
+      };
+      if (editingVehicle) {
+        await updateVehicle(schemaName, editingVehicle.id, payload);
+        setMessage('Vehículo actualizado');
+      } else {
+        await createVehicle(schemaName, payload);
+        setMessage('Vehículo registrado');
+      }
+      setVehicleForm(emptyVehicleForm);
+      setEditingVehicle(null);
       setShowVehicleForm(false);
-      setMessage('Vehículo registrado');
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error');
@@ -154,14 +166,28 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
     }
   };
 
+  const openVehicleForm = (v: Vehicle | null) => {
+    setEditingVehicle(v);
+    setVehicleForm(v
+      ? { license_plate: v.license_plate, vehicle_type: v.vehicle_type || 'AUTO', brand: v.brand || '', model: v.model || '', color: v.color || '' }
+      : emptyVehicleForm);
+    setShowVehicleForm(true);
+  };
+
+  const closeVehicleForm = () => {
+    setShowVehicleForm(false);
+    setEditingVehicle(null);
+    setVehicleForm(emptyVehicleForm);
+  };
+
   const handleLoanSave = async () => {
     if (!schemaName) return;
-    if (!loanForm.spot_id) { alert('Selecciona la bahía a prestar'); return; }
+    if (!loanForm.spot_id) { alert('Selecciona la estacionamiento a prestar'); return; }
     if (!loanForm.occupant_name.trim() || !loanForm.occupant_document_number.trim()) {
       alert('Registra los datos de la persona a la que se prestará (nombre y documento)'); return;
     }
     if (!loanForm.borrower_vehicle_plate.trim()) {
-      alert('Indica la placa del vehículo que usará la bahía'); return;
+      alert('Indica la placa del vehículo que usará la estacionamiento'); return;
     }
     const startMs = new Date(loanForm.start_time).getTime();
     const endMs = new Date(loanForm.end_time).getTime();
@@ -190,7 +216,7 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
         end_time: new Date(loanForm.end_time).toISOString()
       });
       setShowLoanForm(false);
-      setMessage('Préstamo de bahía solicitado');
+      setMessage('Préstamo de estacionamiento solicitado');
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error');
@@ -201,7 +227,7 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
 
   const handleCancelLoan = async (loan: ParkingLoan) => {
     if (!schemaName) return;
-    if (!confirm(`¿Cancelar el préstamo de la bahía ${loan.spot_number || ''}?`)) return;
+    if (!confirm(`¿Cancelar el préstamo de la estacionamiento ${loan.spot_number || ''}?`)) return;
     try {
       await updateLoanStatus(schemaName, loan.id, 'CANCELADO');
       setMessage('Préstamo cancelado');
@@ -228,7 +254,7 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
       </div>
 
       <div className="cart-kpi-row">
-        <div className="cart-kpi"><strong>{mySpots.length}</strong> bahía(s) propia(s)</div>
+        <div className="cart-kpi"><strong>{mySpots.length}</strong> estacionamiento(s) propia(s)</div>
         <div className="cart-kpi cart-kpi-dispo"><strong>{vehicles.length}</strong> vehículo(s)</div>
         <div className="cart-kpi cart-kpi-prestado"><strong>{loans.filter(l => l.status === 'ACTIVO').length}</strong> préstamo(s) activo(s)</div>
       </div>
@@ -245,45 +271,90 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
       )}
 
       <div className="cart-form">
-        <h4>Mis vehículos</h4>
+        <div className="panel-header">
+          <div>
+            <h4>Mis vehículos</h4>
+            <small>Puedes editar o eliminar solo los vehículos que registraste tú mismo.</small>
+          </div>
+          <button onClick={() => openVehicleForm(null)}><span className="material-symbols-outlined">directions_car</span> Registrar vehículo</button>
+        </div>
         {vehicles.length === 0 ? (
           <p className="text-muted">Aún no tienes vehículos registrados.</p>
         ) : (
-          <table className="residents-table residents-desktop">
-            <thead>
-              <tr><th>Placa</th><th>Vehículo</th><th>Color</th><th>Estado</th><th></th></tr>
-            </thead>
-            <tbody>
-              {vehicles.map(v => (
-                <tr key={v.id}>
-                  <td><strong>{v.license_plate}</strong></td>
-                  <td>{(v.vehicle_type === 'MOTO' ? 'Moto' : 'Auto')} · {[v.brand, v.model].filter(Boolean).join(' ') || '-'}</td>
-                  <td>{v.color || '-'}</td>
-                  <td><span className={`status-badge ${v.is_active ? 'status-occupied' : 'status-vacant'}`}>{v.is_active ? 'Activo' : 'Inactivo'}</span></td>
-                  <td>
-                    <button className="btn-cancel" onClick={async () => {
-                      if (!confirm(`¿Eliminar ${v.license_plate}?`)) return;
-                      try { await deleteVehicle(schemaName, v.id); setMessage('Vehículo eliminado'); await load(); }
-                      catch (err) { setError(err instanceof Error ? err.message : 'Error'); }
-                    }}>Eliminar</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <>
+            <table className="residents-table residents-desktop">
+              <thead>
+                <tr><th>Placa</th><th>Vehículo</th><th>Color</th><th>Estado</th><th></th></tr>
+              </thead>
+              <tbody>
+                {vehicles.map(v => {
+                  const isOwn = Boolean(v.created_by_user_id && user && v.created_by_user_id === user.id);
+                  return (
+                    <tr key={v.id}>
+                      <td><strong>{v.license_plate}</strong></td>
+                      <td>{(v.vehicle_type === 'MOTO' ? 'Moto' : 'Auto')} · {[v.brand, v.model].filter(Boolean).join(' ') || '-'}</td>
+                      <td>{v.color || '-'}</td>
+                      <td><span className={`status-badge ${v.is_active ? 'status-occupied' : 'status-vacant'}`}>{v.is_active ? 'Activo' : 'Inactivo'}</span></td>
+                      <td>
+                        {isOwn ? (
+                          <div className="resident-row-actions">
+                            <button className="btn-edit" onClick={() => openVehicleForm(v)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
+                            <button className="btn-danger" onClick={async () => {
+                              if (!confirm(`¿Eliminar ${v.license_plate}?`)) return;
+                              try { await deleteVehicle(schemaName, v.id); setMessage('Vehículo eliminado'); await load(); }
+                              catch (err) { setError(err instanceof Error ? err.message : 'Error'); }
+                            }} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
+                          </div>
+                        ) : (
+                          <span className="text-muted">Registrado por administración</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            <div className="residents-mobile-grid">
+              {vehicles.map(v => {
+                const isOwn = Boolean(v.created_by_user_id && user && v.created_by_user_id === user.id);
+                return (
+                  <div key={v.id} className="resident-grid-card">
+                    <div className="resident-grid-main">
+                      <span className="resident-grid-name">{v.license_plate}</span>
+                      <span className="resident-grid-meta">{(v.vehicle_type === 'MOTO' ? 'Moto' : 'Auto')} · {[v.brand, v.model].filter(Boolean).join(' ') || '-'}</span>
+                    </div>
+                    <div className="resident-grid-fields">
+                      <div className="resident-grid-line"><span className="resident-grid-label">Color</span><span>{v.color || '-'}</span></div>
+                      <div className="resident-grid-line"><span className="resident-grid-label">Estado</span><span className={v.is_active ? '' : 'text-muted'}>{v.is_active ? 'Activo' : 'Inactivo'}</span></div>
+                    </div>
+                    {isOwn && (
+                      <div className="resident-row-actions">
+                        <button className="btn-edit" onClick={() => openVehicleForm(v)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
+                        <button className="btn-danger" onClick={async () => {
+                          if (!confirm(`¿Eliminar ${v.license_plate}?`)) return;
+                          try { await deleteVehicle(schemaName, v.id); setMessage('Vehículo eliminado'); await load(); }
+                          catch (err) { setError(err instanceof Error ? err.message : 'Error'); }
+                        }} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
-        <button onClick={() => setShowVehicleForm(true)}><span className="material-symbols-outlined">directions_car</span> Registrar vehículo</button>
       </div>
 
       {showVehicleForm && (
-        <div className="modal-overlay" onClick={() => setShowVehicleForm(false)}>
+        <div className="modal-overlay" onClick={closeVehicleForm}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div>
-                <h3>Registrar vehículo</h3>
-                <p className="text-on-surface-variant">Registra un vehículo para tu departamento.</p>
+                <h3>{editingVehicle ? 'Editar vehículo' : 'Registrar vehículo'}</h3>
+                <p className="text-on-surface-variant">{editingVehicle ? `Placa: ${editingVehicle.license_plate}` : 'Registra un vehículo para tu departamento.'}</p>
               </div>
-              <button className="modal-close" onClick={() => setShowVehicleForm(false)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
+              <button className="modal-close" onClick={closeVehicleForm} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
             </div>
             <div className="modal-body">
               <div className="form-row">
@@ -303,8 +374,8 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
                 <div className="form-group"><label>Color</label><input type="text" value={vehicleForm.color} onChange={e => setVehicleForm({ ...vehicleForm, color: e.target.value })} placeholder="Rojo" /></div>
               </div>
               <div className="form-actions">
-                <button className="btn-cancel" onClick={() => setShowVehicleForm(false)}>Cancelar</button>
-                <button onClick={handleVehicleSave} disabled={saving}>{saving ? 'Guardando...' : 'Registrar vehículo'}</button>
+                <button className="btn-cancel" onClick={closeVehicleForm}>Cancelar</button>
+                <button onClick={handleVehicleSave} disabled={saving}>{saving ? 'Guardando...' : editingVehicle ? 'Guardar' : 'Registrar vehículo'}</button>
               </div>
             </div>
           </div>
@@ -313,9 +384,9 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
 
       <div className="cart-form">
         <div className="modules-header">
-          <h4>Prestar mi bahía</h4>
+          <h4>Prestar mi estacionamiento</h4>
           {!showLoanForm && lendableSpots.length > 0 && (
-            <button onClick={() => setShowLoanForm(true)}><span className="material-symbols-outlined">real_estate_agent</span> Prestar bahía</button>
+            <button onClick={() => setShowLoanForm(true)}><span className="material-symbols-outlined">real_estate_agent</span> Prestar estacionamiento</button>
           )}
         </div>
 
@@ -332,21 +403,21 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <div>
-                  <h3>Solicitar préstamo de bahía</h3>
-                  <p className="text-on-surface-variant">Cede temporalmente tu bahía indicando quién la usará y la ventana de tiempo autorizada.</p>
+                  <h3>Solicitar préstamo de estacionamiento</h3>
+                  <p className="text-on-surface-variant">Cede temporalmente tu estacionamiento indicando quién la usará y la ventana de tiempo autorizada.</p>
                 </div>
                 <button className="modal-close" onClick={() => setShowLoanForm(false)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
               </div>
               <div className="modal-body">
                 <div className="form-group">
-                  <label>Bahía a prestar</label>
+                  <label>Estacionamiento a prestar</label>
                   <select value={loanForm.spot_id} onChange={e => setLoanForm({ ...loanForm, spot_id: e.target.value })}>
                     <option value="">— Seleccionar —</option>
-                    {lendableSpots.map(s => <option key={s.id} value={s.id}>Bahía {s.spot_number}</option>)}
+                    {lendableSpots.map(s => <option key={s.id} value={s.id}>Estacionamiento {s.spot_number}</option>)}
                   </select>
                 </div>
 
-            <h4>Datos de la persona que recibirá la bahía</h4>
+            <h4>Datos de la persona que recibirá la estacionamiento</h4>
             <div className="form-row">
               <div className="form-group">
                 <label>Nombre completo</label>
@@ -462,11 +533,12 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
         )}
 
         {loans.length === 0 ? (
-          <p className="text-muted">Aún no tienes préstamos de bahías.</p>
+          <p className="text-muted">Aún no tienes préstamos de estacionamientos.</p>
         ) : (
+          <>
           <table className="residents-table residents-desktop">
             <thead>
-              <tr><th>Bahía</th><th>Ocupante</th><th>Vehículo</th><th>Inicio</th><th>Fin</th><th>Duración</th><th>Estado</th><th></th></tr>
+              <tr><th>Estacionamiento</th><th>Ocupante</th><th>Vehículo</th><th>Inicio</th><th>Fin</th><th>Duración</th><th>Estado</th><th></th></tr>
             </thead>
             <tbody>
               {loans.map(l => (
@@ -487,6 +559,29 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
               ))}
             </tbody>
           </table>
+
+          <div className="residents-mobile-grid">
+            {loans.map(l => (
+              <div key={l.id} className="resident-grid-card">
+                <div className="resident-grid-main">
+                  <span className="resident-grid-name">Estacionamiento {l.spot_number || '-'}</span>
+                  <span className="resident-grid-meta">{l.occupant_name || (l.borrower_vehicle_plate ? 'Visitante' : 'Dpto')}</span>
+                </div>
+                <div className="resident-grid-fields">
+                  <div className="resident-grid-line"><span className="resident-grid-label">Vehículo</span><span>{(l.borrower_vehicle_type === 'MOTO' ? 'Moto' : l.borrower_vehicle_type === 'AUTO' ? 'Auto' : '')}{l.borrower_vehicle_plate ? ` · ${l.borrower_vehicle_plate}` : '-'}</span></div>
+                  <div className="resident-grid-line"><span className="resident-grid-label">Inicio</span><span>{fmtDT(l.start_time)}</span></div>
+                  <div className="resident-grid-line"><span className="resident-grid-label">Fin</span><span>{fmtDT(l.end_time)}</span></div>
+                  <div className="resident-grid-line"><span className="resident-grid-label">Estado</span><span>{LOAN_STATUS_LABELS[l.status] || l.status}</span></div>
+                </div>
+                {(l.status === 'PENDIENTE' || l.status === 'ACTIVO') && (
+                  <div className="resident-row-actions">
+                    <button className="btn-cancel" onClick={() => handleCancelLoan(l)}>Cancelar</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          </>
         )}
       </div>
     </div>

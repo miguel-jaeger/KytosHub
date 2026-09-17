@@ -207,6 +207,7 @@ export interface Vehicle {
   model: string | null;
   color: string | null;
   is_active: boolean;
+  created_by_user_id?: string | null;
   created_at: string;
   departments?: {
     department_number: string;

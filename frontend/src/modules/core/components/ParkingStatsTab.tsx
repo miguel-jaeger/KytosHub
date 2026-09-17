@@ -59,8 +59,8 @@ export function ParkingStatsTab({ schemaName }: { schemaName?: string }) {
           </div>
           <div className="cart-kpi-row">
             <div className="cart-kpi"><span className="material-symbols-outlined">directions_car</span><strong>{stats.vehicles_total}</strong> vehículos registrados</div>
-            <div className="cart-kpi"><span className="material-symbols-outlined">view_in_ar</span><strong>{stats.spots_total}</strong> bahías</div>
-            <div className="cart-kpi cart-kpi-mant"><span className="material-symbols-outlined">garage</span><strong>{stats.spots_occupied}</strong> bahías ocupadas</div>
+            <div className="cart-kpi"><span className="material-symbols-outlined">view_in_ar</span><strong>{stats.spots_total}</strong> estacionamientos</div>
+            <div className="cart-kpi cart-kpi-mant"><span className="material-symbols-outlined">garage</span><strong>{stats.spots_occupied}</strong> estacionamientos ocupados</div>
             <div className="cart-kpi cart-kpi-prestado"><span className="material-symbols-outlined">real_estate_agent</span><strong>{stats.parking_loans_active}</strong> préstamos activos</div>
           </div>
         </>

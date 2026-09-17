@@ -43,7 +43,7 @@ export function ParkingLoansTab({ schemaName }: { schemaName?: string }) {
   const handleLoanStatus = async (loan: ParkingLoan, status: 'ACTIVO' | 'CANCELADO' | 'FINALIZADO') => {
     if (!schemaName) return;
     const label = LOAN_STATUS_LABELS[status];
-    if (!confirm(`¿Marcar el préstamo de la bahía ${loan.spot_number} como "${label}"?`)) return;
+    if (!confirm(`¿Marcar el préstamo del estacionamiento ${loan.spot_number} como "${label}"?`)) return;
     try {
       await updateLoanStatus(schemaName, loan.id, status);
       setMessage(`Préstamo marcado como ${label}`);

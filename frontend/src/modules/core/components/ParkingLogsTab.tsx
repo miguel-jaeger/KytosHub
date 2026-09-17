@@ -35,7 +35,7 @@ function AccessLogDetailModal({ log, onClose }: { log: ParkingAccessLog; onClose
             <div className="resident-grid-line"><span className="resident-grid-label">Placa</span><span><strong>{log.license_plate}</strong></span></div>
             <div className="resident-grid-line"><span className="resident-grid-label">Conductor</span><span>{log.driver_name || '-'}</span></div>
             <div className="resident-grid-line"><span className="resident-grid-label">Tipo de vehículo</span><span>{VEHICLE_TYPE_LABELS[log.vehicle_type] || log.vehicle_type || '-'}</span></div>
-            <div className="resident-grid-line"><span className="resident-grid-label">Bahía</span><span>{log.spot_number ? `${log.spot_number} (${log.spot_type || ''})` : '-'}</span></div>
+            <div className="resident-grid-line"><span className="resident-grid-label">Estacionamiento</span><span>{log.spot_number ? `${log.spot_number} (${log.spot_type || ''})` : '-'}</span></div>
             <div className="resident-grid-line"><span className="resident-grid-label">Entrada</span><span>{fmtDateTime(log.entry_time)}</span></div>
             <div className="resident-grid-line"><span className="resident-grid-label">Puerta de entrada</span><span>{log.entry_gate?.name || '-'}</span></div>
             <div className="resident-grid-line"><span className="resident-grid-label">Salida</span><span>{fmtDateTime(log.exit_time)}</span></div>

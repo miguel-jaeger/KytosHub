@@ -205,7 +205,8 @@ export default async function(req: Request): Promise<Response> {
           brand: body.brand ? String(body.brand) : null,
           model: body.model ? String(body.model) : null,
           color: body.color ? String(body.color) : null,
-          is_active: body.is_active !== false
+          is_active: body.is_active !== false,
+          created_by_user_id: uid
         }]).select().single();
         if (error) throw error;
         const enriched = (await enrichVehicles(db, [data]))[0];
@@ -215,9 +216,12 @@ export default async function(req: Request): Promise<Response> {
       case 'update-vehicle': {
         const id = body.id as string;
         if (!id) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'id es requerido' } }, 400);
-        const { data: current } = await db.from('vehicles').select('department_id').eq('id', id).single();
+        const { data: current } = await db.from('vehicles').select('department_id, created_by_user_id').eq('id', id).single();
         if (!current) return json({ success: false, data: null, error: { code: 'NOT_FOUND', message: 'Vehículo no encontrado' } }, 404);
-        if (!isAdmin && (current.department_id !== myDepartmentId || isSecurity)) return forbidden();
+        if (!isAdmin) {
+          if (isSecurity || current.department_id !== myDepartmentId) return forbidden();
+          if (current.created_by_user_id && current.created_by_user_id !== uid) return forbidden();
+        }
 
         const updates: Record<string, unknown> = {};
         if (body.license_plate !== undefined) updates.license_plate = String(body.license_plate).trim().toUpperCase();
@@ -236,9 +240,12 @@ export default async function(req: Request): Promise<Response> {
       case 'delete-vehicle': {
         const id = body.id as string;
         if (!id) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'id es requerido' } }, 400);
-        const { data: current } = await db.from('vehicles').select('department_id').eq('id', id).single();
+        const { data: current } = await db.from('vehicles').select('department_id, created_by_user_id').eq('id', id).single();
         if (!current) return json({ success: false, data: null, error: { code: 'NOT_FOUND', message: 'Vehículo no encontrado' } }, 404);
-        if (!isAdmin && (current.department_id !== myDepartmentId || isSecurity)) return forbidden();
+        if (!isAdmin) {
+          if (isSecurity || current.department_id !== myDepartmentId) return forbidden();
+          if (current.created_by_user_id && current.created_by_user_id !== uid) return forbidden();
+        }
         const { error } = await db.from('vehicles').delete().eq('id', id);
         if (error) throw error;
         return json({ success: true, data: null, error: null }, 200);
