@@ -127,7 +127,7 @@ async function isOperatorForSchema(req: Request, client: ReturnType<typeof creat
     const tenantId = t?.id;
     if (!tenantId) return false;
 
-    const { data: tu } = await client.database.from('tenant_users').select('id').eq('user_id', uid).eq('tenant_id', tenantId).eq('status', 'ACTIVE').in('role', ['SUPER_ADMIN', 'ADMIN', 'SECURITY_AGENT']).single();
+    const { data: tu } = await client.database.from('tenant_users').select('id').eq('user_id', uid).eq('tenant_id', tenantId).eq('status', 'ACTIVE').in('role', ['SUPER_ADMIN', 'ADMIN', 'SECURITY_AGENT', 'SUPERVISOR']).single();
     return Boolean(tu);
   } catch { return false; }
 }

@@ -294,11 +294,15 @@ export default async function(req: Request): Promise<Response> {
             return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'duration_unit debe ser HORAS, DIAS o MESES' } }, 400);
           }
           const borrowerVehiclePlate = body.borrower_vehicle_plate ? String(body.borrower_vehicle_plate).trim().toUpperCase() : null;
+          const borrowerVehicleType = body.borrower_vehicle_type
+            ? normalizeVehicleType(body.borrower_vehicle_type)
+            : (borrowerVehiclePlate ? 'AUTO' : null);
           const { data, error } = await db.from('parking_loans').insert([{
             spot_id: spotId,
             lender_department_id: body.lender_department_id || null,
             borrower_department_id: null,
             borrower_vehicle_plate: borrowerVehiclePlate,
+            borrower_vehicle_type: borrowerVehicleType,
             occupant_name: occupantName,
             occupant_document_type: body.occupant_document_type ? String(body.occupant_document_type).trim().toUpperCase() : null,
             occupant_document_number: body.occupant_document_number ? String(body.occupant_document_number).trim() : null,
@@ -324,8 +328,11 @@ export default async function(req: Request): Promise<Response> {
 
         const borrowerDepartmentId = (body.borrower_department_id as string) || null;
         const borrowerVehiclePlate = body.borrower_vehicle_plate ? String(body.borrower_vehicle_plate).trim().toUpperCase() : (body.borrower_vehicle_plate as string) || null;
+        const borrowerVehicleType = body.borrower_vehicle_type
+          ? normalizeVehicleType(body.borrower_vehicle_type)
+          : (borrowerVehiclePlate ? 'AUTO' : null);
         if (!borrowerDepartmentId && !borrowerVehiclePlate) {
-          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Indica el departamento o la placa del vehículo que usará la bahía' } }, 400);
+          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Indica la placa del vehículo (o vinculalo a un departamento del condominio)' } }, 400);
         }
 
         const { data, error } = await db.from('parking_loans').insert([{
@@ -333,6 +340,7 @@ export default async function(req: Request): Promise<Response> {
           lender_department_id: lenderDepartmentId,
           borrower_department_id: borrowerDepartmentId,
           borrower_vehicle_plate: borrowerVehiclePlate,
+          borrower_vehicle_type: borrowerVehicleType,
           occupant_name: occupantName,
           occupant_document_type: body.occupant_document_type ? String(body.occupant_document_type).trim().toUpperCase() : null,
           occupant_document_number: body.occupant_document_number ? String(body.occupant_document_number).trim() : null,
@@ -643,12 +651,14 @@ async function resolvePlateEntry(db: { from(t: string): any }, plate: string, ov
     .gte('end_time', now);
   let loanSpotId: string | null = null;
   let loanReason = 'PRESTAMO';
-  for (const loan of (loans || []) as Array<{ id: string; spot_id: string; borrower_vehicle_plate: string | null; borrower_department_id: string | null }>) {
-    if (loan.borrower_vehicle_plate && loan.borrower_vehicle_plate.toUpperCase() === plate) { loanSpotId = loan.spot_id; break; }
-    if (vehicle && loan.borrower_department_id && loan.borrower_department_id === vehicle.department_id) { loanSpotId = loan.spot_id; break; }
+  let loanVehicleType: string | null = null;
+  for (const loan of (loans || []) as Array<{ id: string; spot_id: string; borrower_vehicle_plate: string | null; borrower_department_id: string | null; borrower_vehicle_type: string | null }>) {
+    if (loan.borrower_vehicle_plate && loan.borrower_vehicle_plate.toUpperCase() === plate) { loanSpotId = loan.spot_id; loanVehicleType = loan.borrower_vehicle_type; break; }
+    if (vehicle && loan.borrower_department_id && loan.borrower_department_id === vehicle.department_id) { loanSpotId = loan.spot_id; loanVehicleType = loan.borrower_vehicle_type; break; }
   }
   if (loanSpotId) {
-    if (await needsHost(loanSpotId)) {
+    const loanHostType = loanVehicleType ? normalizeVehicleType(loanVehicleType) : vehicleType;
+    if ((await spotCanHostType(db, loanSpotId, loanHostType)).ok) {
       const { data: loanSpot } = await db.from('parking_spots').select('id, spot_number, type').eq('id', loanSpotId).maybeSingle();
       if (loanSpot) {
         return { spot: { id: loanSpot.id, spot_number: loanSpot.spot_number, type: loanSpot.type }, reason: loanReason, message: 'Préstamo activo vigente' };
@@ -1043,7 +1053,7 @@ async function isSecurityForSchema(req: Request, client: ReturnType<typeof creat
     const tenantId = t?.id;
     if (!tenantId) return false;
 
-    const { data: tu } = await client.database.from('tenant_users').select('id').eq('user_id', uid).eq('tenant_id', tenantId).eq('status', 'ACTIVE').in('role', ['SECURITY_AGENT']).single();
+    const { data: tu } = await client.database.from('tenant_users').select('id').eq('user_id', uid).eq('tenant_id', tenantId).eq('status', 'ACTIVE').in('role', ['SECURITY_AGENT', 'SUPERVISOR']).single();
     return Boolean(tu);
   } catch { return false; }
 }
