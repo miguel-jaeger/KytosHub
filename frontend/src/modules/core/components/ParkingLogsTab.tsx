@@ -115,26 +115,24 @@ export function ParkingLogsTab({ schemaName }: { schemaName?: string }) {
         </label>
       </div>
 
-      <div className="condo-search-panel">
-        <div className="form-row">
-          <div className="form-group">
-            <label>Placa</label>
-            <input type="text" value={plateFilter} onChange={e => setPlateFilter(e.target.value)} placeholder="ABC o 123" onKeyDown={e => { if (e.key === 'Enter') applyFilters(); }} />
-          </div>
-          <div className="form-group">
-            <label>Conductor</label>
-            <input type="text" value={driverFilter} onChange={e => setDriverFilter(e.target.value)} placeholder="Nombre" onKeyDown={e => { if (e.key === 'Enter') applyFilters(); }} />
-          </div>
-          <div className="form-group">
-            <label>Desde</label>
-            <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} />
-          </div>
-          <div className="form-group">
-            <label>Hasta</label>
-            <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} />
-          </div>
+      <div className="filter-bar">
+        <div className="form-group">
+          <label>Placa</label>
+          <input type="text" value={plateFilter} onChange={e => setPlateFilter(e.target.value)} placeholder="ABC o 123" onKeyDown={e => { if (e.key === 'Enter') applyFilters(); }} />
         </div>
-        <div className="form-actions">
+        <div className="form-group">
+          <label>Conductor</label>
+          <input type="text" value={driverFilter} onChange={e => setDriverFilter(e.target.value)} placeholder="Nombre" onKeyDown={e => { if (e.key === 'Enter') applyFilters(); }} />
+        </div>
+        <div className="form-group">
+          <label>Desde</label>
+          <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label>Hasta</label>
+          <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} />
+        </div>
+        <div className="filter-actions">
           <button className="btn-primary" onClick={applyFilters}>Filtrar</button>
           <button className="btn-cancel" onClick={clearFilters}>Limpiar</button>
         </div>

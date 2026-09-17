@@ -442,7 +442,7 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
               <small>Montos pendientes y cobrados por demora en la devolución de carritos, para determinar las multas a aplicar.</small>
             </div>
 
-            <div className="cart-filter-bar">
+            <div className="filter-bar">
               <div className="form-group">
                 <label>Desde</label>
                 <input type="date" value={filters.start_date} onChange={e => setFilters(prev => ({ ...prev, start_date: e.target.value }))} />
@@ -472,7 +472,7 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
                   {departments.map(d => <option key={d.id} value={d.id}>{d.department_number}</option>)}
                 </select>
               </div>
-              <div className="cart-filter-actions">
+              <div className="filter-actions">
                 <button onClick={applyFilters} disabled={!hasActiveFilters}>Aplicar filtros</button>
                 <button className="btn-cancel" onClick={resetFilters}>Limpiar</button>
               </div>
