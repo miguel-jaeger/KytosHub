@@ -2,13 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import { useParking } from '../hooks/useParking';
 import { ParkingMap, SPOT_TYPE_LABELS } from './ParkingMap';
-import type { ParkingLayout, ParkingSpot, ParkingSpotType } from '../types';
-
-interface DepartmentOption {
-  id: string;
-  department_number: string;
-  tower_code: string;
-}
+import type { Department, Floor, ParkingLayout, ParkingSpot, ParkingSpotType, Tower } from '../types';
 
 const emptySpotForm = { type: 'PROPIO' as ParkingSpotType, department_id: '' };
 
@@ -16,7 +10,6 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
   const { listSpots, getLayout, provisionLayout, updateSpot } = useParking();
   const [layout, setLayout] = useState<ParkingLayout | null>(null);
   const [spots, setSpots] = useState<ParkingSpot[]>([]);
-  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -29,25 +22,83 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
   const [spotForm, setSpotForm] = useState(emptySpotForm);
   const [savingSpot, setSavingSpot] = useState(false);
 
-  const loadDepartments = useCallback(async () => {
+  // Stepper torre -> piso -> departamento for the assigned department
+  const [towers, setTowers] = useState<Tower[]>([]);
+  const [spotTowerId, setSpotTowerId] = useState('');
+  const [spotFloorId, setSpotFloorId] = useState('');
+  const [spotDeptId, setSpotDeptId] = useState('');
+  const [spotFloors, setSpotFloors] = useState<Floor[]>([]);
+  const [spotDepartments, setSpotDepartments] = useState<Department[]>([]);
+  const [loadingStep, setLoadingStep] = useState<string | null>(null);
+
+  const loadTowers = useCallback(async () => {
     if (!schemaName) return;
     try {
-      const { data } = await invokeFunction<{ success: boolean; data: Array<{ id: string; department_number: string; tower_id: string }> | null }>('departments', {
+      const { data } = await invokeFunction<{ success: boolean; data: Tower[] | null }>('towers', {
         method: 'POST',
         body: { action: 'list', schema_name: schemaName }
       });
-      const { data: towers } = await invokeFunction<{ success: boolean; data: Array<{ id: string; code: string }> | null }>('towers', {
-        method: 'POST',
-        body: { action: 'list', schema_name: schemaName }
-      });
-      const towerMap = new Map((towers?.data || []).map((t: { id: string; code: string }) => [t.id, t.code]));
-      setDepartments((data?.data || []).map((d: { id: string; department_number: string; tower_id: string }) => ({
-        id: d.id,
-        department_number: d.department_number,
-        tower_code: towerMap.get(d.tower_id) || ''
-      })).sort((a, b) => a.tower_code.localeCompare(b.tower_code) || a.department_number.localeCompare(b.department_number)));
+      setTowers((data?.data || []).sort((a, b) => a.code.localeCompare(b.code)));
     } catch {}
   }, [schemaName]);
+
+  useEffect(() => { void loadTowers(); }, [loadTowers]);
+
+  const loadSpotFloors = async (towerId: string) => {
+    if (!schemaName) return;
+    setLoadingStep('pisos');
+    setSpotFloors([]);
+    setSpotFloorId('');
+    setSpotDeptId('');
+    try {
+      const { data } = await invokeFunction<{ success: boolean; data: Floor[] | null }>('floors', {
+        method: 'POST',
+        body: { action: 'list', schema_name: schemaName, tower_id: towerId }
+      });
+      setSpotFloors((data?.data || []).sort((a, b) => a.floor_number - b.floor_number));
+    } finally {
+      setLoadingStep(null);
+    }
+  };
+
+  const loadSpotDepartments = async (floorId: string) => {
+    if (!schemaName) return;
+    setLoadingStep('departamentos');
+    setSpotDepartments([]);
+    setSpotDeptId('');
+    try {
+      const { data } = await invokeFunction<{ success: boolean; data: Department[] | null }>('departments', {
+        method: 'POST',
+        body: { action: 'list', schema_name: schemaName, tower_id: spotTowerId, floor_id: floorId }
+      });
+      setSpotDepartments((data?.data || []).sort((a, b) => a.department_number.localeCompare(b.department_number)));
+    } finally {
+      setLoadingStep(null);
+    }
+  };
+
+  const startSpotEdit = (s: ParkingSpot) => {
+    setEditingSpot(s);
+    setSpotForm({ type: s.type, department_id: s.department_id || '' });
+    setSpotTowerId('');
+    setSpotFloorId('');
+    setSpotDeptId(s.department_id || '');
+    setSpotFloors([]);
+    setSpotDepartments([]);
+  };
+
+  const selectSpotTower = (id: string) => {
+    setSpotTowerId(id);
+    setSpotFloorId('');
+    setSpotDeptId('');
+    void loadSpotFloors(id);
+  };
+
+  const selectSpotFloor = (id: string) => {
+    setSpotFloorId(id);
+    setSpotDeptId('');
+    void loadSpotDepartments(id);
+  };
 
   const load = useCallback(async () => {
     if (!schemaName) { setLoading(false); return; }
@@ -72,7 +123,6 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
   }, [schemaName, listSpots, getLayout]);
 
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => { void loadDepartments(); }, [loadDepartments]);
 
   const rows = Math.max(1, Math.min(50, Number(rowsInput) || 1));
   const perRowCounts = perRowInputs.map(v => Math.max(1, Math.min(50, Number(v) || 1)));
@@ -114,20 +164,18 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
     }
   };
 
-  const startSpotEdit = (s: ParkingSpot) => {
-    setEditingSpot(s);
-    setSpotForm({ type: s.type, department_id: s.department_id || '' });
-  };
-
   const handleSpotSave = async () => {
     if (!schemaName || !editingSpot) return;
-    if (spotForm.type === 'PROPIO' && !spotForm.department_id) { alert('Las plazas propias requieren un departamento asignado'); return; }
+    const chosenDept = spotForm.type === 'VISITA' || spotForm.type === 'ALQUILADO'
+      ? (spotDeptId || spotForm.department_id || null)
+      : (spotDeptId || spotForm.department_id || null);
+    if (spotForm.type === 'PROPIO' && !chosenDept) { alert('Selecciona torre, piso y departamento para la plaza propia'); return; }
     setSavingSpot(true);
     setError(null);
     try {
       const updated = await updateSpot(schemaName, editingSpot.id, {
         type: spotForm.type,
-        department_id: spotForm.type === 'PROPIO' ? spotForm.department_id || null : (spotForm.department_id || null)
+        department_id: chosenDept
       });
       if (updated) {
         setSpots(prev => prev.map(s => s.id === updated.id ? updated : s));
@@ -212,13 +260,69 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
               {Object.entries(SPOT_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
-          <div className="form-group">
-            <label>Departamento asignado {spotForm.type === 'VISITA' || spotForm.type === 'ALQUILADO' ? '(opcional)' : '(obligatorio)'}</label>
-            <select value={spotForm.department_id} onChange={e => setSpotForm({ ...spotForm, department_id: e.target.value })}>
-              <option value="">— Sin asignar —</option>
-              {departments.map(d => <option key={d.id} value={d.id}>Dpto {d.department_number} (T{d.tower_code})</option>)}
-            </select>
-          </div>
+
+          {(spotForm.type === 'VISITA' || spotForm.type === 'ALQUILADO' ? false : true) && (
+            <>
+              <div className="checkout-field">
+                <label>1. Torre</label>
+                {towers.length === 0 ? (
+                  <span className="text-muted">No hay torres registradas.</span>
+                ) : (
+                  <div className="checkout-chip-row">
+                    {towers.map(t => (
+                      <button key={t.id} type="button" className={`checkout-chip ${spotTowerId === t.id ? 'active' : ''}`} onClick={() => selectSpotTower(t.id)}>
+                        <span className="checkout-chip-code">{t.code}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {spotTowerId !== '' && (
+                <div className="checkout-field">
+                  <label>2. Piso</label>
+                  {loadingStep === 'pisos' ? (
+                    <span className="text-muted">Cargando pisos...</span>
+                  ) : spotFloors.length === 0 ? (
+                    <span className="text-muted">Esa torre no tiene pisos.</span>
+                  ) : (
+                    <div className="checkout-chip-grid">
+                      {spotFloors.map(f => (
+                        <button key={f.id} type="button" className={`checkout-chip ${spotFloorId === f.id ? 'active' : ''}`} onClick={() => selectSpotFloor(f.id)}>
+                          {f.floor_number}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {spotTowerId !== '' && spotFloorId !== '' && (
+                <div className="checkout-field">
+                  <label>3. Departamento</label>
+                  {loadingStep === 'departamentos' ? (
+                    <span className="text-muted">Cargando departamentos...</span>
+                  ) : spotDepartments.length === 0 ? (
+                    <span className="text-muted">Ese piso no tiene departamentos.</span>
+                  ) : (
+                    <div className="checkout-chip-grid">
+                      {spotDepartments.map(d => (
+                        <button
+                          key={d.id}
+                          type="button"
+                          className={`checkout-chip checkout-chip-wide ${spotDeptId === d.id ? 'active' : ''}`}
+                          onClick={() => setSpotDeptId(d.id)}
+                        >
+                          {d.department_number}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
           <div className="form-actions">
             <button className="btn-cancel" onClick={() => setEditingSpot(null)}>Cancelar</button>
             <button onClick={handleSpotSave} disabled={savingSpot}>{savingSpot ? 'Guardando...' : 'Guardar'}</button>
