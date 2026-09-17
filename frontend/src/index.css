@@ -1581,6 +1581,20 @@ html.dark .theme-switch input:checked + .theme-switch-track { background: #006c4
 .modules-header { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 1rem; }
 .modules-header h3 { margin: 0; color: #0b1c30; }
 .modules-header small { color: #76777d; }
+
+/* Section header: title on the left, actions (Adicionar) always on the right,
+   separated from any filter bar below */
+.panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+}
+.panel-header h3, .panel-header h4 { margin: 0 0 0.25rem; color: #0b1c30; }
+.panel-header small { color: #76777d; }
+.panel-header > button { white-space: nowrap; }
 .modules-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 0.9rem; }
 .module-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 1rem; min-width: 0; max-width: 100%; }
 .module-card.module-disabled { opacity: 0.85; }
@@ -1729,6 +1743,8 @@ html.dark .loan-row.loan-overdue { background: #2b1a1a; }
 .text-muted { color: #76777d; }
 
 html.dark .modules-header h3,
+html.dark .panel-header h3,
+html.dark .panel-header h4 { color: #e5e7eb; }
 html.dark .module-card-head h4,
 html.dark .cart-form h4,
 html.dark .cart-checkout-form h4,

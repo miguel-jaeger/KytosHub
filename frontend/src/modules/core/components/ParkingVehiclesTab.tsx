@@ -256,7 +256,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
 
   return (
     <div>
-      <div className="header">
+      <div className="panel-header">
         <div>
           <h3>Vehículos registrados</h3>
           <small>Registra los vehículos de cada departamento para validar su ingreso/salida en garita.</small>

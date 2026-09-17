@@ -282,9 +282,11 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
 
       {tab === 'carts' && (
         <div className="cart-crud">
-          <div className="modules-header">
-            <h4>Configuración de carritos</h4>
-            <small>Registra o edita los carritos físicos, su código, puerta de origen, tipo y estado. Los préstamos y devoluciones se realizan desde el Panel de Garita.</small>
+          <div className="panel-header">
+            <div>
+              <h4>Configuración de carritos</h4>
+              <small>Registra o edita los carritos físicos, su código, puerta de origen, tipo y estado. Los préstamos y devoluciones se realizan desde el Panel de Garita.</small>
+            </div>
             <button onClick={() => { setEditingCart(null); setCartForm({ code_identifier: '', status: 'DISPONIBLE', gate_id: '', cart_type: 'CARGA', notes: '' }); setShowCartModal(true); }}>
               <span className="material-symbols-outlined">add</span> Adicionar
             </button>
