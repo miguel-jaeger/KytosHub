@@ -13,7 +13,7 @@ export function ParkingManager({ schemaName }: { schemaName?: string }) {
         <button className={tab === 'layout' ? 'active' : ''} onClick={() => setTab('layout')}>Mapa y Configuración</button>
         <button className={tab === 'vehicles' ? 'active' : ''} onClick={() => setTab('vehicles')}>Vehículos</button>
         <button className={tab === 'loans' ? 'active' : ''} onClick={() => setTab('loans')}>Préstamos</button>
-        <button className={tab === 'stats' ? 'active' : ''} onClick={() => setTab('stats')}>Estadística</button>
+        <button className={tab === 'stats' ? 'active' : ''} onClick={() => setTab('stats')}>Estadísticas</button>
       </div>
 
       {tab === 'layout' && <ParkingLayoutConfig schemaName={schemaName} />}
