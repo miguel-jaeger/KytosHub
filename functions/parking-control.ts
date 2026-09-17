@@ -201,6 +201,7 @@ export default async function(req: Request): Promise<Response> {
           department_id: departmentId,
           license_plate: licensePlate,
           vehicle_type: normalizeVehicleType(body.vehicle_type),
+          driver_name: body.driver_name ? String(body.driver_name).trim() : null,
           brand: body.brand ? String(body.brand) : null,
           model: body.model ? String(body.model) : null,
           color: body.color ? String(body.color) : null,
@@ -221,6 +222,7 @@ export default async function(req: Request): Promise<Response> {
         const updates: Record<string, unknown> = {};
         if (body.license_plate !== undefined) updates.license_plate = String(body.license_plate).trim().toUpperCase();
         if (body.vehicle_type !== undefined) updates.vehicle_type = normalizeVehicleType(body.vehicle_type);
+        if (body.driver_name !== undefined) updates.driver_name = body.driver_name ? String(body.driver_name).trim() : null;
         if (body.brand !== undefined) updates.brand = body.brand ? String(body.brand) : null;
         if (body.model !== undefined) updates.model = body.model ? String(body.model) : null;
         if (body.color !== undefined) updates.color = body.color ? String(body.color) : null;
@@ -377,11 +379,12 @@ export default async function(req: Request): Promise<Response> {
         const plate = String(body.license_plate || '').trim().toUpperCase();
         if (!plate) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'license_plate es requerido' } }, 400);
 
-        // Resolve vehicle type: registered vehicle wins, otherwise the guard/body indicates it
-        const { data: vehicleRow } = await db.from('vehicles').select('vehicle_type').eq('license_plate', plate).eq('is_active', true).maybeSingle();
+        // Resolve vehicle type + registered driver: registered vehicle wins
+        const { data: vehicleRow } = await db.from('vehicles').select('id, vehicle_type, driver_name, department_id').eq('license_plate', plate).eq('is_active', true).maybeSingle();
         const vehicleType = vehicleRow?.vehicle_type
           ? normalizeVehicleType(vehicleRow.vehicle_type)
           : normalizeVehicleType(body.vehicle_type);
+        const isRegisteredOwner = Boolean(vehicleRow);
 
         // State machine: if the vehicle is already inside it can only exit.
         const { data: openLog } = await db.from('parking_access_logs')
@@ -407,13 +410,21 @@ export default async function(req: Request): Promise<Response> {
           return json({ success: false, data: null, error: { code: 'SPOT_FULL', message: spotAllowed.message } }, 409);
         }
 
+        // Driver name: for the owner/registered vehicle we resolve the department
+        // owner (or the vehicle's registered driver); visitors and rented spots
+        // require manual input from the guard.
+        const isOwnerEntry = isRegisteredOwner && (resolution.reason === 'PROPIO' || resolution.reason === 'PRESTAMO');
+        const driverName = isOwnerEntry
+          ? await resolveOwnerDriverName(db, vehicleRow)
+          : (body.driver_name ? String(body.driver_name).trim() : null);
+
         const gate = await resolveGateForOperator(req, client, db, body.gate_id);
         const now = new Date().toISOString();
         const { data: log, error } = await db.from('parking_access_logs').insert([{
           spot_id: resolution.spot.id,
           license_plate: plate,
           vehicle_type: vehicleType,
-          driver_name: body.driver_name ? String(body.driver_name) : null,
+          driver_name: driverName,
           entry_time: now,
           entry_gate_id: gate?.id || null,
           authorized_by_user_id: body.authorized_by_user_id ? String(body.authorized_by_user_id) : null,
@@ -430,6 +441,7 @@ export default async function(req: Request): Promise<Response> {
             spot: { id: resolution.spot.id, spot_number: resolution.spot.spot_number, type: resolution.spot.type },
             authorization: resolution.reason,
             vehicle_type: vehicleType,
+            driver_name: driverName,
             entry_gate: gate ? { id: gate.id, name: gate.name } : null
           },
           error: null
@@ -506,6 +518,11 @@ async function resolvePlateStatus(db: { from(t: string): any }, plate: string) {
   const vehicleRow = await db.from('vehicles').select('*').eq('license_plate', plate).eq('is_active', true).maybeSingle();
   const vehicle = vehicleRow.data || null;
 
+  // Registered owner vehicles resolve the driver name automatically
+  const ownerDriver = vehicle
+    ? await resolveOwnerDriverName(db, { driver_name: vehicle.driver_name, department_id: vehicle.department_id })
+    : null;
+
   const open = await db.from('parking_access_logs')
     .select('id, spot_id, license_plate, driver_name, entry_time, entry_gate_id')
     .eq('license_plate', plate)
@@ -531,6 +548,7 @@ async function resolvePlateStatus(db: { from(t: string): any }, plate: string) {
   return {
     license_plate: plate,
     vehicle: vehicle,
+    driver_name: ownerDriver || (open.data?.driver_name as string | null) || null,
     inside: Boolean(open.data),
     current_log: open.data || null,
     inside_spot: insideSpot,
@@ -636,6 +654,30 @@ async function spotCanHostType(db: { from(t: string): any }, spotId: string, veh
     return { ok: false, message: 'En esa bahía ya hay un auto estacionado. No pueden coexistir dos autos en la misma plaza.' };
   }
   return { ok: true, message: '' };
+}
+
+// Resolves the driver name for an owner's registered vehicle: prefers the
+// vehicle's driver_name, then the department primary contact (owner).
+async function resolveOwnerDriverName(
+  db: { from(t: string): any },
+  vehicle: { driver_name?: string | null; department_id?: string | null } | null
+): Promise<string | null> {
+  if (!vehicle) return null;
+  if (vehicle.driver_name && String(vehicle.driver_name).trim()) return String(vehicle.driver_name).trim();
+  if (!vehicle.department_id) return null;
+  const { data } = await db.from('residents')
+    .select('full_name')
+    .eq('department_id', vehicle.department_id)
+    .eq('is_primary_contact', true)
+    .limit(1)
+    .maybeSingle();
+  if (data?.full_name) return String(data.full_name).trim();
+  const { data: anyResident } = await db.from('residents')
+    .select('full_name')
+    .eq('department_id', vehicle.department_id)
+    .limit(1)
+    .maybeSingle();
+  return anyResident?.full_name ? String(anyResident.full_name).trim() : null;
 }
 
 // ---------------------------------------------------------------------------

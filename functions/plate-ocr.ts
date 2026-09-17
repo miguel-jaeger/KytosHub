@@ -14,6 +14,11 @@ export default async function(req: Request): Promise<Response> {
     }
 
     const body = await req.json();
+    const action = String(body.action || 'scan').trim();
+    if (action === 'status') {
+      return json({ success: true, data: { configured: Boolean(apiKey) }, error: null }, 200);
+    }
+
     const image = body.image as string | undefined;
     if (!image) {
       return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere la imagen (base64 o URL) para el reconocimiento' } }, 400);
