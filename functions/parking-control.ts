@@ -6,7 +6,8 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization'
 };
 
-const SPOT_TYPES = ['PROPIO', 'VISITA', 'DISCAPACITADOS'];
+const SPOT_TYPES = ['PROPIO', 'VISITA', 'ALQUILADO'];
+const VEHICLE_TYPES = ['AUTO', 'MOTO'];
 const LOAN_STATUSES = ['PENDIENTE', 'ACTIVO', 'FINALIZADO', 'CANCELADO'];
 
 export default async function(req: Request): Promise<Response> {
@@ -194,6 +195,7 @@ export default async function(req: Request): Promise<Response> {
         const { data, error } = await db.from('vehicles').insert([{
           department_id: departmentId,
           license_plate: licensePlate,
+          vehicle_type: normalizeVehicleType(body.vehicle_type),
           brand: body.brand ? String(body.brand) : null,
           model: body.model ? String(body.model) : null,
           color: body.color ? String(body.color) : null,
@@ -213,6 +215,7 @@ export default async function(req: Request): Promise<Response> {
 
         const updates: Record<string, unknown> = {};
         if (body.license_plate !== undefined) updates.license_plate = String(body.license_plate).trim().toUpperCase();
+        if (body.vehicle_type !== undefined) updates.vehicle_type = normalizeVehicleType(body.vehicle_type);
         if (body.brand !== undefined) updates.brand = body.brand ? String(body.brand) : null;
         if (body.model !== undefined) updates.model = body.model ? String(body.model) : null;
         if (body.color !== undefined) updates.color = body.color ? String(body.color) : null;
@@ -264,13 +267,45 @@ export default async function(req: Request): Promise<Response> {
 
         const { data: spot } = await db.from('parking_spots').select('id, department_id, type, status').eq('id', spotId).single();
         if (!spot) return json({ success: false, data: null, error: { code: 'NOT_FOUND', message: 'Bahía no encontrada' } }, 404);
-        if (spot.type === 'VISITA' || spot.type === 'DISCAPACITADOS') {
-          return json({ success: false, data: null, error: { code: 'BAD_STATE', message: 'Las bahías de visita o discapacitados no se prestan entre propietarios' } }, 409);
+        if (spot.type === 'VISITA') {
+          return json({ success: false, data: null, error: { code: 'BAD_STATE', message: 'Las bahías de visita no se prestan entre propietarios ni se alquilan' } }, 409);
         }
         if (spot.status === 'OCUPADO') {
           return json({ success: false, data: null, error: { code: 'BAD_STATE', message: 'La bahía está ocupada y no puede prestarse ahora' } }, 409);
         }
 
+        const occupantName = body.occupant_name ? String(body.occupant_name).trim() : null;
+        const durationUnit = body.duration_unit ? String(body.duration_unit).trim().toUpperCase() : null;
+
+        if (spot.type === 'ALQUILADO') {
+          // Renting an "alquilado" spot: admins register who will occupy it and for how long
+          if (!isAdmin) return forbidden();
+          if (!occupantName) {
+            return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Registra el nombre de la persona que ocupará el estacionamiento' } }, 400);
+          }
+          if (!durationUnit || !['HORAS', 'DIAS', 'MESES'].includes(durationUnit)) {
+            return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'duration_unit debe ser HORAS, DIAS o MESES' } }, 400);
+          }
+          const borrowerVehiclePlate = body.borrower_vehicle_plate ? String(body.borrower_vehicle_plate).trim().toUpperCase() : null;
+          const { data, error } = await db.from('parking_loans').insert([{
+            spot_id: spotId,
+            lender_department_id: body.lender_department_id || null,
+            borrower_department_id: null,
+            borrower_vehicle_plate: borrowerVehiclePlate,
+            occupant_name: occupantName,
+            occupant_document_type: body.occupant_document_type ? String(body.occupant_document_type).trim().toUpperCase() : null,
+            occupant_document_number: body.occupant_document_number ? String(body.occupant_document_number).trim() : null,
+            duration_unit: durationUnit,
+            start_time: new Date(startTime).toISOString(),
+            end_time: new Date(endTime).toISOString(),
+            status: body.status === 'ACTIVO' ? 'ACTIVO' : 'PENDIENTE'
+          }]).select().single();
+          if (error) throw error;
+          const enriched = (await enrichLoans(db, [data]))[0];
+          return json({ success: true, data: enriched, error: null }, 201);
+        }
+
+        // PROPIO spot: owner lends to another resident or visitor within a time window
         const lenderDepartmentId = (body.lender_department_id as string) || (myDepartmentId as string) || null;
         if (!lenderDepartmentId) {
           return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere un departamento que presta la bahía' } }, 400);
@@ -291,6 +326,10 @@ export default async function(req: Request): Promise<Response> {
           lender_department_id: lenderDepartmentId,
           borrower_department_id: borrowerDepartmentId,
           borrower_vehicle_plate: borrowerVehiclePlate,
+          occupant_name: occupantName,
+          occupant_document_type: body.occupant_document_type ? String(body.occupant_document_type).trim().toUpperCase() : null,
+          occupant_document_number: body.occupant_document_number ? String(body.occupant_document_number).trim() : null,
+          duration_unit: durationUnit || null,
           start_time: new Date(startTime).toISOString(),
           end_time: new Date(endTime).toISOString(),
           status: body.status === 'ACTIVO' ? 'ACTIVO' : 'PENDIENTE'
@@ -333,6 +372,12 @@ export default async function(req: Request): Promise<Response> {
         const plate = String(body.license_plate || '').trim().toUpperCase();
         if (!plate) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'license_plate es requerido' } }, 400);
 
+        // Resolve vehicle type: registered vehicle wins, otherwise the guard/body indicates it
+        const { data: vehicleRow } = await db.from('vehicles').select('vehicle_type').eq('license_plate', plate).eq('is_active', true).maybeSingle();
+        const vehicleType = vehicleRow?.vehicle_type
+          ? normalizeVehicleType(vehicleRow.vehicle_type)
+          : normalizeVehicleType(body.vehicle_type);
+
         // State machine: if the vehicle is already inside it can only exit.
         const { data: openLog } = await db.from('parking_access_logs')
           .select('id, spot_id, entry_time')
@@ -345,9 +390,16 @@ export default async function(req: Request): Promise<Response> {
           return json({ success: false, data: null, error: { code: 'ALREADY_INSIDE', message: 'El vehículo ya se encuentra dentro del estacionamiento. Solo se puede registrar su salida.' } }, 409);
         }
 
-        const resolution = await resolvePlateEntry(db, plate, body.spot_id as string | null);
+        const resolution = await resolvePlateEntry(db, plate, body.spot_id as string | null, vehicleType);
         if (!resolution.spot) {
           return json({ success: false, data: null, error: { code: 'NO_AUTHORIZED_SPOT', message: resolution.message } }, 409);
+        }
+
+        // Occupancy rule: at most ONE car parked at a time in a spot; motorcycles
+        // may share the spot with each other and with a single car.
+        const spotAllowed = await spotCanHostType(db, resolution.spot.id, vehicleType);
+        if (!spotAllowed.ok) {
+          return json({ success: false, data: null, error: { code: 'SPOT_FULL', message: spotAllowed.message } }, 409);
         }
 
         const gate = await resolveGateForOperator(req, client, db, body.gate_id);
@@ -355,6 +407,7 @@ export default async function(req: Request): Promise<Response> {
         const { data: log, error } = await db.from('parking_access_logs').insert([{
           spot_id: resolution.spot.id,
           license_plate: plate,
+          vehicle_type: vehicleType,
           driver_name: body.driver_name ? String(body.driver_name) : null,
           entry_time: now,
           entry_gate_id: gate?.id || null,
@@ -371,6 +424,7 @@ export default async function(req: Request): Promise<Response> {
             log,
             spot: { id: resolution.spot.id, spot_number: resolution.spot.spot_number, type: resolution.spot.type },
             authorization: resolution.reason,
+            vehicle_type: vehicleType,
             entry_gate: gate ? { id: gate.id, name: gate.name } : null
           },
           error: null
@@ -401,7 +455,14 @@ export default async function(req: Request): Promise<Response> {
         }).eq('id', log.id).select().single();
         if (error) throw error;
 
-        await db.from('parking_spots').update({ status: 'DISPONIBLE' }).eq('id', log.spot_id);
+        // The spot stays OCCUPED while any vehicle (car or motorcycle) remains inside
+        const { count: remaining } = await db.from('parking_access_logs')
+          .select('*', { count: 'exact', head: true })
+          .eq('spot_id', log.spot_id)
+          .is('exit_time', null);
+        await db.from('parking_spots')
+          .update({ status: (remaining || 0) > 0 ? 'OCUPADO' : 'DISPONIBLE' })
+          .eq('id', log.spot_id);
 
         return json({
           success: true,
@@ -460,7 +521,7 @@ async function resolvePlateStatus(db: { from(t: string): any }, plate: string) {
   }
 
   const availableVisitorSpots = await db.from('parking_spots').select('*').eq('type', 'VISITA').eq('status', 'DISPONIBLE');
-  const availableDisabledSpots = await db.from('parking_spots').select('*').eq('type', 'DISCAPACITADOS').eq('status', 'DISPONIBLE');
+  const availableRentedSpots = await db.from('parking_spots').select('*').eq('type', 'ALQUILADO').eq('status', 'DISPONIBLE');
 
   return {
     license_plate: plate,
@@ -470,7 +531,7 @@ async function resolvePlateStatus(db: { from(t: string): any }, plate: string) {
     inside_spot: insideSpot,
     entry_gate: entryGate,
     visitor_spots: (availableVisitorSpots.data || []).map((s: Record<string, unknown>) => ({ id: s.id, spot_number: s.spot_number })),
-    disabled_spots: (availableDisabledSpots.data || []).map((s: Record<string, unknown>) => ({ id: s.id, spot_number: s.spot_number }))
+    rented_spots: (availableRentedSpots.data || []).map((s: Record<string, unknown>) => ({ id: s.id, spot_number: s.spot_number }))
   };
 }
 
@@ -480,21 +541,22 @@ interface EntryResolution {
   message: string;
 }
 
-async function resolvePlateEntry(db: { from(t: string): any }, plate: string, overrideSpotId: string | null): Promise<EntryResolution> {
+async function resolvePlateEntry(db: { from(t: string): any }, plate: string, overrideSpotId: string | null, vehicleType: string): Promise<EntryResolution> {
   const now = new Date().toISOString();
+  const needsHost = async (spotId: string): Promise<boolean> => (await spotCanHostType(db, spotId, vehicleType)).ok;
 
-  // 1) Registered vehicle -> owner's PROPIO spot
+  // 1) Registered vehicle -> owner's PROPIO spot (must respect the vehicle rule)
   const { data: vehicle } = await db.from('vehicles').select('id, department_id').eq('license_plate', plate).eq('is_active', true).maybeSingle();
   if (vehicle) {
-    const { data: ownSpot } = await db.from('parking_spots')
+    const { data: ownSpots } = await db.from('parking_spots')
       .select('id, spot_number, type')
       .eq('department_id', vehicle.department_id)
       .eq('type', 'PROPIO')
-      .eq('status', 'DISPONIBLE')
-      .limit(1)
-      .maybeSingle();
-    if (ownSpot) {
-      return { spot: { id: ownSpot.id, spot_number: ownSpot.spot_number, type: ownSpot.type }, reason: 'PROPIO', message: 'Bahía propia del vehículo' };
+      .limit(10);
+    for (const s of (ownSpots || []) as Array<{ id: string; spot_number: string; type: string }>) {
+      if (await needsHost(s.id)) {
+        return { spot: { id: s.id, spot_number: s.spot_number, type: s.type }, reason: 'PROPIO', message: 'Bahía propia del vehículo' };
+      }
     }
   }
 
@@ -505,60 +567,70 @@ async function resolvePlateEntry(db: { from(t: string): any }, plate: string, ov
     .lte('start_time', now)
     .gte('end_time', now);
   let loanSpotId: string | null = null;
+  let loanReason = 'PRESTAMO';
   for (const loan of (loans || []) as Array<{ id: string; spot_id: string; borrower_vehicle_plate: string | null; borrower_department_id: string | null }>) {
     if (loan.borrower_vehicle_plate && loan.borrower_vehicle_plate.toUpperCase() === plate) { loanSpotId = loan.spot_id; break; }
     if (vehicle && loan.borrower_department_id && loan.borrower_department_id === vehicle.department_id) { loanSpotId = loan.spot_id; break; }
   }
   if (loanSpotId) {
-    const { data: loanSpot } = await db.from('parking_spots')
-      .select('id, spot_number, type')
-      .eq('id', loanSpotId)
-      .eq('status', 'DISPONIBLE')
-      .maybeSingle();
-    if (loanSpot) {
-      return { spot: { id: loanSpot.id, spot_number: loanSpot.spot_number, type: loanSpot.type }, reason: 'PRESTAMO', message: 'Préstamo activo vigente' };
+    if (await needsHost(loanSpotId)) {
+      const { data: loanSpot } = await db.from('parking_spots').select('id, spot_number, type').eq('id', loanSpotId).maybeSingle();
+      if (loanSpot) {
+        return { spot: { id: loanSpot.id, spot_number: loanSpot.spot_number, type: loanSpot.type }, reason: loanReason, message: 'Préstamo activo vigente' };
+      }
     }
   }
 
-  // 3) Explicit spot chosen by the guard (e.g. DISC PACITADOS / VISITA assignment)
+  // 3) Explicit spot chosen by the guard (e.g. VISITA / ALQUILADO assignment)
   if (overrideSpotId) {
-    const { data: explicit } = await db.from('parking_spots')
-      .select('id, spot_number, type')
-      .eq('id', overrideSpotId)
-      .eq('status', 'DISPONIBLE')
-      .maybeSingle();
-    if (explicit) {
-      return { spot: { id: explicit.id, spot_number: explicit.spot_number, type: explicit.type }, reason: 'ASIGNADA', message: 'Bahía asignada por el guardia' };
+    if (await needsHost(overrideSpotId)) {
+      const { data: explicit } = await db.from('parking_spots').select('id, spot_number, type').eq('id', overrideSpotId).maybeSingle();
+      if (explicit) {
+        return { spot: { id: explicit.id, spot_number: explicit.spot_number, type: explicit.type }, reason: 'ASIGNADA', message: 'Bahía asignada por el guardia' };
+      }
     }
   }
 
   // 4) Visitor availability
-  const { data: visitorSpot } = await db.from('parking_spots')
+  const { data: availableVisitorSpots } = await db.from('parking_spots')
     .select('id, spot_number, type')
-    .eq('type', 'VISITA')
-    .eq('status', 'DISPONIBLE')
-    .limit(1)
-    .maybeSingle();
-  if (visitorSpot) {
-    return { spot: { id: visitorSpot.id, spot_number: visitorSpot.spot_number, type: visitorSpot.type }, reason: 'VISITA', message: 'Bahía de visita disponible' };
+    .eq('type', 'VISITA');
+  for (const vs of (availableVisitorSpots || []) as Array<{ id: string; spot_number: string; type: string }>) {
+    if (await needsHost(vs.id)) {
+      return { spot: { id: vs.id, spot_number: vs.spot_number, type: vs.type }, reason: 'VISITA', message: 'Bahía de visita disponible' };
+    }
   }
 
-  // 5) Disabled spots as last resort (plates without registered owner)
-  const { data: disabledSpot } = await db.from('parking_spots')
+  // 5) ALQUILADO spots as last resort (plates without a registered owner/loan)
+  const { data: rentedSpots } = await db.from('parking_spots')
     .select('id, spot_number, type')
-    .eq('type', 'DISCAPACITADOS')
-    .eq('status', 'DISPONIBLE')
-    .limit(1)
-    .maybeSingle();
-  if (disabledSpot) {
-    return { spot: { id: disabledSpot.id, spot_number: disabledSpot.spot_number, type: disabledSpot.type }, reason: 'DISCAPACITADOS', message: 'Bahía para discapacitados disponible' };
+    .eq('type', 'ALQUILADO');
+  for (const rs of (rentedSpots || []) as Array<{ id: string; spot_number: string; type: string }>) {
+    if (await needsHost(rs.id)) {
+      return { spot: { id: rs.id, spot_number: rs.spot_number, type: rs.type }, reason: 'ALQUILADO', message: 'Bahía alquilada disponible' };
+    }
   }
 
   return {
     spot: null,
     reason: 'NINGUNO',
-    message: 'No se encontró una bahía autorizada: el vehículo no tiene bahía propia, préstamo vigente ni hay bahías de visita libres.'
+    message: 'No se encontró una bahía autorizada: el vehículo no tiene bahía propia, préstamo vigente ni hay bahías de visita o alquiladas libres que cumplan la regla de ocupación.'
   };
+}
+
+// Occupancy rule: at most ONE car parked at a time in a spot; motorcycles may
+// share (several motos, or one moto alongside one car).
+async function spotCanHostType(db: { from(t: string): any }, spotId: string, vehicleType: string): Promise<{ ok: boolean; message: string }> {
+  const { count } = await db.from('parking_access_logs')
+    .select('*', { count: 'exact', head: true })
+    .eq('spot_id', spotId)
+    .is('exit_time', null)
+    .eq('vehicle_type', 'AUTO');
+  const carsInside = (count || 0);
+  if (vehicleType === 'AUTO' && carsInside >= 1) {
+    return { ok: false, message: 'En esa bahía ya hay un auto estacionado. No pueden coexistir dos autos en la misma plaza.' };
+  }
+  return { ok: true, message: '' };
 }
 
 // ---------------------------------------------------------------------------
@@ -778,6 +850,11 @@ async function isModuleEnabled(client: ReturnType<typeof createAdminClient>, sch
 function normalizeSpotType(v: unknown): string {
   const t = String(v || 'PROPIO').trim().toUpperCase();
   return SPOT_TYPES.includes(t) ? t : 'PROPIO';
+}
+
+function normalizeVehicleType(v: unknown): string {
+  const t = String(v || 'AUTO').trim().toUpperCase();
+  return VEHICLE_TYPES.includes(t) ? t : 'AUTO';
 }
 
 async function isAdminForSchema(req: Request, client: ReturnType<typeof createAdminClient>, schemaName: string): Promise<boolean> {
