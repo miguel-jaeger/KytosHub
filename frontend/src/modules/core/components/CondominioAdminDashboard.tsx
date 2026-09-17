@@ -638,8 +638,16 @@ export function CondominioAdminDashboard() {
       </div>
 
       {showAddForm && (
-        <div className="form-modal">
-          <h3>Agregar Usuario</h3>
+        <div className="modal-overlay" onClick={() => setShowAddForm(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>Agregar Usuario</h3>
+                <p className="text-on-surface-variant">Crea una cuenta de acceso para el condominio.</p>
+              </div>
+              <button className="modal-close" onClick={() => setShowAddForm(false)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
+            </div>
+            <div className="modal-body">
           {isSuperAdmin && (
             <div className="form-group">
               <label>Condominio {newUser.role === 'SUPER_ADMIN' ? '(opcional si es Super Admin global)' : ''}</label>
@@ -720,12 +728,22 @@ export function CondominioAdminDashboard() {
               <span className="material-symbols-outlined">person_add</span> {submitting ? 'Creando...' : 'Crear'}
             </button>
           </div>
+            </div>
+          </div>
         </div>
       )}
 
       {showEditForm && editingUser && (
-        <div className="form-modal">
-          <h3>Editar Usuario</h3>
+        <div className="modal-overlay" onClick={() => setShowEditForm(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>Editar Usuario</h3>
+                <p className="text-on-surface-variant">{editingUser.name || editingUser.email}</p>
+              </div>
+              <button className="modal-close" onClick={() => setShowEditForm(false)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
+            </div>
+            <div className="modal-body">
           {isSuperAdmin && (
             <div className="form-group">
               <label>Condominio</label>
@@ -809,12 +827,22 @@ export function CondominioAdminDashboard() {
             <button className="btn-cancel" onClick={() => setShowEditForm(false)}><span className="material-symbols-outlined">close</span> Cancelar</button>
             <button onClick={handleSaveEdit}><span className="material-symbols-outlined">save</span> Guardar</button>
           </div>
+            </div>
+          </div>
         </div>
       )}
 
       {showImportForm && (
-        <div className="form-modal">
-          <h3>Importar Usuarios desde CSV</h3>
+        <div className="modal-overlay" onClick={() => setShowImportForm(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>Importar Usuarios desde CSV</h3>
+                <p className="text-on-surface-variant">Carga usuarios desde un archivo de texto separado por comas.</p>
+              </div>
+              <button className="modal-close" onClick={() => setShowImportForm(false)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
+            </div>
+            <div className="modal-body">
           {isSuperAdmin && (
             <div className="form-group">
               <label>Condominio de destino</label>
@@ -922,6 +950,8 @@ export function CondominioAdminDashboard() {
             <button onClick={handleImportUsers} disabled={importing || importPreview.length === 0}>
               <span className="material-symbols-outlined">upload_file</span> {importing ? 'Importando...' : 'Importar'}
             </button>
+          </div>
+            </div>
           </div>
         </div>
       )}

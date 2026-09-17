@@ -252,8 +252,16 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
       )}
 
       {editingSpot && (
-        <div className="form-modal">
-          <h3>Configurar plaza {editingSpot.spot_number}</h3>
+        <div className="modal-overlay" onClick={() => setEditingSpot(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>Configurar plaza {editingSpot.spot_number}</h3>
+                <p className="text-on-surface-variant">Asigna el tipo y el departamento de la plaza.</p>
+              </div>
+              <button className="modal-close" onClick={() => setEditingSpot(null)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
+            </div>
+            <div className="modal-body">
           <div className="form-group">
             <label>Tipo de plaza</label>
             <select value={spotForm.type} onChange={e => setSpotForm({ ...spotForm, type: e.target.value as ParkingSpotType })}>
@@ -326,6 +334,8 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
           <div className="form-actions">
             <button className="btn-cancel" onClick={() => setEditingSpot(null)}>Cancelar</button>
             <button onClick={handleSpotSave} disabled={savingSpot}>{savingSpot ? 'Guardando...' : 'Guardar'}</button>
+          </div>
+            </div>
           </div>
         </div>
       )}

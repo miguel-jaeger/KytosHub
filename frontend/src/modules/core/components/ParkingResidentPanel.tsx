@@ -272,33 +272,44 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
             </tbody>
           </table>
         )}
-        {showVehicleForm ? (
-          <div>
-            <div className="form-row">
-              <div className="form-group"><label>Placa</label><input type="text" value={vehicleForm.license_plate} onChange={e => setVehicleForm({ ...vehicleForm, license_plate: e.target.value })} placeholder="ABC-123" /></div>
-              <div className="form-group"><label>Tipo de vehículo</label>
-                <select value={vehicleForm.vehicle_type} onChange={e => setVehicleForm({ ...vehicleForm, vehicle_type: e.target.value as VehicleType })}>
-                  <option value="AUTO">Auto</option>
-                  <option value="MOTO">Moto</option>
-                </select>
+        <button onClick={() => setShowVehicleForm(true)}><span className="material-symbols-outlined">directions_car</span> Registrar vehículo</button>
+      </div>
+
+      {showVehicleForm && (
+        <div className="modal-overlay" onClick={() => setShowVehicleForm(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>Registrar vehículo</h3>
+                <p className="text-on-surface-variant">Registra un vehículo para tu departamento.</p>
+              </div>
+              <button className="modal-close" onClick={() => setShowVehicleForm(false)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
+            </div>
+            <div className="modal-body">
+              <div className="form-row">
+                <div className="form-group"><label>Placa</label><input type="text" value={vehicleForm.license_plate} onChange={e => setVehicleForm({ ...vehicleForm, license_plate: e.target.value })} placeholder="ABC-123" autoFocus /></div>
+                <div className="form-group"><label>Tipo de vehículo</label>
+                  <select value={vehicleForm.vehicle_type} onChange={e => setVehicleForm({ ...vehicleForm, vehicle_type: e.target.value as VehicleType })}>
+                    <option value="AUTO">Auto</option>
+                    <option value="MOTO">Moto</option>
+                  </select>
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group"><label>Marca</label><input type="text" value={vehicleForm.brand} onChange={e => setVehicleForm({ ...vehicleForm, brand: e.target.value })} placeholder="Toyota" /></div>
+                <div className="form-group"><label>Modelo</label><input type="text" value={vehicleForm.model} onChange={e => setVehicleForm({ ...vehicleForm, model: e.target.value })} placeholder="Corolla" /></div>
+              </div>
+              <div className="form-row">
+                <div className="form-group"><label>Color</label><input type="text" value={vehicleForm.color} onChange={e => setVehicleForm({ ...vehicleForm, color: e.target.value })} placeholder="Rojo" /></div>
+              </div>
+              <div className="form-actions">
+                <button className="btn-cancel" onClick={() => setShowVehicleForm(false)}>Cancelar</button>
+                <button onClick={handleVehicleSave} disabled={saving}>{saving ? 'Guardando...' : 'Registrar vehículo'}</button>
               </div>
             </div>
-            <div className="form-row">
-              <div className="form-group"><label>Marca</label><input type="text" value={vehicleForm.brand} onChange={e => setVehicleForm({ ...vehicleForm, brand: e.target.value })} placeholder="Toyota" /></div>
-              <div className="form-group"><label>Modelo</label><input type="text" value={vehicleForm.model} onChange={e => setVehicleForm({ ...vehicleForm, model: e.target.value })} placeholder="Corolla" /></div>
-            </div>
-            <div className="form-row">
-              <div className="form-group"><label>Color</label><input type="text" value={vehicleForm.color} onChange={e => setVehicleForm({ ...vehicleForm, color: e.target.value })} placeholder="Rojo" /></div>
-            </div>
-            <div className="form-actions">
-              <button className="btn-cancel" onClick={() => setShowVehicleForm(false)}>Cancelar</button>
-              <button onClick={handleVehicleSave} disabled={saving}>{saving ? 'Guardando...' : 'Registrar vehículo'}</button>
-            </div>
           </div>
-        ) : (
-          <button onClick={() => setShowVehicleForm(true)}><span className="material-symbols-outlined">directions_car</span> Registrar vehículo</button>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="cart-form">
         <div className="modules-header">
@@ -317,14 +328,23 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
         )}
 
         {showLoanForm && (
-          <div>
-            <div className="form-group">
-              <label>Bahía a prestar</label>
-              <select value={loanForm.spot_id} onChange={e => setLoanForm({ ...loanForm, spot_id: e.target.value })}>
-                <option value="">— Seleccionar —</option>
-                {lendableSpots.map(s => <option key={s.id} value={s.id}>Bahía {s.spot_number}</option>)}
-              </select>
-            </div>
+          <div className="modal-overlay" onClick={() => setShowLoanForm(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <div>
+                  <h3>Solicitar préstamo de bahía</h3>
+                  <p className="text-on-surface-variant">Cede temporalmente tu bahía indicando quién la usará y la ventana de tiempo autorizada.</p>
+                </div>
+                <button className="modal-close" onClick={() => setShowLoanForm(false)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
+              </div>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Bahía a prestar</label>
+                  <select value={loanForm.spot_id} onChange={e => setLoanForm({ ...loanForm, spot_id: e.target.value })}>
+                    <option value="">— Seleccionar —</option>
+                    {lendableSpots.map(s => <option key={s.id} value={s.id}>Bahía {s.spot_number}</option>)}
+                  </select>
+                </div>
 
             <h4>Datos de la persona que recibirá la bahía</h4>
             <div className="form-row">
@@ -435,6 +455,8 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
             <div className="form-actions">
               <button className="btn-cancel" onClick={() => setShowLoanForm(false)}>Cancelar</button>
               <button onClick={handleLoanSave} disabled={saving}>{saving ? 'Guardando...' : 'Solicitar préstamo'}</button>
+            </div>
+              </div>
             </div>
           </div>
         )}

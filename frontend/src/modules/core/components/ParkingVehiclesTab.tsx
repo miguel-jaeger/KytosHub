@@ -272,8 +272,16 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
       {error && <div className="error-message" onClick={() => setError(null)}>{error} — clic para cerrar</div>}
 
       {showVehicleForm && (
-        <div className="cart-form">
-          <h4>{editingVehicle ? 'Editar vehículo' : 'Registrar vehículo'}</h4>
+        <div className="modal-overlay" onClick={closeForm}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>{editingVehicle ? 'Editar vehículo' : 'Registrar vehículo'}</h3>
+                <p className="text-on-surface-variant">{editingVehicle ? 'Solo editas los datos del vehículo.' : 'Selecciona el torre, piso y departamento al que pertenece el vehículo.'}</p>
+              </div>
+              <button className="modal-close" onClick={closeForm} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
+            </div>
+            <div className="modal-body">
 
           {editingVehicle ? (
             <p className="cart-checkout-hint">Vehículo de : {editingVehicle.departments ? `${editingVehicle.departments.department_number} (T ${editingVehicle.departments.towers?.code || '-'})` : '-'} — solo editas los datos del vehículo.</p>
@@ -386,6 +394,8 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
           <div className="form-actions">
             <button className="btn-cancel" onClick={closeForm}>Cancelar</button>
             <button onClick={handleVehicleSave} disabled={saving}>{saving ? 'Guardando...' : editingVehicle ? 'Guardar' : 'Registrar'}</button>
+          </div>
+            </div>
           </div>
         </div>
       )}

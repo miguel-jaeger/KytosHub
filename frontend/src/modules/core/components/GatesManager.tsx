@@ -126,35 +126,45 @@ export function GatesManager({ schemaName }: { schemaName?: string }) {
       {error && <div className="error-message" onClick={() => setError(null)}>{error} — clic para cerrar</div>}
 
       {showForm && (
-        <div className="cart-form">
-          <h4>{editing ? 'Editar Puerta' : 'Registrar Puerta'}</h4>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Nombre</label>
-              <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Ej: Puerta Principal" autoFocus />
+        <div className="modal-overlay" onClick={cancelEdit}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>{editing ? 'Editar Puerta' : 'Registrar Puerta'}</h3>
+                <p className="text-on-surface-variant">{editing ? `Nombre: ${editing.name}` : 'Define una puerta/garita del condominio.'}</p>
+              </div>
+              <button className="modal-close" onClick={cancelEdit} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
             </div>
-            <div className="form-group">
-              <label>Código (opcional)</label>
-              <input type="text" value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="Ej: P1" />
+            <div className="modal-body">
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Nombre</label>
+                  <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Ej: Puerta Principal" autoFocus />
+                </div>
+                <div className="form-group">
+                  <label>Código (opcional)</label>
+                  <input type="text" value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="Ej: P1" />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Carritos de carga asignados</label>
+                  <input type="number" min={0} value={form.carts_carga} onChange={e => setForm({ ...form, carts_carga: Number(e.target.value) })} />
+                </div>
+                <div className="form-group">
+                  <label>Carritos de compras asignados</label>
+                  <input type="number" min={0} value={form.carts_compra} onChange={e => setForm({ ...form, carts_compra: Number(e.target.value) })} />
+                </div>
+              </div>
+              <label className="checkbox-row">
+                <input type="checkbox" checked={form.is_entry_exit} onChange={e => setForm({ ...form, is_entry_exit: e.target.checked })} />
+                <span>Es punto de ingreso/salida de vehículos (estacionamiento)</span>
+              </label>
+              <div className="form-actions">
+                <button className="btn-cancel" onClick={cancelEdit}>Cancelar</button>
+                <button onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : editing ? 'Guardar' : 'Registrar'}</button>
+              </div>
             </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Carritos de carga asignados</label>
-              <input type="number" min={0} value={form.carts_carga} onChange={e => setForm({ ...form, carts_carga: Number(e.target.value) })} />
-            </div>
-            <div className="form-group">
-              <label>Carritos de compras asignados</label>
-              <input type="number" min={0} value={form.carts_compra} onChange={e => setForm({ ...form, carts_compra: Number(e.target.value) })} />
-            </div>
-          </div>
-          <label className="checkbox-row">
-            <input type="checkbox" checked={form.is_entry_exit} onChange={e => setForm({ ...form, is_entry_exit: e.target.checked })} />
-            <span>Es punto de ingreso/salida de vehículos (estacionamiento)</span>
-          </label>
-          <div className="form-actions">
-            <button className="btn-cancel" onClick={cancelEdit}>Cancelar</button>
-            <button onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : editing ? 'Guardar' : 'Registrar'}</button>
           </div>
         </div>
       )}

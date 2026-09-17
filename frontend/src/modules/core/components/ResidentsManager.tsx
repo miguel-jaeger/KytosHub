@@ -60,14 +60,26 @@ export function ResidentsManager({ departmentId }: { departmentId?: string }) {
       </div>
 
       {showForm && (
-        <form className="form-modal" onSubmit={handleSubmit}>
-          <h3>Agregar Residente</h3>
-          <div className="form-group"><label>Nombre completo</label><input type="text" value={formData.full_name} onChange={e => setFormData({ ...formData, full_name: e.target.value })} required /></div>
-          <div className="form-group"><label>Documento</label><select value={formData.document_type} onChange={e => setFormData({ ...formData, document_type: e.target.value as Resident['document_type'] })}><option value="DNI">DNI</option><option value="CE">CE</option><option value="PASAPORTE">Pasaporte</option></select></div>
-          <div className="form-group"><label>Número</label><input type="text" value={formData.document_number} onChange={e => setFormData({ ...formData, document_number: e.target.value })} required /></div>
-          <div className="form-group"><label>Relación</label><select value={formData.relationship_type} onChange={e => setFormData({ ...formData, relationship_type: e.target.value as Resident['relationship_type'] })}><option value="PROPIETARIO">Propietario</option><option value="FAMILIAR">Familiar</option><option value="INQUILINO">Inquilino</option></select></div>
-          <div className="form-actions"><button type="button" className="btn-cancel" onClick={() => setShowForm(false)}>Cancelar</button><button type="submit" disabled={submitting}>{submitting ? 'Guardando...' : 'Adicionar'}</button></div>
-        </form>
+        <div className="modal-overlay" onClick={() => setShowForm(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>Agregar Residente</h3>
+                <p className="text-on-surface-variant">Registra un residente para el departamento seleccionado.</p>
+              </div>
+              <button className="modal-close" onClick={() => setShowForm(false)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
+            </div>
+            <div className="modal-body">
+              <form className="resident-form" onSubmit={handleSubmit}>
+                <div className="form-group"><label>Nombre completo</label><input type="text" value={formData.full_name} onChange={e => setFormData({ ...formData, full_name: e.target.value })} required autoFocus /></div>
+                <div className="form-group"><label>Documento</label><select value={formData.document_type} onChange={e => setFormData({ ...formData, document_type: e.target.value as Resident['document_type'] })}><option value="DNI">DNI</option><option value="CE">CE</option><option value="PASAPORTE">Pasaporte</option></select></div>
+                <div className="form-group"><label>Número</label><input type="text" value={formData.document_number} onChange={e => setFormData({ ...formData, document_number: e.target.value })} required /></div>
+                <div className="form-group"><label>Relación</label><select value={formData.relationship_type} onChange={e => setFormData({ ...formData, relationship_type: e.target.value as Resident['relationship_type'] })}><option value="PROPIETARIO">Propietario</option><option value="FAMILIAR">Familiar</option><option value="INQUILINO">Inquilino</option></select></div>
+                <div className="form-actions"><button type="button" className="btn-cancel" onClick={() => setShowForm(false)}>Cancelar</button><button type="submit" disabled={submitting}>{submitting ? 'Guardando...' : 'Adicionar'}</button></div>
+              </form>
+            </div>
+          </div>
+        </div>
       )}
 
       <table>
