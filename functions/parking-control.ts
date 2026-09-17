@@ -239,11 +239,34 @@ export default async function(req: Request): Promise<Response> {
       case 'delete-vehicle': {
         const id = body.id as string;
         if (!id) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'id es requerido' } }, 400);
-        const { data: current } = await db.from('vehicles').select('department_id, created_by_user_id').eq('id', id).single();
+        const { data: current } = await db.from('vehicles').select('department_id, created_by_user_id, license_plate').eq('id', id).single();
         if (!current) return json({ success: false, data: null, error: { code: 'NOT_FOUND', message: 'Vehículo no encontrado' } }, 404);
         if (!isAdmin) {
           if (isSecurity || current.department_id !== myDepartmentId) return forbidden();
         }
+
+        // Release any parking spot still occupied by this vehicle: close its open
+        // access log (system exit) and free the affected spot(s).
+        if (current.license_plate) {
+          const { data: openLogs } = await db.from('parking_access_logs')
+            .select('id, spot_id')
+            .eq('license_plate', String(current.license_plate))
+            .is('exit_time', null);
+          const affectedSpotIds = new Set<string>();
+          const systemExit = new Date().toISOString();
+          for (const l of (openLogs || []) as Array<{ id: string; spot_id: string | null }>) {
+            if (l.spot_id) affectedSpotIds.add(l.spot_id);
+            await db.from('parking_access_logs').update({ exit_time: systemExit }).eq('id', l.id);
+          }
+          for (const spotId of affectedSpotIds) {
+            const { count } = await db.from('parking_access_logs')
+              .select('*', { count: 'exact', head: true })
+              .eq('spot_id', spotId)
+              .is('exit_time', null);
+            await db.from('parking_spots').update({ status: (count || 0) > 0 ? 'OCUPADO' : 'DISPONIBLE' }).eq('id', spotId);
+          }
+        }
+
         const { error } = await db.from('vehicles').delete().eq('id', id);
         if (error) throw error;
         return json({ success: true, data: null, error: null }, 200);
