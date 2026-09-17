@@ -88,13 +88,24 @@ Modela la jerarquía: **Condominio → Torres → Pisos → Departamentos**.
 
 ### 6.2. `parking_control` (Control de Estacionamientos y Préstamos - MVP)
 - **Entidades:**
-  - `parking_spots` (`id`, `spot_number`, `type` [PROPIO, VISITA, DISCAPACITADOS], `department_id` [nullable], `status` [DISPONIBLE, OCUPADO])
+  - `parking_spots` (`id`, `spot_number`, `type` [PROPIO, VISITA, DISCAPACITADOS], `department_id` [nullable], `status` [DISPONIBLE, OCUPADO], `spot_row` [fila], `spot_index` [columna])
   - `vehicles` (`id`, `department_id`, `license_plate`, `brand`, `model`, `color`, `is_active`)
   - `parking_loans` (`id`, `spot_id`, `lender_department_id`, `borrower_department_id`, `borrower_vehicle_plate`, `start_time`, `end_time`, `status` [PENDIENTE, ACTIVO, FINALIZADO, CANCELADO])
-  - `parking_access_logs` (`id`, `spot_id`, `license_plate`, `driver_name`, `entry_time`, `exit_time`, `authorized_by_user_id`, `guard_user_id`)
+  - `parking_access_logs` (`id`, `spot_id`, `license_plate`, `driver_name`, `entry_time`, `exit_time`, `entry_gate_id`, `exit_gate_id`, `authorized_by_user_id`, `guard_user_id`) — registra **la puerta de ingreso y la puerta de salida** por separado.
+  - `guard_gate_sessions` (`id`, `user_id`, `gate_id`, `started_at`, `ended_at`) — persiste en qué puerta está autenticado cada agente de seguridad.
+- **Layout del estacionamiento (configuración visual):**
+  - El administrador/super admin configura en una vista propia cuántas **filas** y **plazas por fila** habrá (`provisionParkingLayout` / RPC `provision_parking_layout`).
+  - Cada plaza se numera automáticamente de forma **secuencial global** (01, 02, 03 ...) y se guardan `spot_row`/`spot_index`.
+  - El layout se persiste en `condo_settings.config_json` (`parking_control.layout = { rows, spots_per_row }`) y la generación es **upsert por número**: conserva plazas existentes y agrega las que falten (no borra nada).
+  - `parking-control` expone `get-layout` y `provision-layout`. Los roles admin/super la generan desde la pestaña "Estacionamiento" (configuración visual con mapa), pudiendo hacer clic en cada plaza para asignar tipo/departamento.
+  - **El guardia visualiza un mapa** de todas las plazas (columnas x filas) con estado de ocupación y tipo (libre/ocupada/visita/discapacitados) en su panel de garita.
 - **Reglas de Negocio:**
-  - Los residentes gestionan y prestan sus bahías asignadas a otros residentes o visitantes autorizados con ventana de tiempo (`parking_loans`).
-  - En garita, el agente valida la placa contra el propietario del espacio, préstamo activo vigente o disponibilidad de visitas.
+  - Los residentes gestionan y prestan sus bahías asignadas (`PROPIO`) a otros residentes o visitantes autorizados con ventana de tiempo (`parking_loans`). Estado inicial `PENDIENTE`, luego `ACTIVO`/`FINALIZADO`/`CANCELADO`.
+  - En garita, el agente valida la placa contra: (1) el vehículo registrado del propietario con bahía `PROPIO` libre, (2) un préstamo `ACTIVO` dentro de la ventana de tiempo del prestatario, (3) disponibilidad de bahías `VISITA`, o (4) asignación explícita por el guardia.
+  - **Sesión de puerta del guardia:** al autenticarse (o al entrar a la garita), el agente selecciona una vez la puerta en la que trabaja si el condominio tiene más de una; queda guardada en `guard_gate_sessions` (una sesión activa por usuario). Ese gate se usa por defecto en los préstamos de carritos (`cart_loans`) y en los `parking_access_logs`, sin volver a seleccionarlo en cada operación. El agente puede cambiarla con confirmación (cierra la sesión vigente y abre una nueva).
+  - **Múltiples entradas/salidas:** un condominio tiene `condo_gates.is_entry_exit`. Un vehículo puede ingresar por una puerta y salir por esa misma o por otra (`entry_gate_id` / `exit_gate_id` independientes).
+  - **Máquina de estado dentro/fuera:** si el vehículo tiene un `parking_access_logs` abierto (`exit_time IS NULL`), está dentro y **solo se le puede registrar salida**; si no tiene ninguno abierto, está fuera y **solo se le puede registrar ingreso**.
+  - El estado `OCCUPEDO/DISPONIBLE` de `parking_spots` se sincroniza automáticamente al registrar ingreso/salida.
 
 ---
 
@@ -117,6 +128,7 @@ Modela la jerarquía: **Condominio → Torres → Pisos → Departamentos**.
   - **Tiempos y Tolerancia:** Al realizar el checkout (`processCartCheckout`), `due_time` se calcula como `checkout_time + max_loan_minutes`. Si existe período de gracia (`grace_period_minutes`), la multa no se aplica hasta superarlo.
   - **Cálculo de Multa:** Si `checkin_time > due_time` y `fine_enabled == true`, el servicio calcula el monto según la tarifa (`fine_amount`) y el intervalo por exceso de tiempo (`fine_interval_minutes`), registrando la deuda en `cart_loans.penalty_amount`.
   - **Integración con Facturación:** Si el módulo `billing_maintenance` está activo, la multa se vincula al estado de cuenta del departamento infractor.
+  - **Puerta del guardia en préstamos:** en el checkout el carrito se preselecciona entre los de la puerta donde está autenticado el agente (ver `guard_gate_sessions`), evitando re-seleccionar la puerta en cada préstamo.
 
 ---
 
@@ -175,8 +187,12 @@ Modela la jerarquía: **Condominio → Torres → Pisos → Departamentos**.
 
 ### Sprint 4: Estacionamientos, Préstamos y Garita (`parking_control`) (Prioridad: Alta)
 - Asignación de bahías (`parking_spots` con estados DISPONIBLE/OCUPADO) y registro de vehículos por departamento.
-- Flujo de préstamo/cesión de estacionamiento entre residentes con ventana de tiempo.
-- Interfaz de garita para validación rápida de placas.
+- Flujo de préstamo/cesión de estacionamiento entre residentes con ventana de tiempo (`parking_loans` con estados PENDIENTE/ACTIVO/FINALIZADO/CANCELADO).
+- Interfaz de garita para validación rápida de placas con `register-entry`/`register-exit`, registrando la puerta de ingreso y salida (`parking_access_logs.entry_gate_id` / `exit_gate_id`).
+- **Sesión de puerta por agente (`guard_gate_sessions`):** el guardia selecciona su puerta una vez al autenticarse/entrar a garita; se usa por defecto en préstamos de carritos y registros de estacionamiento. Cambiable con confirmación.
+- **Máquina de estado dentro/fuera:** un vehículo dentro solo puede salir; un vehículo fuera solo puede ingresar. Puede entrar por una puerta y salir por otra.
+- Panel del residente/propietario para registrar sus vehículos, ver sus bahías y prestarlas entre propietarios.
+- Panel admin para gestionar bahías, vehículos y préstamos (`ParkingManager` en pestaña "Estacionamiento" del SetupWizard y ruta `/parking`).
 
 ### Sprint 5: Módulos Complementarios Fase 2 (Prioridad: Media)
 - Implementación progresiva de `visitor_access`, `billing_maintenance` (integrando la recaudación de multas de carritos), `incident_tickets`, `announcements_board` y `pet_registry`.
