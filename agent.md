@@ -88,24 +88,29 @@ Modela la jerarquía: **Condominio → Torres → Pisos → Departamentos**.
 
 ### 6.2. `parking_control` (Control de Estacionamientos y Préstamos - MVP)
 - **Entidades:**
-  - `parking_spots` (`id`, `spot_number`, `type` [PROPIO, VISITA, DISCAPACITADOS], `department_id` [nullable], `status` [DISPONIBLE, OCUPADO], `spot_row` [fila], `spot_index` [columna])
-  - `vehicles` (`id`, `department_id`, `license_plate`, `brand`, `model`, `color`, `is_active`)
-  - `parking_loans` (`id`, `spot_id`, `lender_department_id`, `borrower_department_id`, `borrower_vehicle_plate`, `start_time`, `end_time`, `status` [PENDIENTE, ACTIVO, FINALIZADO, CANCELADO])
-  - `parking_access_logs` (`id`, `spot_id`, `license_plate`, `driver_name`, `entry_time`, `exit_time`, `entry_gate_id`, `exit_gate_id`, `authorized_by_user_id`, `guard_user_id`) — registra **la puerta de ingreso y la puerta de salida** por separado.
+  - `parking_spots` (`id`, `spot_number`, `type` [PROPIO, VISITA, ALQUILADO], `department_id` [nullable], `status` [DISPONIBLE, OCUPADO], `spot_row` [fila], `spot_index` [columna])
+  - `vehicles` (`id`, `department_id`, `license_plate`, `vehicle_type` [AUTO, MOTO], `brand`, `model`, `color`, `is_active`)
+  - `parking_loans` (`id`, `spot_id`, `lender_department_id`, `borrower_department_id`, `borrower_vehicle_plate`, `occupant_name`, `occupant_document_type`, `occupant_document_number`, `duration_unit` [HORAS, DIAS, MESES], `start_time`, `end_time`, `status` [PENDIENTE, ACTIVO, FINALIZADO, CANCELADO]) — registra a la **persona que ocupará la plaza** si no es el dueño y por cuánto tiempo.
+  - `parking_access_logs` (`id`, `spot_id`, `license_plate`, `vehicle_type` [AUTO, MOTO], `driver_name`, `entry_time`, `exit_time`, `entry_gate_id`, `exit_gate_id`, `authorized_by_user_id`, `guard_user_id`) — registra **la puerta de ingreso y la puerta de salida** por separado.
   - `guard_gate_sessions` (`id`, `user_id`, `gate_id`, `started_at`, `ended_at`) — persiste en qué puerta está autenticado cada agente de seguridad.
 - **Layout del estacionamiento (configuración visual):**
   - El administrador/super admin configura en una vista propia cuántas **filas** tendrá el estacionamiento y **cuántas plazas en cada fila** (la cantidad puede variar por fila) (`provisionParkingLayout` / RPC `provision_parking_layout`).
   - Cada plaza se numera automáticamente de forma **secuencial global** (01, 02, 03 ...) y se guardan `spot_row`/`spot_index`.
   - El layout se persiste en `condo_settings.config_json` (`parking_control.layout = { rows, spots_per_row: [...] }` con `spots_per_row` como array) y la generación es **upsert por número**: conserva plazas existentes y agrega las que falten (no borra nada).
   - `parking-control` expone `get-layout` y `provision-layout` (acepta `spots_per_row` como número uniforme o array por fila). Los roles admin/super la generan desde la pestaña "Estacionamiento" (configuración visual con mapa), pudiendo hacer clic en cada plaza para asignar tipo/departamento.
-  - **El guardia visualiza un mapa** de todas las plazas (filas con su propio número de columnas) con estado de ocupación y tipo (libre/ocupada/visita/discapacitados) en su panel de garita.
+  - **El mapa diferencia visualmente** las plazas: PROPIO **asignada a departamento** (verde), PROPIO **sin asignar** (gris), **ocupada** (rojo), **visita** (azul) y **alquilada** (naranja). El guardia lo ve en su panel de garita.
 - **Reglas de Negocio:**
-  - Los residentes gestionan y prestan sus bahías asignadas (`PROPIO`) a otros residentes o visitantes autorizados con ventana de tiempo (`parking_loans`). Estado inicial `PENDIENTE`, luego `ACTIVO`/`FINALIZADO`/`CANCELADO`.
-  - En garita, el agente valida la placa contra: (1) el vehículo registrado del propietario con bahía `PROPIO` libre, (2) un préstamo `ACTIVO` dentro de la ventana de tiempo del prestatario, (3) disponibilidad de bahías `VISITA`, o (4) asignación explícita por el guardia.
+  - **Tipos de plaza:** `PROPIO` (pertenece a un departamento), `VISITA` (uso temporal en garita), `ALQUILADO` (se cede a un tercero por un período).
+  - **Vehículos:** cada vehículo tiene `vehicle_type` (`AUTO` o `MOTO`). El dueño de la plaza registra sus vehículos.
+  - **Regla de ocupación:** **máximo un auto estacionado a la vez por plaza**; las **motos pueden compartir** (varias motos juntas, o una moto junto a un auto). Dos autos no pueden estar a la vez en la misma plaza (`register-entry` lo valida con `spotCanHostType`).
+  - **Ocupante no dueño:** el dueño o el administrador registran los **datos de la persona que ocupará la plaza** (`occupant_name`, documento) y la **duración en horas/días/meses** (`duration_unit`) al crear el préstamo. En plazas `ALQUILADO` solo el administrador puede crear el préstamo y el ocupante es obligatorio.
+  - Los residentes prestan sus bahías `PROPIO` a otros residentes o visitantes autorizados con ventana de tiempo (`parking_loans`). Estado inicial `PENDIENTE`, luego `ACTIVO`/`FINALIZADO`/`CANCELADO`.
+  - En garita, el agente valida la placa contra: (1) el vehículo registrado del propietario con bahía `PROPIO` que cumpla la regla de ocupación, (2) un préstamo `ACTIVO` dentro de la ventana de tiempo del prestatario, (3) disponibilidad de bahías `VISITA`, o (4) asignación explícita por el guardia.
+  - **OCR de matrículas:** el agente de seguridad registra entradas/salidas **escaneando la matrícula** (función `plate-ocr` con Google Cloud Vision `TEXT_DETECTION`, secreto `GOOGLE_VISION_API_KEY`) o **ingresándola manualmente** en el panel de garita.
   - **Sesión de puerta del guardia:** al autenticarse (o al entrar a la garita), el agente selecciona una vez la puerta en la que trabaja si el condominio tiene más de una; queda guardada en `guard_gate_sessions` (una sesión activa por usuario). Ese gate se usa por defecto en los préstamos de carritos (`cart_loans`) y en los `parking_access_logs`, sin volver a seleccionarlo en cada operación. El agente puede cambiarla con confirmación (cierra la sesión vigente y abre una nueva).
   - **Múltiples entradas/salidas:** un condominio tiene `condo_gates.is_entry_exit`. Un vehículo puede ingresar por una puerta y salir por esa misma o por otra (`entry_gate_id` / `exit_gate_id` independientes).
   - **Máquina de estado dentro/fuera:** si el vehículo tiene un `parking_access_logs` abierto (`exit_time IS NULL`), está dentro y **solo se le puede registrar salida**; si no tiene ninguno abierto, está fuera y **solo se le puede registrar ingreso**.
-  - El estado `OCCUPEDO/DISPONIBLE` de `parking_spots` se sincroniza automáticamente al registrar ingreso/salida.
+  - El estado `OCUPADO/DISPONIBLE` de `parking_spots` se sincroniza automáticamente al registrar ingreso/salida (una plaza sigue `OCUPADO` mientras quede cualquier vehículo dentro).
 
 ---
 

@@ -171,7 +171,8 @@ export interface FinesSummaryRow {
   cobrada: number;
 }
 
-export type ParkingSpotType = 'PROPIO' | 'VISITA' | 'DISCAPACITADOS';
+export type ParkingSpotType = 'PROPIO' | 'VISITA' | 'ALQUILADO';
+export type VehicleType = 'AUTO' | 'MOTO';
 export type ParkingLoanStatus = 'PENDIENTE' | 'ACTIVO' | 'FINALIZADO' | 'CANCELADO';
 
 export interface ParkingSpot {
@@ -200,6 +201,7 @@ export interface Vehicle {
   id: string;
   department_id: string;
   license_plate: string;
+  vehicle_type: VehicleType;
   brand: string | null;
   model: string | null;
   color: string | null;
@@ -211,12 +213,18 @@ export interface Vehicle {
   };
 }
 
+export type RentalDurationUnit = 'HORAS' | 'DIAS' | 'MESES';
+
 export interface ParkingLoan {
   id: string;
   spot_id: string;
   lender_department_id: string;
   borrower_department_id: string | null;
   borrower_vehicle_plate: string | null;
+  occupant_name: string | null;
+  occupant_document_type: string | null;
+  occupant_document_number: string | null;
+  duration_unit: RentalDurationUnit | null;
   start_time: string;
   end_time: string;
   status: ParkingLoanStatus;
@@ -232,6 +240,7 @@ export interface ParkingAccessLog {
   id: string;
   spot_id: string | null;
   license_plate: string;
+  vehicle_type: VehicleType;
   driver_name: string | null;
   entry_time: string;
   exit_time: string | null;
@@ -255,7 +264,13 @@ export interface PlateStatus {
   inside_spot: { id: string; spot_number: string; type: string } | null;
   entry_gate: { id: string; name: string } | null;
   visitor_spots: Array<{ id: string; spot_number: string }>;
-  disabled_spots: Array<{ id: string; spot_number: string }>;
+  rented_spots: Array<{ id: string; spot_number: string }>;
+}
+
+export interface OcrResult {
+  plate: string | null;
+  full_text: string;
+  detected: string[];
 }
 
 export interface GuardGateSession {

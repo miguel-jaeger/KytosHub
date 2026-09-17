@@ -2583,20 +2583,23 @@ html.dark .parking-spot-number { color: #e5e7eb; }
   cursor: default;
 }
 .plaza-cell small { font-size: 0.68rem; font-weight: 600; opacity: 0.85; }
+.plaza-cell-dept { display: block; }
 .plaza-cell-clickable { cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
 .plaza-cell-clickable:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(11, 28, 48, 0.2); }
 .plaza-cell-empty { background: transparent; border: 1px dashed #e2e3e7; color: transparent; min-width: 64px; min-height: 48px; }
 .plaza-free { background: #2e9e63; }
 .plaza-occupied { background: #c62828; }
 .plaza-visita { background: #2f80ed; }
-.plaza-disabled { background: #6a5acd; }
+.plaza-rented { background: #e8890c; }
+.plaza-unassigned { background: #9aa0aa; }
 .plaza-legend { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0.4rem 0; }
 .plaza-legend-item { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.78rem; font-weight: 600; color: #45464d; }
 .plaza-legend-item::before { content: ''; display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
 .plaza-legend-item.plaza-free::before { background: #2e9e63; }
 .plaza-legend-item.plaza-occupied::before { background: #c62828; }
 .plaza-legend-item.plaza-visita::before { background: #2f80ed; }
-.plaza-legend-item.plaza-disabled::before { background: #6a5acd; }
+.plaza-legend-item.plaza-rented::before { background: #e8890c; }
+.plaza-legend-item.plaza-unassigned::before { background: #9aa0aa; }
 .plaza-empty { text-align: center; color: #76777d; padding: 0.75rem 0; }
 .plaza-total-preview { display: flex; align-items: center; font-size: 0.9rem; color: #45464d; }
 .plaza-total-preview strong { font-size: 1.2rem; color: #006c49; margin: 0 0.35rem; }

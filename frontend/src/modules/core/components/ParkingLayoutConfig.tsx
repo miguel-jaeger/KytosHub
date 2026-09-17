@@ -213,7 +213,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
             </select>
           </div>
           <div className="form-group">
-            <label>Departamento asignado {spotForm.type === 'VISITA' || spotForm.type === 'DISCAPACITADOS' ? '(opcional)' : '(obligatorio)'}</label>
+            <label>Departamento asignado {spotForm.type === 'VISITA' || spotForm.type === 'ALQUILADO' ? '(opcional)' : '(obligatorio)'}</label>
             <select value={spotForm.department_id} onChange={e => setSpotForm({ ...spotForm, department_id: e.target.value })}>
               <option value="">— Sin asignar —</option>
               {departments.map(d => <option key={d.id} value={d.id}>Dpto {d.department_number} (T{d.tower_code})</option>)}

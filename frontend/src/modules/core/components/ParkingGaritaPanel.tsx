@@ -1,7 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useParking } from '../hooks/useParking';
 import { ParkingMap } from './ParkingMap';
-import type { ParkingLayout, ParkingSpot, PlateStatus, GuardGateSession } from '../types';
+import type { ParkingLayout, ParkingSpot, PlateStatus, GuardGateSession, VehicleType } from '../types';
 
 interface Props {
   schemaName?: string;
@@ -17,18 +17,23 @@ function fmtDateTime(iso: string | null): string {
   return `${d.toLocaleDateString('es-PE')}, ${hh}:${mm} ${ap}`;
 }
 
+const VEHICLE_TYPE_LABELS: Record<VehicleType, string> = { AUTO: 'Auto', MOTO: 'Moto' };
+
 export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
-  const { listSpots, getLayout, plateStatus, registerEntry, registerExit } = useParking();
+  const { listSpots, getLayout, plateStatus, registerEntry, registerExit, ocrPlate } = useParking();
   const [spots, setSpots] = useState<ParkingSpot[]>([]);
   const [layout, setLayout] = useState<ParkingLayout | null>(null);
   const [plate, setPlate] = useState('');
+  const [vehicleType, setVehicleType] = useState<VehicleType>('AUTO');
   const [driverName, setDriverName] = useState('');
   const [status, setStatus] = useState<PlateStatus | null>(null);
   const [spotOverride, setSpotOverride] = useState('');
   const [loading, setLoading] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
   const [busy, setBusy] = useState<'enter' | 'exit' | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadMap = useCallback(async () => {
     if (!schemaName) return;
@@ -41,7 +46,7 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
 
   useEffect(() => { void loadMap(); }, [loadMap]);
 
-  const normalizePlate = (v: string) => v.trim().toUpperCase();
+  const normalizePlate = (v: string) => v.trim().toUpperCase().replace(/\s+/g, '');
 
   const consult = useCallback(async (raw?: string) => {
     if (!schemaName) return;
@@ -55,12 +60,45 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
     try {
       const res = await plateStatus(schemaName, plateValue);
       setStatus(res);
+      if (res.vehicle?.vehicle_type) setVehicleType(res.vehicle.vehicle_type);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al consultar');
     } finally {
       setLoading(false);
     }
   }, [schemaName, plate, plateStatus]);
+
+  const handleScan = async (file: File | null) => {
+    if (!file) return;
+    setOcrLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUrl = String(reader.result || '');
+        try {
+          const res = await ocrPlate(dataUrl);
+          if (res.plate) {
+            setPlate(res.plate.toUpperCase());
+            await consult(res.plate.toUpperCase());
+            setMessage(`Placa reconocida: ${res.plate.toUpperCase()}`);
+          } else {
+            setError(`No se pudo reconocer una matrícula clara. Texto detectado: ${res.full_text.trim() || 'ninguno'} — ingrésala manualmente.`);
+          }
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Error al reconocer la placa');
+        } finally {
+          setOcrLoading(false);
+        }
+      };
+      reader.onerror = () => { setOcrLoading(false); setError('No se pudo leer la imagen'); };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setOcrLoading(false);
+      setError(err instanceof Error ? err.message : 'Error al leer la imagen');
+    }
+  };
 
   const handleEnter = async () => {
     if (!schemaName || !status) return;
@@ -70,12 +108,13 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
     try {
       const res = await registerEntry(schemaName, {
         license_plate: status.license_plate,
+        vehicle_type: vehicleType,
         driver_name: driverName || undefined,
         spot_id: spotOverride || undefined,
         gate_id: guardGate?.gate.id
       });
       setStatus(prev => prev ? { ...prev, inside: true, current_log: res.log, inside_spot: res.spot } : prev);
-      setMessage(`Ingreso registrado en bahía ${res.spot.spot_number}${res.entry_gate ? ` por ${res.entry_gate.name}` : ''} (${res.authorization})`);
+      setMessage(`Ingreso registrado (${VEHICLE_TYPE_LABELS[vehicleType]}) en bahía ${res.spot.spot_number}${res.entry_gate ? ` por ${res.entry_gate.name}` : ''} (${res.authorization})`);
       await loadMap();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar ingreso');
@@ -127,14 +166,31 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
           <span className="material-symbols-outlined search-icon">directions_car</span>
           <input
             type="text"
-            placeholder="Buscar placa (ej: ABC-123)"
+            placeholder="Ingresar placa manualmente (ej: ABC-123) o escanear"
             value={plate}
             onChange={e => setPlate(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') void consult(); }}
           />
-          <button className="btn-primary" onClick={() => void consult()} disabled={loading}>
+          <button className="btn-primary" onClick={() => void consult()} disabled={loading || ocrLoading}>
             {loading ? 'Consultando...' : 'Consultar'}
           </button>
+          <button
+            className="btn-edit"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={ocrLoading}
+            title="Escanear matrícula con cámara/imagen"
+          >
+            <span className="material-symbols-outlined">{ocrLoading ? 'hourglass_top' : 'document_scanner'}</span>
+            {ocrLoading ? 'Leyendo...' : 'Escanear'}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            style={{ display: 'none' }}
+            onChange={e => void handleScan(e.target.files?.[0] || null)}
+          />
         </div>
       </div>
 
@@ -151,8 +207,8 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
           <div className="parking-status-grid">
             <div className="parking-status-cell"><label>Vehículo</label><span>
               {status.vehicle
-                ? `${[status.vehicle.brand, status.vehicle.model].filter(Boolean).join(' ') || 'Registrado'}${status.vehicle.color ? ` · ${status.vehicle.color}` : ''}`
-                : 'No registrado en el padrón'}
+                ? `${VEHICLE_TYPE_LABELS[status.vehicle.vehicle_type] || status.vehicle.vehicle_type} · ${[status.vehicle.brand, status.vehicle.model].filter(Boolean).join(' ') || 'Registrado'}${status.vehicle.color ? ` · ${status.vehicle.color}` : ''}`
+                : `No registrado en el padrón · ${VEHICLE_TYPE_LABELS[vehicleType] || vehicleType}`}
             </span></div>
             {status.inside && (
               <>
@@ -162,7 +218,9 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
               </>
             )}
             {!status.inside && (
-              <div className="parking-status-cell"><label>Bahías de visita libres</label><span>{status.visitor_spots.map(s => s.spot_number).join(', ') || 'Ninguna'}</span></div>
+              <div className="parking-status-cell"><label>Visita/Alquilada libres</label><span>
+                {[...status.visitor_spots, ...status.rented_spots].map(s => s.spot_number).join(', ') || 'Ninguna'}
+              </span></div>
             )}
           </div>
 
@@ -173,15 +231,31 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
           ) : (
             <>
               <div className="checkout-field">
+                <label>Tipo de vehículo</label>
+                <div className="checkout-chip-row">
+                  {Object.entries(VEHICLE_TYPE_LABELS).map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      className={`checkout-chip ${vehicleType === key ? 'active' : ''}`}
+                      onClick={() => setVehicleType(key as VehicleType)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="checkout-field">
                 <label>Nombre del conductor (opcional)</label>
                 <input type="text" value={driverName} onChange={e => setDriverName(e.target.value)} placeholder="Ej: Juan Pérez" />
               </div>
-              {status.visitor_spots.length > 0 && (
+              {[...status.visitor_spots, ...status.rented_spots].length > 0 && (
                 <div className="checkout-field">
                   <label>Bahía (opcional)</label>
                   <select value={spotOverride} onChange={e => setSpotOverride(e.target.value)}>
                     <option value="">Automática</option>
-                    {status.visitor_spots.map(s => <option key={s.id} value={s.id}>Bahía {s.spot_number}</option>)}
+                    {status.visitor_spots.map(s => <option key={s.id} value={s.id}>Bahía {s.spot_number} (Visita)</option>)}
+                    {status.rented_spots.map(s => <option key={s.id} value={s.id}>Bahía {s.spot_number} (Alquilada)</option>)}
                   </select>
                 </div>
               )}

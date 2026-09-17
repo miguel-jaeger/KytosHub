@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import { useParking } from '../hooks/useParking';
 import { PaginationBar, paginate } from '../../../components/Pagination';
-import type { Department, Floor, Tower, Vehicle } from '../types';
+import type { Department, Floor, Tower, Vehicle, VehicleType } from '../types';
 
-const emptyVehicleForm = { license_plate: '', brand: '', model: '', color: '' };
+const emptyVehicleForm = { license_plate: '', vehicle_type: 'AUTO' as VehicleType, brand: '', model: '', color: '' };
+const VEHICLE_TYPE_LABELS: Record<VehicleType, string> = { AUTO: 'Auto', MOTO: 'Moto' };
 
 export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
   const { listVehicles, createVehicle, updateVehicle, deleteVehicle } = useParking();
@@ -117,6 +118,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
     try {
       const payload = {
         license_plate: vehicleForm.license_plate.trim().toUpperCase(),
+        vehicle_type: vehicleForm.vehicle_type,
         brand: vehicleForm.brand.trim() || null,
         model: vehicleForm.model.trim() || null,
         color: vehicleForm.color.trim() || null
@@ -146,7 +148,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
 
   const startVehicleEdit = (v: Vehicle) => {
     setEditingVehicle(v);
-    setVehicleForm({ license_plate: v.license_plate, brand: v.brand || '', model: v.model || '', color: v.color || '' });
+    setVehicleForm({ license_plate: v.license_plate, vehicle_type: v.vehicle_type || 'AUTO', brand: v.brand || '', model: v.model || '', color: v.color || '' });
     setShowVehicleForm(true);
   };
 
@@ -275,15 +277,23 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
               <input type="text" value={vehicleForm.license_plate} onChange={e => setVehicleForm({ ...vehicleForm, license_plate: e.target.value })} placeholder="ABC-123" autoFocus />
             </div>
             <div className="form-group">
-              <label>Marca</label>
-              <input type="text" value={vehicleForm.brand} onChange={e => setVehicleForm({ ...vehicleForm, brand: e.target.value })} placeholder="Toyota" />
+              <label>Tipo de vehículo</label>
+              <select value={vehicleForm.vehicle_type} onChange={e => setVehicleForm({ ...vehicleForm, vehicle_type: e.target.value as VehicleType })}>
+                {Object.entries(VEHICLE_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
             </div>
           </div>
           <div className="form-row">
             <div className="form-group">
+              <label>Marca</label>
+              <input type="text" value={vehicleForm.brand} onChange={e => setVehicleForm({ ...vehicleForm, brand: e.target.value })} placeholder="Toyota" />
+            </div>
+            <div className="form-group">
               <label>Modelo</label>
               <input type="text" value={vehicleForm.model} onChange={e => setVehicleForm({ ...vehicleForm, model: e.target.value })} placeholder="Corolla" />
             </div>
+          </div>
+          <div className="form-row">
             <div className="form-group">
               <label>Color</label>
               <input type="text" value={vehicleForm.color} onChange={e => setVehicleForm({ ...vehicleForm, color: e.target.value })} placeholder="Rojo" />
@@ -315,7 +325,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
             {vehPageItems.map(v => (
               <tr key={v.id}>
                 <td><strong>{v.license_plate}</strong></td>
-                <td>{[v.brand, v.model].filter(Boolean).join(' ') || '-'}</td>
+                <td>{VEHICLE_TYPE_LABELS[v.vehicle_type] || v.vehicle_type} · {[v.brand, v.model].filter(Boolean).join(' ') || '-'}</td>
                 <td>{v.color || '-'}</td>
                 <td>{v.departments ? `${v.departments.department_number} (T${v.departments.towers?.code || '-'})` : '-'}</td>
                 <td><span className={`status-badge ${v.is_active ? 'status-occupied' : 'status-vacant'}`}>{v.is_active ? 'Activo' : 'Inactivo'}</span></td>

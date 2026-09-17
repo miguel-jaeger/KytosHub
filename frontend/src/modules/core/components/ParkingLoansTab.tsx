@@ -74,11 +74,11 @@ export function ParkingLoansTab({ schemaName }: { schemaName?: string }) {
           <thead>
             <tr>
               <th>Plaza</th>
-              <th>Presta</th>
-              <th>Recibe</th>
+              <th>Ocupante</th>
               <th>Vehículo</th>
               <th>Inicio</th>
               <th>Fin</th>
+              <th>Duración</th>
               <th>Estado</th>
               <th></th>
             </tr>
@@ -89,11 +89,11 @@ export function ParkingLoansTab({ schemaName }: { schemaName?: string }) {
               return (
                 <tr key={l.id}>
                   <td>{l.spot_number || '-'} ({l.spot_type || ''})</td>
-                  <td>{l.lender_department ? `${l.lender_department.department_number} (T${l.lender_department.tower_code || '-'})` : '-'}</td>
-                  <td>{l.borrower_department ? `${l.borrower_department.department_number} (T${l.borrower_department.tower_code || '-'})` : (l.borrower_vehicle_plate ? 'Visitante' : '-')}</td>
+                  <td>{l.occupant_name || (l.lender_department ? `Dpto ${l.lender_department.department_number} (T${l.lender_department.tower_code || '-'})` : '-')}</td>
                   <td>{l.borrower_vehicle_plate || '-'}</td>
                   <td>{fmtDateTime(l.start_time)}</td>
                   <td>{fmtDateTime(l.end_time)}</td>
+                  <td>{l.duration_unit ? l.duration_unit.toLowerCase() : '-'}</td>
                   <td><span className={`status-badge ${l.status === 'ACTIVO' ? 'status-occupied' : 'status-vacant'}`}>{LOAN_STATUS_LABELS[l.status] || l.status}</span></td>
                   <td>
                     {!isClosed && (

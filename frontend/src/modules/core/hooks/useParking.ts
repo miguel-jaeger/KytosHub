@@ -3,6 +3,7 @@ import { invokeFunction } from '../../../lib/insforge';
 import type {
   EntryRegisterResult,
   ExitRegisterResult,
+  OcrResult,
   ParkingAccessLog,
   ParkingLayout,
   ParkingLoan,
@@ -131,7 +132,7 @@ export function useParking() {
     return data.data;
   }, []);
 
-  const registerEntry = useCallback(async (schemaName: string, input: { license_plate: string; driver_name?: string; spot_id?: string; gate_id?: string }): Promise<EntryRegisterResult> => {
+  const registerEntry = useCallback(async (schemaName: string, input: { license_plate: string; vehicle_type?: string; driver_name?: string; spot_id?: string; gate_id?: string }): Promise<EntryRegisterResult> => {
     const { data, error } = await invokeFunction<{ success: boolean; data: EntryRegisterResult | null; error: { message: string } | null }>('parking-control', {
       method: 'POST',
       body: { action: 'register-entry', schema_name: schemaName, ...input }
@@ -181,11 +182,21 @@ export function useParking() {
     return data.data;
   }, []);
 
+  const ocrPlate = useCallback(async (image: string): Promise<OcrResult> => {
+    const { data, error } = await invokeFunction<{ success: boolean; data: OcrResult | null; error: { message: string } | null }>('plate-ocr', {
+      method: 'POST',
+      body: { image }
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error?.message || 'No se pudo reconocer la placa');
+    return data.data || { plate: null, full_text: '', detected: [] };
+  }, []);
+
   return {
     listSpots, createSpot, updateSpot, deleteSpot,
     listVehicles, createVehicle, updateVehicle, deleteVehicle,
     listLoans, createLoan, updateLoanStatus,
     plateStatus, registerEntry, registerExit, listLogs,
-    getLayout, provisionLayout
+    getLayout, provisionLayout, ocrPlate
   };
 }

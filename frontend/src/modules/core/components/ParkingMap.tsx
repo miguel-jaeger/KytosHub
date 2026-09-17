@@ -10,20 +10,29 @@ interface Props {
 export const SPOT_TYPE_LABELS: Record<ParkingSpotType, string> = {
   PROPIO: 'Propio',
   VISITA: 'Visita',
-  DISCAPACITADOS: 'Discapacitados'
+  ALQUILADO: 'Alquilado'
 };
 
 export const SPOT_TYPE_SHORT: Record<ParkingSpotType, string> = {
   PROPIO: 'P',
   VISITA: 'V',
-  DISCAPACITADOS: 'D'
+  ALQUILADO: 'A'
 };
 
 function spotClass(spot: ParkingSpot): string {
   if (spot.inside || spot.status === 'OCUPADO') return 'plaza-occupied';
   if (spot.type === 'VISITA') return 'plaza-visita';
-  if (spot.type === 'DISCAPACITADOS') return 'plaza-disabled';
+  if (spot.type === 'ALQUILADO') return 'plaza-rented';
+  if (!spot.department_id) return 'plaza-unassigned';
   return 'plaza-free';
+}
+
+function spotStateLabel(spot: ParkingSpot): string {
+  if (spot.inside || spot.status === 'OCUPADO') return 'Ocupada';
+  if (spot.type === 'VISITA') return 'Visita disponible';
+  if (spot.type === 'ALQUILADO') return 'Alquilada disponible';
+  if (!spot.department_id) return 'Sin asignar a un departamento';
+  return `Asignada a ${spot.departments?.department_number || 'depto'} · disponible`;
 }
 
 export function ParkingMap({ spots, layout, onSpotClick, showLegend }: Props) {
@@ -81,10 +90,11 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend }: Props) {
                     key={`${r}-${c}`}
                     className={`plaza-cell ${spotClass(s)}${onSpotClick ? ' plaza-cell-clickable' : ''}`}
                     onClick={onSpotClick ? () => onSpotClick(s) : undefined}
-                    title={`Plaza ${s.spot_number} · ${SPOT_TYPE_LABELS[s.type] || s.type} · ${s.inside || s.status === 'OCUPADO' ? 'Ocupada' : 'Disponible'}`}
+                    title={`Plaza ${s.spot_number} · ${SPOT_TYPE_LABELS[s.type] || s.type} · ${spotStateLabel(s)}${s.departments ? ` · Dpto ${s.departments.department_number}` : ''}`}
                   >
-                    {s.spot_number}
+                    <strong>{s.spot_number}</strong>
                     {onSpotClick && <small>{SPOT_TYPE_SHORT[s.type] || '·'}</small>}
+                    {s.departments && <small className="plaza-cell-dept">{s.departments.department_number}</small>}
                   </button>
                 ) : (
                   <span key={`${r}-${c}`} className="plaza-cell plaza-cell-empty" />
@@ -97,10 +107,11 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend }: Props) {
 
       {showLegend && (
         <div className="plaza-legend">
-          <span className="plaza-legend-item plaza-free">Libre</span>
+          <span className="plaza-legend-item plaza-free">Asignada · libre</span>
+          <span className="plaza-legend-item plaza-unassigned">Sin asignar</span>
           <span className="plaza-legend-item plaza-occupied">Ocupada</span>
           <span className="plaza-legend-item plaza-visita">Visita</span>
-          <span className="plaza-legend-item plaza-disabled">Discapacitados</span>
+          <span className="plaza-legend-item plaza-rented">Alquilada</span>
         </div>
       )}
     </div>
