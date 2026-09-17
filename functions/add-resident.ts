@@ -117,6 +117,34 @@ export default async function(req: Request): Promise<Response> {
       }
     } catch {}
 
+    // Guarantee the resident's global user is linked to THIS condominium so
+    // tenant resolution (list-by-user) and resident views never diverge.
+    if (userId) {
+      try {
+        const { data: tenant } = await client.database.from('tenants').select('id').eq('schema_name', body.schema_name).single();
+        if (tenant?.id) {
+          const { data: existingTu } = await client.database
+            .from('tenant_users')
+            .select('id')
+            .eq('tenant_id', tenant.id)
+            .eq('user_id', userId)
+            .single();
+          if (!existingTu) {
+            await client.database.from('tenant_users').insert([{
+              tenant_id: tenant.id,
+              user_id: userId,
+              role: 'RESIDENT',
+              status: 'ACTIVE'
+            }]);
+          } else {
+            await client.database.from('tenant_users')
+              .update({ status: 'ACTIVE', role: 'RESIDENT' })
+              .eq('id', existingTu.id);
+          }
+        }
+      } catch (e) { console.error('tenant_users sync error:', e); }
+    }
+
     const response: {
       success: boolean;
       data: Record<string, unknown> | null;

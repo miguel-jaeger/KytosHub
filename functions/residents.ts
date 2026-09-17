@@ -245,6 +245,32 @@ export default async function(req: Request): Promise<Response> {
           await client.database.from('users_global').update(ugSync).eq('id', user_id);
         } catch (e) { console.error('users_global link sync error:', e); }
 
+        // Guarantee the linked user belongs to THIS condominium as RESIDENT so
+        // tenant resolution never diverges from their resident/department data.
+        try {
+          const { data: tenant } = await client.database.from('tenants').select('id').eq('schema_name', schemaName).single();
+          if (tenant?.id) {
+            const { data: existingTu } = await client.database
+              .from('tenant_users')
+              .select('id')
+              .eq('tenant_id', tenant.id)
+              .eq('user_id', user_id)
+              .single();
+            if (!existingTu) {
+              await client.database.from('tenant_users').insert([{
+                tenant_id: tenant.id,
+                user_id,
+                role: 'RESIDENT',
+                status: 'ACTIVE'
+              }]);
+            } else {
+              await client.database.from('tenant_users')
+                .update({ status: 'ACTIVE', role: 'RESIDENT' })
+                .eq('id', existingTu.id);
+            }
+          }
+        } catch (e) { console.error('tenant_users link sync error:', e); }
+
         await refreshTenantCounts();
         return new Response(JSON.stringify({ success: true, data, error: null }), { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
@@ -274,6 +300,34 @@ export default async function(req: Request): Promise<Response> {
             return ok(corsHeaders, null);
           }
           throw error;
+        }
+
+        // If the resident references an account, keep their condominium membership
+        // in sync so tenant resolution stays consistent.
+        if (body.user_id) {
+          try {
+            const { data: tenant } = await client.database.from('tenants').select('id').eq('schema_name', schemaName).single();
+            if (tenant?.id) {
+              const { data: existingTu } = await client.database
+                .from('tenant_users')
+                .select('id')
+                .eq('tenant_id', tenant.id)
+                .eq('user_id', body.user_id)
+                .single();
+              if (!existingTu) {
+                await client.database.from('tenant_users').insert([{
+                  tenant_id: tenant.id,
+                  user_id: body.user_id as string,
+                  role: 'RESIDENT',
+                  status: 'ACTIVE'
+                }]);
+              } else {
+                await client.database.from('tenant_users')
+                  .update({ status: 'ACTIVE', role: 'RESIDENT' })
+                  .eq('id', existingTu.id);
+              }
+            }
+          } catch (e) { console.error('tenant_users create sync error:', e); }
         }
 
         await refreshTenantCounts();
