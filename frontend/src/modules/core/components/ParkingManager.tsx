@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { ParkingLayoutConfig } from './ParkingLayoutConfig';
 import { ParkingVehiclesTab } from './ParkingVehiclesTab';
 import { ParkingLoansTab } from './ParkingLoansTab';
-import { ParkingLogsTab } from './ParkingLogsTab';
+import { ParkingStatsTab } from './ParkingStatsTab';
 
 export function ParkingManager({ schemaName }: { schemaName?: string }) {
-  const [tab, setTab] = useState<'layout' | 'vehicles' | 'loans' | 'logs'>('layout');
+  const [tab, setTab] = useState<'layout' | 'vehicles' | 'loans' | 'stats'>('layout');
 
   return (
     <div className="parking-manager">
@@ -13,13 +13,13 @@ export function ParkingManager({ schemaName }: { schemaName?: string }) {
         <button className={tab === 'layout' ? 'active' : ''} onClick={() => setTab('layout')}>Mapa y Configuración</button>
         <button className={tab === 'vehicles' ? 'active' : ''} onClick={() => setTab('vehicles')}>Vehículos</button>
         <button className={tab === 'loans' ? 'active' : ''} onClick={() => setTab('loans')}>Préstamos</button>
-        <button className={tab === 'logs' ? 'active' : ''} onClick={() => setTab('logs')}>Accesos</button>
+        <button className={tab === 'stats' ? 'active' : ''} onClick={() => setTab('stats')}>Estadística</button>
       </div>
 
       {tab === 'layout' && <ParkingLayoutConfig schemaName={schemaName} />}
       {tab === 'vehicles' && <ParkingVehiclesTab schemaName={schemaName} />}
       {tab === 'loans' && <ParkingLoansTab schemaName={schemaName} />}
-      {tab === 'logs' && <ParkingLogsTab schemaName={schemaName} />}
+      {tab === 'stats' && <ParkingStatsTab schemaName={schemaName} />}
     </div>
   );
 }
