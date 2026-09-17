@@ -2264,6 +2264,8 @@ html.dark .resident-search input { background: #2a2a2a; border-color: #444; colo
 
 html.dark .resident-grid-card { background: #1e1e1e; border-color: #333; }
 html.dark .resident-grid-name { color: #e5e7eb; }
+html.dark .resident-grid-meta { color: #aaa; }
+html.dark .resident-grid-line { color: #e5e7eb; }
 html.dark .resident-grid-label { color: #aaa; }
 .resident-form .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 
