@@ -213,7 +213,10 @@ export function SuperAdminDashboard() {
               <button className="modal-close" onClick={() => setShowAddModal(false)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
             </div>
             <div className="modal-body">
-              <CondominiumRegistration onRegistered={() => { setShowAddModal(false); navigate('/setup'); }} />
+              <CondominiumRegistration
+                onRegistered={() => { setShowAddModal(false); navigate('/setup'); }}
+                onCancel={() => setShowAddModal(false)}
+              />
             </div>
           </div>
         </div>

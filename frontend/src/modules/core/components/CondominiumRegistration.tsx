@@ -5,9 +5,10 @@ import { useCondominium } from '../../../contexts/CondominiumContext';
 
 interface CondominiumRegistrationProps {
   onRegistered: () => void;
+  onCancel?: () => void;
 }
 
-export function CondominiumRegistration({ onRegistered }: CondominiumRegistrationProps) {
+export function CondominiumRegistration({ onRegistered, onCancel }: CondominiumRegistrationProps) {
   const { register } = useCondominiumRegistration();
   const { setCondominium } = useCondominium();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -159,6 +160,9 @@ export function CondominiumRegistration({ onRegistered }: CondominiumRegistratio
         {error && <div className="error-message">{error}</div>}
 
         <div className="wizard-actions">
+          {onCancel && (
+            <button type="button" className="btn-cancel" onClick={onCancel}>Cancelar</button>
+          )}
           <button type="submit" disabled={submitting || uploading}>
             {uploading ? 'Subiendo imagen...' : submitting ? 'Registrando...' : 'Registrar Condominio'}
           </button>
