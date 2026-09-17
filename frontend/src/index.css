@@ -2463,6 +2463,37 @@ html.dark .resident-grid-label { color: #aaa; }
 }
 
 /* ---------- Guard gate (puerta del guardia) ---------- */
+.garita-tabs {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.25rem 0 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.garita-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+  padding: 0.55rem 0.9rem;
+  border: 1.5px solid #c6c6cd;
+  background: #fff;
+  color: #45464d;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.garita-tabs button.active {
+  background: #006c49;
+  border-color: #006c49;
+  color: #fff;
+}
+.garita-tabs button .material-symbols-outlined { font-size: 18px; }
+html.dark .garita-tabs button { background: #1e1e1e; border-color: #444; color: #c8cad1; }
+html.dark .garita-tabs button.active { background: #006c49; border-color: #006c49; color: #fff; }
+
 .guard-gate-bar {
   display: flex;
   align-items: center;

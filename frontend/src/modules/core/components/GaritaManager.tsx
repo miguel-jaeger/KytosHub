@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import { useCartLending } from '../hooks/useCartLending';
 import { useCondoGates } from '../hooks/useCondoGates';
+import { useCondoModules } from '../hooks/useCondoModules';
 import { PaginationBar, paginate } from '../../../components/Pagination';
 import { CartCheckoutForm } from './CartCheckoutForm';
 import { GuardGateBar } from './GuardGateBar';
@@ -57,6 +58,11 @@ function loanStatus(now: number, loan: CartLoan, config: CartLendingConfig | nul
 export function GaritaManager({ schemaName }: { schemaName?: string }) {
   const { listCarts, listLoans, checkout, checkin } = useCartLending();
   const { list: listGates } = useCondoGates();
+  const { list: listModules } = useCondoModules();
+  const [modulesReady, setModulesReady] = useState(false);
+  const [cartEnabled, setCartEnabled] = useState(false);
+  const [parkingEnabled, setParkingEnabled] = useState(false);
+  const [activeTab, setActiveTab] = useState<'carts' | 'parking'>('carts');
   const [carts, setCarts] = useState<Cart[]>([]);
   const [loans, setLoans] = useState<CartLoan[]>([]);
   const [config, setConfig] = useState<CartLendingConfig | null>(null);
@@ -95,28 +101,50 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
   }, [schemaName, listLoans]);
 
   useEffect(() => {
-    if (!schemaName) { setLoading(false); return; }
+    if (!schemaName) { setModulesReady(true); setLoading(false); return; }
     let cancelled = false;
     (async () => {
       setLoading(true);
       setError(null);
       try {
-        await Promise.all([loadCarts(), loadLoans(), listGates(schemaName).then(setGates)]);
+        const modules = await listModules(schemaName);
+        if (cancelled) return;
+        const cartsOn = modules.modules.some(m => m.module_key === 'cart_lending' && m.is_enabled);
+        const parkOn = modules.modules.some(m => m.module_key === 'parking_control' && m.is_enabled);
+        setCartEnabled(cartsOn);
+        setParkingEnabled(parkOn);
+
+        const tasks: Array<Promise<unknown>> = [];
+        if (cartsOn) {
+          tasks.push(loadCarts(), loadLoans(), listGates(schemaName).then(setGates));
+        }
+        await Promise.all(tasks);
         const towerRes = await invokeFunction<{ success: boolean; data: Tower[] | null }>('towers', { method: 'POST', body: { action: 'list', schema_name: schemaName } });
         if (cancelled) return;
         setTowers(towerRes?.data?.data || []);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Error de carga');
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) { setModulesReady(true); setLoading(false); }
       }
     })();
     return () => { cancelled = true; };
-  }, [schemaName, loadCarts, loadLoans, listGates]);
+  }, [schemaName, loadCarts, loadLoans, listGates, listModules]);
+
+  // Auto-select the first available module when the active one is disabled
+  useEffect(() => {
+    if (!modulesReady) return;
+    if (activeTab === 'carts' && !cartEnabled) setActiveTab(parkingEnabled ? 'parking' : 'carts');
+    if (activeTab === 'parking' && !parkingEnabled) setActiveTab(cartEnabled ? 'carts' : 'parking');
+  }, [modulesReady, activeTab, cartEnabled, parkingEnabled]);
 
   const refreshAll = async () => {
     if (!schemaName) return;
-    await Promise.all([loadCarts(), loadLoans(), listGates(schemaName).then(setGates)]);
+    const tasks: Array<Promise<unknown>> = [];
+    if (cartEnabled) {
+      tasks.push(loadCarts(), loadLoans(), listGates(schemaName).then(setGates));
+    }
+    await Promise.all(tasks);
   };
 
   const handleCheckout = async (cartId: string, departmentId: string) => {
@@ -173,18 +201,29 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
 
       <GuardGateBar schemaName={schemaName} onSessionChange={setGuardSession} />
 
-      <div className="modules-header">
-        {config && (
-          <small>
-            Préstamo máx: {config.max_loan_minutes} min · Gracia: {config.grace_period_minutes} min · Multa: {fmtMoney(config.fine_amount)} cada {config.fine_interval_minutes} min · Puertas: {gates.length}
-            {config.fine_enabled ? '' : ' (multas desactivadas)'}
-          </small>
-        )}
-      </div>
+      {(cartEnabled || parkingEnabled) && (
+        <div className="garita-tabs">
+          {cartEnabled && (
+            <button className={activeTab === 'carts' ? 'active' : ''} onClick={() => setActiveTab('carts')}>
+              <span className="material-symbols-outlined">shopping_cart</span> Carritos
+            </button>
+          )}
+          {parkingEnabled && (
+            <button className={activeTab === 'parking' ? 'active' : ''} onClick={() => setActiveTab('parking')}>
+              <span className="material-symbols-outlined">local_parking</span> Estacionamiento
+            </button>
+          )}
+        </div>
+      )}
+
+      {!cartEnabled && !parkingEnabled && (
+        <div className="empty-state"><p>No hay módulos de garita activos para este condominio.</p></div>
+      )}
 
       {message && <div className="success-message" onClick={() => setMessage(null)}>{message} — clic para cerrar</div>}
       {error && <div className="error-message" onClick={() => setError(null)}>{error} — clic para cerrar</div>}
 
+      {cartEnabled && activeTab === 'carts' && (
       <div className="cart-estado">
         <div className="cart-kpi-row">
           <div className="cart-kpi"><span className="material-symbols-outlined">shopping_cart</span><strong>{carts.length}</strong> carritos</div>
@@ -305,8 +344,11 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
           />
         </div>
       </div>
+      )}
 
-      <ParkingGaritaPanel schemaName={schemaName} guardGate={guardSession} />
+      {parkingEnabled && activeTab === 'parking' && (
+        <ParkingGaritaPanel schemaName={schemaName} guardGate={guardSession} />
+      )}
     </div>
   );
 }

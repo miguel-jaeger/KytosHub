@@ -5,6 +5,7 @@ import { useUserRole } from '../hooks/useUserRole';
 import { invokeFunction } from '../lib/insforge';
 import { ParkingManager } from '../modules/core/components/ParkingManager';
 import { ParkingResidentPanel } from '../modules/core/components/ParkingResidentPanel';
+import { ParkingSecurityView } from '../modules/core/components/ParkingSecurityView';
 
 export function ParkingPage() {
   const { user } = useAuth();
@@ -61,7 +62,8 @@ export function ParkingPage() {
     return () => { cancelled = true; };
   }, [user]);
 
-  const isOperator = role === 'admin' || role === 'super' || role === 'security';
+  const isManager = role === 'admin' || role === 'super';
+  const isSecurity = role === 'security';
 
   if (role === 'loading' || loading) return <div className="loading-message">Cargando estacionamiento...</div>;
   if (role === 'none') return null;
@@ -88,7 +90,7 @@ export function ParkingPage() {
   return (
     <div className="dashboard">
       <div className="header">
-        <h2>{isOperator ? 'Gestión de Estacionamiento' : 'Mi Estacionamiento'}</h2>
+        <h2>{isManager ? 'Gestión de Estacionamiento' : isSecurity ? 'Estacionamiento' : 'Mi Estacionamiento'}</h2>
         {available.length > 1 && (
           <select
             style={{ marginLeft: 'auto', padding: '0.4rem 0.6rem', borderRadius: 8, border: '1px solid #c6c6cd' }}
@@ -100,7 +102,13 @@ export function ParkingPage() {
         )}
       </div>
 
-      {active && (isOperator ? <ParkingManager schemaName={active.schema_name} /> : <ParkingResidentPanel schemaName={active.schema_name} />)}
+      {active && (
+        isManager
+          ? <ParkingManager schemaName={active.schema_name} />
+          : isSecurity
+            ? <ParkingSecurityView schemaName={active.schema_name} />
+            : <ParkingResidentPanel schemaName={active.schema_name} />
+      )}
     </div>
   );
 }
