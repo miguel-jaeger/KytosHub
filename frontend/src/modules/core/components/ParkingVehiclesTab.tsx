@@ -2,20 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import { useParking } from '../hooks/useParking';
 import { PaginationBar, paginate } from '../../../components/Pagination';
-import type { Vehicle } from '../types';
-
-interface DepartmentOption {
-  id: string;
-  department_number: string;
-  tower_code: string;
-}
+import type { Department, Floor, Tower, Vehicle } from '../types';
 
 const emptyVehicleForm = { license_plate: '', brand: '', model: '', color: '' };
 
 export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
   const { listVehicles, createVehicle, updateVehicle, deleteVehicle } = useParking();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -23,52 +16,102 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
   const [vehicleForm, setVehicleForm] = useState(emptyVehicleForm);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [showVehicleForm, setShowVehicleForm] = useState(false);
-  const [deptFilter, setDeptFilter] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const [towers, setTowers] = useState<Tower[]>([]);
+  const [towerId, setTowerId] = useState('');
+  const [floorId, setFloorId] = useState('');
+  const [deptId, setDeptId] = useState('');
+  const [floors, setFloors] = useState<Floor[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loadingStep, setLoadingStep] = useState<string | null>(null);
 
   const [vehPage, setVehPage] = useState(1);
   const [vehPerPage, setVehPerPage] = useState<number | 'all'>(10);
-
-  const loadDepartments = useCallback(async () => {
-    if (!schemaName) return;
-    try {
-      const { data } = await invokeFunction<{ success: boolean; data: Array<{ id: string; department_number: string; tower_id: string }> | null }>('departments', {
-        method: 'POST',
-        body: { action: 'list', schema_name: schemaName }
-      });
-      const { data: towers } = await invokeFunction<{ success: boolean; data: Array<{ id: string; code: string }> | null }>('towers', {
-        method: 'POST',
-        body: { action: 'list', schema_name: schemaName }
-      });
-      const towerMap = new Map((towers?.data || []).map((t: { id: string; code: string }) => [t.id, t.code]));
-      setDepartments((data?.data || []).map((d: { id: string; department_number: string; tower_id: string }) => ({
-        id: d.id,
-        department_number: d.department_number,
-        tower_code: towerMap.get(d.tower_id) || ''
-      })).sort((a, b) => a.tower_code.localeCompare(b.tower_code) || a.department_number.localeCompare(b.department_number)));
-    } catch {}
-  }, [schemaName]);
 
   const load = useCallback(async () => {
     if (!schemaName) { setLoading(false); return; }
     setLoading(true);
     setError(null);
     try {
-      const ve = await listVehicles(schemaName, deptFilter ? { department_id: deptFilter } : {});
+      const ve = await listVehicles(schemaName);
       setVehicles(ve);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar');
     } finally {
       setLoading(false);
     }
-  }, [schemaName, listVehicles, deptFilter]);
+  }, [schemaName, listVehicles]);
 
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => { void loadDepartments(); }, [loadDepartments]);
   useEffect(() => { setVehPage(1); }, [vehicles.length]);
+
+  const loadTowers = useCallback(async () => {
+    if (!schemaName) return;
+    try {
+      const { data } = await invokeFunction<{ success: boolean; data: Tower[] | null }>('towers', {
+        method: 'POST',
+        body: { action: 'list', schema_name: schemaName }
+      });
+      setTowers((data?.data || []).sort((a, b) => a.code.localeCompare(b.code)));
+    } catch {}
+  }, [schemaName]);
+
+  useEffect(() => { void loadTowers(); }, [loadTowers]);
+
+  const loadFloors = async (tid: string) => {
+    if (!schemaName) return;
+    setLoadingStep('pisos');
+    setFloors([]);
+    setFloorId('');
+    setDeptId('');
+    try {
+      const { data } = await invokeFunction<{ success: boolean; data: Floor[] | null }>('floors', {
+        method: 'POST',
+        body: { action: 'list', schema_name: schemaName, tower_id: tid }
+      });
+      setFloors((data?.data || []).sort((a, b) => a.floor_number - b.floor_number));
+    } finally {
+      setLoadingStep(null);
+    }
+  };
+
+  const loadDepartments = async (fid: string) => {
+    if (!schemaName) return;
+    setLoadingStep('departamentos');
+    setDepartments([]);
+    setDeptId('');
+    try {
+      const { data } = await invokeFunction<{ success: boolean; data: Department[] | null }>('departments', {
+        method: 'POST',
+        body: { action: 'list', schema_name: schemaName, tower_id: towerId, floor_id: fid }
+      });
+      setDepartments((data?.data || []).sort((a, b) => a.department_number.localeCompare(b.department_number)));
+    } finally {
+      setLoadingStep(null);
+    }
+  };
+
+  const selectedTower = towers.find(t => t.id === towerId);
+  const selectedFloor = floors.find(f => f.id === floorId);
+  const selectedDepartment = departments.find(d => d.id === deptId);
+
+  const selectTower = (id: string) => {
+    setTowerId(id);
+    setFloorId('');
+    setDeptId('');
+    void loadFloors(id);
+  };
+
+  const selectFloor = (id: string) => {
+    setFloorId(id);
+    setDeptId('');
+    void loadDepartments(id);
+  };
 
   const handleVehicleSave = async () => {
     if (!schemaName || !vehicleForm.license_plate.trim()) { alert('Indica la placa'); return; }
+    if (!editingVehicle && !deptId) { alert('Selecciona el torre, piso y departamento del vehículo'); return; }
     setSaving(true);
     setError(null);
     try {
@@ -82,14 +125,17 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
         await updateVehicle(schemaName, editingVehicle.id, payload);
         setMessage('Vehículo actualizado');
       } else {
-        const chosenDept = deptFilter || departments[0]?.id;
-        if (!chosenDept) { alert('Selecciona un departamento'); return; }
-        await createVehicle(schemaName, { ...payload, department_id: chosenDept });
+        await createVehicle(schemaName, { ...payload, department_id: deptId });
         setMessage('Vehículo registrado');
       }
       setVehicleForm(emptyVehicleForm);
       setEditingVehicle(null);
       setShowVehicleForm(false);
+      setTowerId('');
+      setFloorId('');
+      setDeptId('');
+      setFloors([]);
+      setDepartments([]);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error');
@@ -102,6 +148,17 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
     setEditingVehicle(v);
     setVehicleForm({ license_plate: v.license_plate, brand: v.brand || '', model: v.model || '', color: v.color || '' });
     setShowVehicleForm(true);
+  };
+
+  const closeForm = () => {
+    setShowVehicleForm(false);
+    setEditingVehicle(null);
+    setVehicleForm(emptyVehicleForm);
+    setTowerId('');
+    setFloorId('');
+    setDeptId('');
+    setFloors([]);
+    setDepartments([]);
   };
 
   const handleVehicleDelete = async (v: Vehicle) => {
@@ -127,17 +184,11 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
           <h3>Vehículos registrados</h3>
           <small>Registra los vehículos de cada departamento para validar su ingreso/salida en garita.</small>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <select value={deptFilter} onChange={e => { setDeptFilter(e.target.value); setVehPage(1); }} style={{ padding: '0.4rem 0.6rem', borderRadius: 8, border: '1px solid #c6c6cd' }}>
-            <option value="">Todos los departamentos</option>
-            {departments.map(d => <option key={d.id} value={d.id}>Dpto {d.department_number} (T{d.tower_code})</option>)}
-          </select>
-          {!showVehicleForm && (
-            <button onClick={() => { setShowVehicleForm(true); setEditingVehicle(null); setVehicleForm(emptyVehicleForm); }}>
-              <span className="material-symbols-outlined">directions_car</span> Adicionar vehículo
-            </button>
-          )}
-        </div>
+        {!showVehicleForm && (
+          <button onClick={() => { setShowVehicleForm(true); setEditingVehicle(null); setVehicleForm(emptyVehicleForm); }}>
+            <span className="material-symbols-outlined">directions_car</span> Adicionar vehículo
+          </button>
+        )}
       </div>
 
       {message && <div className="success-message" onClick={() => setMessage(null)}>{message} — clic para cerrar</div>}
@@ -146,6 +197,78 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
       {showVehicleForm && (
         <div className="cart-form">
           <h4>{editingVehicle ? 'Editar vehículo' : 'Registrar vehículo'}</h4>
+
+          {editingVehicle ? (
+            <p className="cart-checkout-hint">Vehículo de : {editingVehicle.departments ? `${editingVehicle.departments.department_number} (T ${editingVehicle.departments.towers?.code || '-'})` : '-'} — solo editas los datos del vehículo.</p>
+          ) : (
+            <>
+              <p className="cart-checkout-hint">Selecciona primero el torre, piso y departamento al que pertenece el vehículo.</p>
+
+              <div className="checkout-field">
+                <label>1. Torre</label>
+                {towers.length === 0 ? (
+                  <span className="text-muted">No hay torres registradas.</span>
+                ) : (
+                  <div className="checkout-chip-row">
+                    {towers.map(t => (
+                      <button key={t.id} type="button" className={`checkout-chip ${towerId === t.id ? 'active' : ''}`} onClick={() => selectTower(t.id)}>
+                        <span className="checkout-chip-code">{t.code}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {towerId !== '' && (
+                <div className="checkout-field">
+                  <label>2. Piso</label>
+                  {loadingStep === 'pisos' ? (
+                    <span className="text-muted">Cargando pisos...</span>
+                  ) : floors.length === 0 ? (
+                    <span className="text-muted">Esa torre no tiene pisos.</span>
+                  ) : (
+                    <div className="checkout-chip-grid">
+                      {floors.map(f => (
+                        <button key={f.id} type="button" className={`checkout-chip ${floorId === f.id ? 'active' : ''}`} onClick={() => selectFloor(f.id)}>
+                          {f.floor_number}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {towerId !== '' && floorId !== '' && (
+                <div className="checkout-field">
+                  <label>3. Departamento</label>
+                  {loadingStep === 'departamentos' ? (
+                    <span className="text-muted">Cargando departamentos...</span>
+                  ) : departments.length === 0 ? (
+                    <span className="text-muted">Ese piso no tiene departamentos.</span>
+                  ) : (
+                    <div className="checkout-chip-grid">
+                      {departments.map(d => (
+                        <button
+                          key={d.id}
+                          type="button"
+                          className={`checkout-chip checkout-chip-wide ${deptId === d.id ? 'active' : ''}`}
+                          onClick={() => setDeptId(d.id)}
+                        >
+                          {d.department_number}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {selectedTower && selectedFloor && deptId && (
+                    <span className="checkout-hint-inline">
+                      Torre {selectedTower.code} · Piso {selectedFloor.floor_number} · Dpto {selectedDepartment?.department_number}
+                    </span>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
           <div className="form-row">
             <div className="form-group">
               <label>Placa</label>
@@ -166,19 +289,9 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
               <input type="text" value={vehicleForm.color} onChange={e => setVehicleForm({ ...vehicleForm, color: e.target.value })} placeholder="Rojo" />
             </div>
           </div>
-          {!editingVehicle && (
-            <div className="form-group">
-              <label>Departamento</label>
-              <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)}>
-                <option value="">— Seleccionar —</option>
-                {departments.map(d => (
-                  <option key={d.id} value={d.id}>{d.department_number} (Torre {d.tower_code})</option>
-                ))}
-              </select>
-            </div>
-          )}
+
           <div className="form-actions">
-            <button className="btn-cancel" onClick={() => { setShowVehicleForm(false); setEditingVehicle(null); setVehicleForm(emptyVehicleForm); }}>Cancelar</button>
+            <button className="btn-cancel" onClick={closeForm}>Cancelar</button>
             <button onClick={handleVehicleSave} disabled={saving}>{saving ? 'Guardando...' : editingVehicle ? 'Guardar' : 'Registrar'}</button>
           </div>
         </div>
