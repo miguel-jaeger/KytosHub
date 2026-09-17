@@ -1366,6 +1366,31 @@ html.dark .sidebar-link.active { background: #1b5e44; color: #fff; }
 .btn-edit { background: #006c49 !important; color: #fff !important; padding: 0.3rem 0.5rem !important; font-size: 0.85rem !important; }
 .btn-edit:hover { background: #005236 !important; }
 
+.detail-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: none;
+  border: none;
+  padding: 0;
+  color: #006c49;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.detail-link:hover { color: #00503a; text-decoration: underline; }
+.detail-link .material-symbols-outlined { font-size: 16px; }
+html.dark .detail-link { color: #7fe0b0; }
+html.dark .detail-link:hover { color: #a5f0c8; }
+
+.access-log-detail .resident-grid-line {
+  padding: 0.4rem 0;
+  border-bottom: 1px solid #f0f1f5;
+}
+.access-log-detail .resident-grid-label { min-width: 130px; }
+html.dark .access-log-detail .resident-grid-line { border-bottom-color: #333; }
+
 button .material-symbols-outlined { font-size: 16px; vertical-align: middle; }
 .btn-danger .material-symbols-outlined, .btn-edit .material-symbols-outlined { font-size: 16px; }
 
