@@ -24,7 +24,7 @@ export function ParkingSecurityView({ schemaName }: Props) {
           <span className="material-symbols-outlined">local_parking</span> Entradas / Salidas
         </button>
         <button className={tab === 'logs' ? 'active' : ''} onClick={() => setTab('logs')}>
-          <span className="material-symbols-outlined">history</span> Registros de acceso
+          <span className="material-symbols-outlined">history</span> Registros
         </button>
       </div>
 

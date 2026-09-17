@@ -219,7 +219,7 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
           )}
           {parkingEnabled && (
             <button className={activeTab === 'logs' ? 'active' : ''} onClick={() => setActiveTab('logs')}>
-              <span className="material-symbols-outlined">history</span> Registros de acceso
+              <span className="material-symbols-outlined">history</span> Registros
             </button>
           )}
         </div>

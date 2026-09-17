@@ -2548,9 +2548,17 @@ html.dark .resident-grid-label { color: #aaa; }
   border-color: #006c49;
   color: #fff;
 }
+.garita-tabs button:hover {
+  background: #1b7a55;
+  border-color: #1b7a55;
+  color: #fff;
+}
+.garita-tabs button.active .material-symbols-outlined,
+.garita-tabs button:hover .material-symbols-outlined { color: #fff; }
 .garita-tabs button .material-symbols-outlined { font-size: 18px; }
 html.dark .garita-tabs button { background: #1e1e1e; border-color: #444; color: #c8cad1; }
 html.dark .garita-tabs button.active { background: #006c49; border-color: #006c49; color: #fff; }
+html.dark .garita-tabs button:hover { background: #1b5e44; border-color: #1b5e44; color: #fff; }
 
 .guard-gate-bar {
   display: flex;
