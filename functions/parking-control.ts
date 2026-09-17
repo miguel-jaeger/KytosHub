@@ -366,6 +366,58 @@ export default async function(req: Request): Promise<Response> {
       }
 
       // ---------- GARITA: ENTRY / EXIT ----------
+      case 'update-vehicle-driver': {
+        if (!isOperator) return forbidden();
+        const plateValue = String(body.license_plate || '').trim().toUpperCase();
+        if (!plateValue) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'license_plate es requerido' } }, 400);
+        const driverName = body.driver_name ? String(body.driver_name).trim() : null;
+        const { data: vehicle } = await db.from('vehicles').select('id, driver_name, department_id').eq('license_plate', plateValue).eq('is_active', true).maybeSingle();
+        if (!vehicle) {
+          return json({ success: false, data: null, error: { code: 'NOT_FOUND', message: 'El vehículo no está registrado en el padrón' } }, 404);
+        }
+        const { data: updated, error } = await db.from('vehicles').update({ driver_name: driverName }).eq('id', vehicle.id).select().single();
+        if (error) throw error;
+        const driverResolved = await resolveOwnerDriverName(db, updated as { driver_name?: string | null; department_id?: string | null });
+        const enriched = await enrichVehicles(db, [updated]);
+        return json({ success: true, data: { ...(enriched[0] || updated), driver_name: driverResolved }, error: null }, 200);
+      }
+
+      case 'search-plates': {
+        if (!isOperator) return forbidden();
+        const search = String(body.search || '').trim().toUpperCase();
+        if (!search) return json({ success: true, data: [], error: null }, 200);
+
+        // Partial plate search: lists matching vehicles (never exact-match only)
+        const { data, error } = await db.from('vehicles')
+          .select('*')
+          .ilike('license_plate', `%${search}%`)
+          .order('license_plate');
+        if (error) throw error;
+        const vehicles = await enrichVehicles(db, data || []);
+
+        const enriched = [];
+        for (const v of vehicles) {
+          const plateValue = String(v.license_plate);
+          const open = await db.from('parking_access_logs')
+            .select('id, spot_id, entry_time, entry_gate_id')
+            .eq('license_plate', plateValue)
+            .is('exit_time', null)
+            .order('entry_time', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          let inside = false;
+          let insideSpot: Record<string, unknown> | null = null;
+          if (open.data?.spot_id) {
+            inside = true;
+            const sp = await db.from('parking_spots').select('id, spot_number, type').eq('id', open.data.spot_id).single();
+            insideSpot = sp.data || null;
+          }
+          const ownerDriver = await resolveOwnerDriverName(db, v as { driver_name?: string | null; department_id?: string | null });
+          enriched.push({ ...v, driver_name: ownerDriver || v.driver_name || null, inside, inside_spot: insideSpot });
+        }
+        return json({ success: true, data: enriched, error: null }, 200);
+      }
+
       case 'plate-status': {
         if (!isOperator) return forbidden();
         const plate = String(body.license_plate || '').trim().toUpperCase();
@@ -712,9 +764,10 @@ async function resolveGateForOperator(
     }
   }
 
-  // 3) Fallback: single active gate in the condominium
-  const { data: gates } = await db.from('condo_gates').select('id, name').eq('is_active', true).eq('is_entry_exit', true);
-  if (gates?.length === 1) return { id: gates[0].id, name: gates[0].name };
+  // 3) Fallback: use the first active entry/exit gate so the access is always
+  // attributed to a gate even when the guard has no active session.
+  const { data: gates } = await db.from('condo_gates').select('id, name').eq('is_active', true).eq('is_entry_exit', true).order('sort_order');
+  if (gates?.length) return { id: gates[0].id, name: gates[0].name };
 
   return null;
 }
