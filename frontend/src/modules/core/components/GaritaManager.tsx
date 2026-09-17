@@ -153,12 +153,13 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
     }
   };
 
-  if (loading) return <div className="loading-message">Cargando garita...</div>;
-
   const activeLoans = loans.filter(l => l.status === 'ACTIVO');
-  const loansPageItems = loansPerPage === 'all' ? activeLoans : paginate(activeLoans, loansPage, loansPerPage).slice;
 
   useEffect(() => { setLoansPage(1); }, [activeLoans.length]);
+
+  if (loading) return <div className="loading-message">Cargando garita...</div>;
+
+  const loansPageItems = loansPerPage === 'all' ? activeLoans : paginate(activeLoans, loansPage, loansPerPage).slice;
   const prestados = carts.filter(c => c.status === 'PRESTADO').length;
   const mantenimiento = carts.filter(c => c.status === 'MANTENIMIENTO').length;
   const disponibles = carts.filter(c => c.status === 'DISPONIBLE').length;
