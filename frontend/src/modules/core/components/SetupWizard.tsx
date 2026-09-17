@@ -55,6 +55,8 @@ export function SetupWizard() {
       setTab(s);
     } else if (s === 'carts') {
       setTab(cartEnabled ? 'carts' : 'modules');
+    } else if (s === 'parking') {
+      setTab(parkingEnabled ? 'parking' : 'modules');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search, cartEnabled]);
