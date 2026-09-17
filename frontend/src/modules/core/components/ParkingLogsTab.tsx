@@ -103,7 +103,7 @@ export function ParkingLogsTab({ schemaName }: { schemaName?: string }) {
   const pageItems = perPage === 'all' ? logs : paginate(logs, page, perPage).slice;
 
   return (
-    <div>
+    <div className="access-log-tab">
       <div className="header">
         <div>
           <h3>Registros de entradas y salidas</h3>
