@@ -163,6 +163,17 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
     if (!loanForm.borrower_vehicle_plate.trim()) {
       alert('Indica la placa del vehículo que usará la bahía'); return;
     }
+    const startMs = new Date(loanForm.start_time).getTime();
+    const endMs = new Date(loanForm.end_time).getTime();
+    if (!loanForm.start_time || !loanForm.end_time || Number.isNaN(startMs) || Number.isNaN(endMs)) {
+      alert('Indica la fecha y hora de inicio y de fin del préstamo'); return;
+    }
+    if (startMs < Date.now() - 60000) {
+      alert('La fecha de inicio no puede ser anterior a la fecha actual'); return;
+    }
+    if (endMs <= startMs) {
+      alert('La fecha y hora de fin debe ser posterior a la de inicio'); return;
+    }
     const effectiveDept = useDepartment ? loanTowerDeptId : loanForm.borrower_department_id;
     setSaving(true);
     try {
@@ -205,6 +216,7 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
 
   const mySpots = spots.filter(s => s.type === 'PROPIO');
   const lendableSpots = mySpots.filter(s => s.status === 'DISPONIBLE' && !s.inside);
+  const nowLocal = toLocalInput(new Date().toISOString());
 
   return (
     <div className="parking-resident">
@@ -410,23 +422,14 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
             )}
 
             <h4>Duración del préstamo</h4>
-            <div className="form-group">
-              <label>Registrar duración como</label>
-              <select value={loanForm.duration_unit} onChange={e => setLoanForm({ ...loanForm, duration_unit: e.target.value })}>
-                <option value="">Solo fechas (sin unidad)</option>
-                <option value="HORAS">Horas</option>
-                <option value="DIAS">Días</option>
-                <option value="MESES">Meses</option>
-              </select>
-            </div>
             <div className="form-row">
               <div className="form-group">
                 <label>Inicio</label>
-                <input type="datetime-local" value={loanForm.start_time} onChange={e => setLoanForm({ ...loanForm, start_time: e.target.value })} />
+                <input type="datetime-local" value={loanForm.start_time} min={nowLocal} onChange={e => setLoanForm({ ...loanForm, start_time: e.target.value })} />
               </div>
               <div className="form-group">
                 <label>Fin</label>
-                <input type="datetime-local" value={loanForm.end_time} onChange={e => setLoanForm({ ...loanForm, end_time: e.target.value })} />
+                <input type="datetime-local" value={loanForm.end_time} min={nowLocal} onChange={e => setLoanForm({ ...loanForm, end_time: e.target.value })} />
               </div>
             </div>
             <div className="form-actions">

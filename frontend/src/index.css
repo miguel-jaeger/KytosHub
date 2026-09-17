@@ -1683,10 +1683,12 @@ html.dark .checkout-chip-count { color: #69db7c; }
   padding: 0.4rem 0.7rem;
   font-size: 0.82rem;
 }
-.parking-stats input[type='date']::-webkit-calendar-picker-indicator {
+.parking-stats input[type='date']::-webkit-calendar-picker-indicator,
+input[type='datetime-local']::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
-html.dark .parking-stats input[type='date']::-webkit-calendar-picker-indicator {
+html.dark input[type='date']::-webkit-calendar-picker-indicator,
+html.dark input[type='datetime-local']::-webkit-calendar-picker-indicator {
   filter: invert(1);
   opacity: 0.85;
 }
