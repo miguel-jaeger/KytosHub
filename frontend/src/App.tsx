@@ -59,7 +59,7 @@ function Dashboard() {
   const canManageUsers = role === 'super' || role === 'admin';
   const canManageCondo = role === 'admin';
   const isSecurity = role === 'security';
-  const isGaritaOperator = role === 'super' || role === 'admin' || role === 'security';
+  const isGaritaOperator = role === 'security';
 
   const openMyCondominium = async () => {
     if (!user) return;

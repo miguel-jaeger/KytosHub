@@ -26,7 +26,7 @@ export function GaritaPage() {
           method: 'POST',
           body: { action: 'list-by-user', user_id: user.id }
         });
-        const active = (data?.data || []).filter(x => x.status === 'ACTIVE' && (x.role === 'SECURITY_AGENT' || x.role === 'ADMIN' || x.role === 'SUPER_ADMIN'));
+        const active = (data?.data || []).filter(x => x.status === 'ACTIVE' && (x.role === 'SECURITY_AGENT' || x.role === 'SUPERVISOR'));
         const condos: ActiveCondominium[] = [];
         for (const act of active) {
           const { data: condo } = await invokeFunction<{ success: boolean; data: { id: string; name: string; slug: string; short_name: string | null; schema_name: string; image_url: string | null } | null }>('list-condominiums', {
@@ -64,13 +64,13 @@ export function GaritaPage() {
 
   useEffect(() => {
     if (role === 'loading') return;
-    if (role !== 'security' && role !== 'admin' && role !== 'super') {
+    if (role !== 'security') {
       navigate('/', { replace: true });
     }
   }, [role, navigate]);
 
   if (role === 'loading' || loading) return <div className="loading-message">Cargando garita...</div>;
-  if (role !== 'security' && role !== 'admin' && role !== 'super') return null;
+  if (role !== 'security') return null;
 
   const active = resolved ?? contextCondo;
 

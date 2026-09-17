@@ -111,7 +111,11 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
   if (error) return <div className="error-message">{error}</div>;
   if (!schemaName) return <div className="empty-state"><p>Seleccione un condominio para ver sus módulos.</p></div>;
 
-  const visibleModules = isSuperAdmin ? modules : modules.filter(m => m.is_enabled);
+  // Admins (global or condominium) manage their modules: they see all of them
+  // (active + inactive) so they can activate/deactivate. Other roles only see
+  // the modules that are enabled for their condominium.
+  const canManageModules = modules.some(m => m.can_toggle);
+  const visibleModules = canManageModules ? modules : modules.filter(m => m.is_enabled);
 
   if (visibleModules.length === 0) return <div className="empty-state"><p>Este condominio no tiene módulos activos.</p></div>;
 
@@ -119,9 +123,11 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
     <div className="modules-manager">
       <div className="modules-header">
         <h3>Módulos del Condominio</h3>
-        {isSuperAdmin
-          ? <small>Como administrador global puedes activar/desactivar módulos y editar su configuración.</small>
-          : <small>Como administrador del condominio puedes editar la configuración de los módulos activos.</small>}
+        <small>
+          {canManageModules
+            ? 'Puedes activar/desactivar los módulos disponibles y editar su configuración del condominio.'
+            : 'Estos son los módulos activos de tu condominio.'}
+        </small>
       </div>
 
       <div className="modules-grid">

@@ -358,10 +358,17 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
               <div className="loan-department-picker">
                 <div className="checkout-field">
                   <label>1. Torre</label>
-                  <select value={loanTowerId} onChange={e => { setLoanTowerId(e.target.value); setLoanFloorId(''); setLoanTowerDeptId(''); void loadLoanFloors(e.target.value); }}>
-                    <option value="">— Seleccionar torre —</option>
-                    {towers.map(t => <option key={t.id} value={t.id}>Torre {t.code} - {t.name}</option>)}
-                  </select>
+                  {towers.length === 0 ? (
+                    <span className="text-muted">No hay torres registradas.</span>
+                  ) : (
+                    <div className="checkout-chip-grid">
+                      {towers.map(t => (
+                        <button key={t.id} type="button" className={`checkout-chip ${loanTowerId === t.id ? 'active' : ''}`} onClick={() => { setLoanTowerId(t.id); setLoanFloorId(''); setLoanTowerDeptId(''); void loadLoanFloors(t.id); }}>
+                          Torre {t.code}{t.name !== t.code ? ` · ${t.name}` : ''}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {loanTowerId !== '' && (
                   <div className="checkout-field">

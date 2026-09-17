@@ -3,6 +3,7 @@ import { invokeFunction } from '../../../lib/insforge';
 import { useCartLending } from '../hooks/useCartLending';
 import { useCondoGates } from '../hooks/useCondoGates';
 import { useCondoModules } from '../hooks/useCondoModules';
+import { useUserRole } from '../../../hooks/useUserRole';
 import { PaginationBar, paginate } from '../../../components/Pagination';
 import { CartCheckoutForm } from './CartCheckoutForm';
 import { GuardGateBar } from './GuardGateBar';
@@ -57,6 +58,7 @@ function loanStatus(now: number, loan: CartLoan, config: CartLendingConfig | nul
 }
 
 export function GaritaManager({ schemaName }: { schemaName?: string }) {
+  const role = useUserRole();
   const { listCarts, listLoans, checkout, checkin } = useCartLending();
   const { list: listGates } = useCondoGates();
   const { list: listModules } = useCondoModules();
@@ -201,7 +203,7 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
         <h3>Panel de Garita</h3>
       </div>
 
-      <GuardGateBar schemaName={schemaName} onSessionChange={setGuardSession} />
+      {role === 'security' && <GuardGateBar schemaName={schemaName} onSessionChange={setGuardSession} />}
 
       {(cartEnabled || parkingEnabled) && (
         <div className="garita-tabs">

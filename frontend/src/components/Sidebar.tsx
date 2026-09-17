@@ -69,7 +69,7 @@ export function Sidebar() {
           {!collapsed && <span className="mobile-nav-label">Inicio</span>}
         </Link>
 
-        {(isSecurity || canManageCondo || role === 'super') && (
+        {isSecurity && (
           <Link to="/garita" className={`mobile-nav-link ${location.pathname === '/garita' ? 'active' : ''}`}>
             <span className="material-symbols-outlined">shield</span>
             {!collapsed && <span className="mobile-nav-label">Garita</span>}
@@ -139,7 +139,7 @@ export function Sidebar() {
           {!collapsed && <span className="sidebar-label">Inicio</span>}
         </Link>
 
-        {(isSecurity || canManageCondo || role === 'super') && (
+        {isSecurity && (
           <Link to="/garita" className={linkClass('/garita')} title={collapsed ? 'Garita' : undefined}>
             <span className="material-symbols-outlined">shield</span>
             {!collapsed && <span className="sidebar-label">Garita</span>}

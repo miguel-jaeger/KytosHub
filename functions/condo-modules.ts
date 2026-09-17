@@ -84,9 +84,9 @@ export default async function(req: Request): Promise<Response> {
       const wantsToggle = typeof body.is_enabled === 'boolean';
       const wantsConfig = body.config && typeof body.config === 'object';
 
-      // Only the global admin can activate/deactivate a module
-      if (wantsToggle && !isSuperAdmin) {
-        return json({ success: false, data: null, error: { code: 'FORBIDDEN', message: 'Solo el administrador global puede activar o desactivar módulos' } }, 403);
+      // Only admins (global or of this condominium) can activate/deactivate modules
+      if (wantsToggle && !isSuperAdmin && !isTenantAdmin) {
+        return json({ success: false, data: null, error: { code: 'FORBIDDEN', message: 'No tienes permisos para activar o desactivar módulos' } }, 403);
       }
       // Config edits are allowed for the global admin and the condominium admin
       if (wantsConfig && !isSuperAdmin && !isTenantAdmin) {
