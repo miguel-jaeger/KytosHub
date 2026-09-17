@@ -1,0 +1,311 @@
+import { useState, useEffect, useCallback } from 'react';
+import { invokeFunction } from '../../../lib/insforge';
+import { useParking } from '../hooks/useParking';
+import type { ParkingLoan, ParkingSpot, Vehicle } from '../types';
+
+interface DepartmentOption {
+  id: string;
+  department_number: string;
+  tower_code: string;
+}
+
+const LOAN_STATUS_LABELS: Record<string, string> = {
+  PENDIENTE: 'Pendiente',
+  ACTIVO: 'Activo',
+  FINALIZADO: 'Finalizado',
+  CANCELADO: 'Cancelado'
+};
+
+function fmtDT(iso: string): string {
+  const d = new Date(iso);
+  const hh = d.getHours() % 12 || 12;
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  const ap = d.getHours() >= 12 ? 'PM' : 'AM';
+  return `${d.toLocaleDateString('es-PE')}, ${hh}:${mm} ${ap}`;
+}
+
+const toLocalInput = (iso: string): string => {
+  const d = iso ? new Date(iso) : new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
+  const parking = useParking();
+  const [spots, setSpots] = useState<ParkingSpot[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [loans, setLoans] = useState<ParkingLoan[]>([]);
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const [vehicleForm, setVehicleForm] = useState({ license_plate: '', brand: '', model: '', color: '' });
+  const [showVehicleForm, setShowVehicleForm] = useState(false);
+  const [loanForm, setLoanForm] = useState({
+    spot_id: '',
+    borrower_department_id: '',
+    borrower_vehicle_plate: '',
+    start_time: toLocalInput(''),
+    end_time: toLocalInput(new Date(Date.now() + 24 * 3600 * 1000).toISOString())
+  });
+  const [showLoanForm, setShowLoanForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!schemaName) { setLoading(false); return; }
+    setLoading(true);
+    setError(null);
+    try {
+      const [sp, ve, ln] = await Promise.all([
+        parking.listSpots(schemaName),
+        parking.listVehicles(schemaName),
+        parking.listLoans(schemaName)
+      ]);
+      setSpots(sp);
+      setVehicles(ve);
+      setLoans(ln);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cargar');
+    } finally {
+      setLoading(false);
+    }
+  }, [schemaName, parking]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const loadDepartments = useCallback(async () => {
+    if (!schemaName) return;
+    try {
+      const { data } = await invokeFunction<{ success: boolean; data: Array<{ id: string; department_number: string; tower_id: string }> | null }>('departments', {
+        method: 'POST',
+        body: { action: 'list', schema_name: schemaName }
+      });
+      const { data: towers } = await invokeFunction<{ success: boolean; data: Array<{ id: string; code: string }> | null }>('towers', {
+        method: 'POST',
+        body: { action: 'list', schema_name: schemaName }
+      });
+      const towerMap = new Map((towers?.data || []).map((t: { id: string; code: string }) => [t.id, t.code]));
+      setDepartments((data?.data || []).map((d: { id: string; department_number: string; tower_id: string }) => ({
+        id: d.id,
+        department_number: d.department_number,
+        tower_code: towerMap.get(d.tower_id) || ''
+      })).sort((a, b) => a.tower_code.localeCompare(b.tower_code) || a.department_number.localeCompare(b.department_number)));
+    } catch {}
+  }, [schemaName]);
+
+  useEffect(() => { void loadDepartments(); }, [loadDepartments]);
+
+  const handleVehicleSave = async () => {
+    if (!schemaName || !vehicleForm.license_plate.trim()) { alert('Indica la placa'); return; }
+    setSaving(true);
+    try {
+      await parking.createVehicle(schemaName, {
+        license_plate: vehicleForm.license_plate.trim().toUpperCase(),
+        brand: vehicleForm.brand.trim() || null,
+        model: vehicleForm.model.trim() || null,
+        color: vehicleForm.color.trim() || null
+      });
+      setVehicleForm({ license_plate: '', brand: '', model: '', color: '' });
+      setShowVehicleForm(false);
+      setMessage('Vehículo registrado');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLoanSave = async () => {
+    if (!schemaName) return;
+    if (!loanForm.spot_id) { alert('Selecciona la bahía a prestar'); return; }
+    if (!loanForm.borrower_department_id && !loanForm.borrower_vehicle_plate.trim()) {
+      alert('Indica el departamento o la placa del vehículo que usará la bahía'); return;
+    }
+    setSaving(true);
+    try {
+      await parking.createLoan(schemaName, {
+        spot_id: loanForm.spot_id,
+        borrower_department_id: loanForm.borrower_department_id || undefined,
+        borrower_vehicle_plate: loanForm.borrower_vehicle_plate.trim().toUpperCase() || undefined,
+        start_time: new Date(loanForm.start_time).toISOString(),
+        end_time: new Date(loanForm.end_time).toISOString()
+      });
+      setShowLoanForm(false);
+      setMessage('Préstamo de bahía solicitado');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancelLoan = async (loan: ParkingLoan) => {
+    if (!schemaName) return;
+    if (!confirm(`¿Cancelar el préstamo de la bahía ${loan.spot_number || ''}?`)) return;
+    try {
+      await parking.updateLoanStatus(schemaName, loan.id, 'CANCELADO');
+      setMessage('Préstamo cancelado');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error');
+    }
+  };
+
+  if (loading) return <div className="loading-message">Cargando tu estacionamiento...</div>;
+  if (!schemaName) return <div className="empty-state"><p>Selecciona tu condominio para gestionar tu estacionamiento.</p></div>;
+
+  const mySpots = spots.filter(s => s.type === 'PROPIO');
+  const lendableSpots = mySpots.filter(s => s.status === 'DISPONIBLE' && !s.inside);
+
+  return (
+    <div className="parking-resident">
+      {message && <div className="success-message" onClick={() => setMessage(null)}>{message} — clic para cerrar</div>}
+      {error && <div className="error-message" onClick={() => setError(null)}>{error} — clic para cerrar</div>}
+
+      <div className="setup-tabs">
+        <span className="active">Mi Estacionamiento</span>
+      </div>
+
+      <div className="cart-kpi-row">
+        <div className="cart-kpi"><strong>{mySpots.length}</strong> bahía(s) propia(s)</div>
+        <div className="cart-kpi cart-kpi-dispo"><strong>{vehicles.length}</strong> vehículo(s)</div>
+        <div className="cart-kpi cart-kpi-prestado"><strong>{loans.filter(l => l.status === 'ACTIVO').length}</strong> préstamo(s) activo(s)</div>
+      </div>
+
+      {mySpots.length > 0 && (
+        <div className="parking-spots-grid">
+          {mySpots.map(s => (
+            <div key={s.id} className={`parking-spot-card ${s.status === 'OCUPADO' ? 'parking-spot-occupied' : 'parking-spot-free'}`}>
+              <span className="parking-spot-number">{s.spot_number}</span>
+              <span className={`status-badge ${s.inside ? 'status-occupied' : 'status-vacant'}`}>{s.inside ? 'Ocupada ahora' : 'Disponible'}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="cart-form">
+        <h4>Mis vehículos</h4>
+        {vehicles.length === 0 ? (
+          <p className="text-muted">Aún no tienes vehículos registrados.</p>
+        ) : (
+          <table className="residents-table residents-desktop">
+            <thead>
+              <tr><th>Placa</th><th>Vehículo</th><th>Color</th><th>Estado</th><th></th></tr>
+            </thead>
+            <tbody>
+              {vehicles.map(v => (
+                <tr key={v.id}>
+                  <td><strong>{v.license_plate}</strong></td>
+                  <td>{[v.brand, v.model].filter(Boolean).join(' ') || '-'}</td>
+                  <td>{v.color || '-'}</td>
+                  <td><span className={`status-badge ${v.is_active ? 'status-occupied' : 'status-vacant'}`}>{v.is_active ? 'Activo' : 'Inactivo'}</span></td>
+                  <td>
+                    <button className="btn-cancel" onClick={async () => {
+                      if (!confirm(`¿Eliminar ${v.license_plate}?`)) return;
+                      try { await parking.deleteVehicle(schemaName, v.id); setMessage('Vehículo eliminado'); await load(); }
+                      catch (err) { setError(err instanceof Error ? err.message : 'Error'); }
+                    }}>Eliminar</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {showVehicleForm ? (
+          <div>
+            <div className="form-row">
+              <div className="form-group"><label>Placa</label><input type="text" value={vehicleForm.license_plate} onChange={e => setVehicleForm({ ...vehicleForm, license_plate: e.target.value })} placeholder="ABC-123" /></div>
+              <div className="form-group"><label>Marca</label><input type="text" value={vehicleForm.brand} onChange={e => setVehicleForm({ ...vehicleForm, brand: e.target.value })} placeholder="Toyota" /></div>
+            </div>
+            <div className="form-row">
+              <div className="form-group"><label>Modelo</label><input type="text" value={vehicleForm.model} onChange={e => setVehicleForm({ ...vehicleForm, model: e.target.value })} placeholder="Corolla" /></div>
+              <div className="form-group"><label>Color</label><input type="text" value={vehicleForm.color} onChange={e => setVehicleForm({ ...vehicleForm, color: e.target.value })} placeholder="Rojo" /></div>
+            </div>
+            <div className="form-actions">
+              <button className="btn-cancel" onClick={() => setShowVehicleForm(false)}>Cancelar</button>
+              <button onClick={handleVehicleSave} disabled={saving}>{saving ? 'Guardando...' : 'Registrar vehículo'}</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setShowVehicleForm(true)}><span className="material-symbols-outlined">directions_car</span> Registrar vehículo</button>
+        )}
+      </div>
+
+      <div className="cart-form">
+        <div className="modules-header">
+          <h4>Prestar mi bahía</h4>
+          {!showLoanForm && lendableSpots.length > 0 && (
+            <button onClick={() => setShowLoanForm(true)}><span className="material-symbols-outlined">real_estate_agent</span> Prestar bahía</button>
+          )}
+        </div>
+
+        {showLoanForm && (
+          <div>
+            <div className="form-group">
+              <label>Bahía a prestar</label>
+              <select value={loanForm.spot_id} onChange={e => setLoanForm({ ...loanForm, spot_id: e.target.value })}>
+                <option value="">— Seleccionar —</option>
+                {lendableSpots.map(s => <option key={s.id} value={s.id}>Bahía {s.spot_number}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Departamento que recibirá la bahía</label>
+              <select value={loanForm.borrower_department_id} onChange={e => setLoanForm({ ...loanForm, borrower_department_id: e.target.value })}>
+                <option value="">— Seleccionar (o usa la placa) —</option>
+                {departments.map(d => <option key={d.id} value={d.id}>Dpto {d.department_number} (T{d.tower_code})</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Placa del vehículo que la usará (opcional)</label>
+              <input type="text" value={loanForm.borrower_vehicle_plate} onChange={e => setLoanForm({ ...loanForm, borrower_vehicle_plate: e.target.value })} placeholder="ABC-123" />
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Inicio</label>
+                <input type="datetime-local" value={loanForm.start_time} onChange={e => setLoanForm({ ...loanForm, start_time: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>Fin</label>
+                <input type="datetime-local" value={loanForm.end_time} onChange={e => setLoanForm({ ...loanForm, end_time: e.target.value })} />
+              </div>
+            </div>
+            <div className="form-actions">
+              <button className="btn-cancel" onClick={() => setShowLoanForm(false)}>Cancelar</button>
+              <button onClick={handleLoanSave} disabled={saving}>{saving ? 'Guardando...' : 'Solicitar préstamo'}</button>
+            </div>
+          </div>
+        )}
+
+        {loans.length === 0 ? (
+          <p className="text-muted">Aún no tienes préstamos de bahías.</p>
+        ) : (
+          <table className="residents-table residents-desktop">
+            <thead>
+              <tr><th>Bahía</th><th>Recibe</th><th>Vehículo</th><th>Inicio</th><th>Fin</th><th>Estado</th><th></th></tr>
+            </thead>
+            <tbody>
+              {loans.map(l => (
+                <tr key={l.id}>
+                  <td>{l.spot_number || '-'}</td>
+                  <td>{l.borrower_department ? `${l.borrower_department.department_number} (T${l.borrower_department.tower_code || '-'})` : (l.borrower_vehicle_plate ? 'Visitante' : '-')}</td>
+                  <td>{l.borrower_vehicle_plate || '-'}</td>
+                  <td>{fmtDT(l.start_time)}</td>
+                  <td>{fmtDT(l.end_time)}</td>
+                  <td><span className={`status-badge ${l.status === 'ACTIVO' ? 'status-occupied' : 'status-vacant'}`}>{LOAN_STATUS_LABELS[l.status] || l.status}</span></td>
+                  <td>
+                    {(l.status === 'PENDIENTE' || l.status === 'ACTIVO') && (
+                      <button className="btn-cancel" onClick={() => handleCancelLoan(l)}>Cancelar</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}

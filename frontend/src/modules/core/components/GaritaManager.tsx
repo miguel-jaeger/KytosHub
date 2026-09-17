@@ -4,7 +4,9 @@ import { useCartLending } from '../hooks/useCartLending';
 import { useCondoGates } from '../hooks/useCondoGates';
 import { PaginationBar, paginate } from '../../../components/Pagination';
 import { CartCheckoutForm } from './CartCheckoutForm';
-import type { Cart, CartLoan, CartLendingConfig, Gate, Tower } from '../types';
+import { GuardGateBar } from './GuardGateBar';
+import { ParkingGaritaPanel } from './ParkingGaritaPanel';
+import type { Cart, CartLoan, CartLendingConfig, Gate, GuardGateSession, Tower } from '../types';
 
 function fmtDuration(totalSeconds: number): string {
   const s = Math.max(0, Math.floor(totalSeconds));
@@ -66,6 +68,8 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
 
   const [loansPage, setLoansPage] = useState(1);
   const [loansPerPage, setLoansPerPage] = useState<number | 'all'>(10);
+
+  const [guardSession, setGuardSession] = useState<GuardGateSession | null>(null);
 
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkinBusyId, setCheckinBusyId] = useState<string | null>(null);
@@ -164,6 +168,11 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
     <div className="cart-lending-manager">
       <div className="modules-header">
         <h3>Panel de Garita</h3>
+      </div>
+
+      <GuardGateBar schemaName={schemaName} onSessionChange={setGuardSession} />
+
+      <div className="modules-header">
         {config && (
           <small>
             Préstamo máx: {config.max_loan_minutes} min · Gracia: {config.grace_period_minutes} min · Multa: {fmtMoney(config.fine_amount)} cada {config.fine_interval_minutes} min · Puertas: {gates.length}
@@ -234,6 +243,7 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
           towers={towers}
           gates={activeGates}
           busy={checkoutBusy}
+          defaultGateId={guardSession?.gate.id}
           onCheckout={handleCheckout}
         />
 
@@ -294,6 +304,8 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
           />
         </div>
       </div>
+
+      <ParkingGaritaPanel schemaName={schemaName} guardGate={guardSession} />
     </div>
   );
 }

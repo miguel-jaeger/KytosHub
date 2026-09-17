@@ -170,3 +170,108 @@ export interface FinesSummaryRow {
   pending: number;
   cobrada: number;
 }
+
+export type ParkingSpotType = 'PROPIO' | 'VISITA' | 'DISCAPACITADOS';
+export type ParkingLoanStatus = 'PENDIENTE' | 'ACTIVO' | 'FINALIZADO' | 'CANCELADO';
+
+export interface ParkingSpot {
+  id: string;
+  spot_number: string;
+  type: ParkingSpotType;
+  department_id: string | null;
+  status: 'DISPONIBLE' | 'OCUPADO';
+  spot_row?: number | null;
+  spot_index?: number | null;
+  created_at: string;
+  departments?: {
+    department_number: string;
+    towers?: { name: string; code: string };
+  };
+  inside?: boolean;
+}
+
+export interface ParkingLayout {
+  rows: number;
+  spots_per_row: number;
+  total_spots?: number;
+}
+
+export interface Vehicle {
+  id: string;
+  department_id: string;
+  license_plate: string;
+  brand: string | null;
+  model: string | null;
+  color: string | null;
+  is_active: boolean;
+  created_at: string;
+  departments?: {
+    department_number: string;
+    towers?: { name: string; code: string };
+  };
+}
+
+export interface ParkingLoan {
+  id: string;
+  spot_id: string;
+  lender_department_id: string;
+  borrower_department_id: string | null;
+  borrower_vehicle_plate: string | null;
+  start_time: string;
+  end_time: string;
+  status: ParkingLoanStatus;
+  created_at: string;
+  spot_number?: string | null;
+  spot_type?: string | null;
+  lender_department?: { department_number: string; tower_code: string | null } | null;
+  borrower_department?: { department_number: string; tower_code: string | null } | null;
+  borrower_vehicle_department_id?: string | null;
+}
+
+export interface ParkingAccessLog {
+  id: string;
+  spot_id: string | null;
+  license_plate: string;
+  driver_name: string | null;
+  entry_time: string;
+  exit_time: string | null;
+  entry_gate_id?: string | null;
+  exit_gate_id?: string | null;
+  authorized_by_user_id?: string | null;
+  guard_user_id?: string | null;
+  created_at: string;
+  spot_number?: string | null;
+  spot_type?: string | null;
+  entry_gate?: { id: string; name: string } | null;
+  exit_gate?: { id: string; name: string } | null;
+  guard_name?: string | null;
+}
+
+export interface PlateStatus {
+  license_plate: string;
+  vehicle: Vehicle | null;
+  inside: boolean;
+  current_log: ParkingAccessLog | null;
+  inside_spot: { id: string; spot_number: string; type: string } | null;
+  entry_gate: { id: string; name: string } | null;
+  visitor_spots: Array<{ id: string; spot_number: string }>;
+  disabled_spots: Array<{ id: string; spot_number: string }>;
+}
+
+export interface GuardGateSession {
+  id: string;
+  gate: { id: string; name: string; code: string | null; is_entry_exit: boolean };
+  started_at: string;
+}
+
+export interface EntryRegisterResult {
+  log: ParkingAccessLog;
+  spot: { id: string; spot_number: string; type: string };
+  authorization: string;
+  entry_gate: { id: string; name: string } | null;
+}
+
+export interface ExitRegisterResult {
+  log: ParkingAccessLog;
+  exit_gate: { id: string; name: string } | null;
+}

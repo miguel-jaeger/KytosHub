@@ -7,6 +7,7 @@ import { Sidebar } from './components/Sidebar';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { GaritaPage } from './pages/GaritaPage';
+import { ParkingPage } from './pages/ParkingPage';
 import { SetupWizard } from './modules/core/components/SetupWizard';
 import { SuperAdminDashboard } from './modules/core/components/SuperAdminDashboard';
 import { CondominioAdminDashboard } from './modules/core/components/CondominioAdminDashboard';
@@ -40,6 +41,7 @@ function AppShell() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/garita" element={<GaritaPage />} />
+          <Route path="/parking" element={<ParkingPage />} />
           <Route path="/admin/condominiums" element={<SuperAdminDashboard />} />
           <Route path="/admin/users" element={<AdminUsersRoute><CondominioAdminDashboard /></AdminUsersRoute>} />
           <Route path="/setup" element={<SetupWizard />} />

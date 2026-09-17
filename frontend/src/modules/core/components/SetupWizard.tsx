@@ -7,9 +7,10 @@ import { StructureManager } from './StructureManager';
 import { ModulesManager } from './ModulesManager';
 import { GatesManager } from './GatesManager';
 import { CartLendingManager } from './CartLendingManager';
+import { ParkingManager } from './ParkingManager';
 import type { WizardStep } from '../types';
 
-type SetupTab = 'structure' | 'gates' | 'modules' | 'carts';
+type SetupTab = 'structure' | 'gates' | 'modules' | 'carts' | 'parking';
 
 export function SetupWizard() {
   const { condominium, setCondominium } = useCondominium();
@@ -20,6 +21,7 @@ export function SetupWizard() {
   const [step, setStep] = useState<WizardStep>(condominium ? 'towers' : 'condominium');
   const [tab, setTab] = useState<SetupTab>('structure');
   const [cartEnabled, setCartEnabled] = useState(false);
+  const [parkingEnabled, setParkingEnabled] = useState(false);
 
   const [condoData, setCondoData] = useState({
     name: condominium?.name || '',
@@ -36,7 +38,9 @@ export function SetupWizard() {
     try {
       const result = await listModules(condominium.schema_name);
       const cart = result.modules.find(m => m.module_key === 'cart_lending');
+      const parking = result.modules.find(m => m.module_key === 'parking_control');
       setCartEnabled(Boolean(cart?.is_enabled));
+      setParkingEnabled(Boolean(parking?.is_enabled));
     } catch { /* keep current state */ }
   }, [condominium?.schema_name, listModules]);
 
@@ -141,12 +145,14 @@ export function SetupWizard() {
         <button className={tab === 'gates' ? 'active' : ''} onClick={() => setTab('gates')}>Puertas</button>
         <button className={tab === 'modules' ? 'active' : ''} onClick={() => setTab('modules')}>Módulos</button>
         {cartEnabled && <button className={tab === 'carts' ? 'active' : ''} onClick={() => setTab('carts')}>Carritos</button>}
+        {parkingEnabled && <button className={tab === 'parking' ? 'active' : ''} onClick={() => setTab('parking')}>Estacionamiento</button>}
       </div>
 
       {tab === 'structure' && <StructureManager />}
       {tab === 'gates' && <GatesManager schemaName={condominium?.schema_name} />}
       {tab === 'modules' && <ModulesManager schemaName={condominium?.schema_name} onModulesUpdated={refreshCartFlag} />}
       {tab === 'carts' && cartEnabled && <CartLendingManager schemaName={condominium?.schema_name} />}
+      {tab === 'parking' && parkingEnabled && <ParkingManager schemaName={condominium?.schema_name} />}
     </div>
   );
 }

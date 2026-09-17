@@ -8,12 +8,13 @@ interface Props {
   towers: Tower[];
   gates: Gate[];
   busy: boolean;
+  defaultGateId?: string;
   onCheckout: (cartId: string, departmentId: string) => Promise<void> | void;
 }
 
 const CART_TYPE_LABELS: Record<string, string> = { CARGA: 'Carro de carga', COMPRA: 'Coche de compras' };
 
-export function CartCheckoutForm({ schemaName, carts, towers, gates, busy, onCheckout }: Props) {
+export function CartCheckoutForm({ schemaName, carts, towers, gates, busy, defaultGateId, onCheckout }: Props) {
   const [towerId, setTowerId] = useState('');
   const [floorId, setFloorId] = useState('');
   const [deptId, setDeptId] = useState('');
@@ -24,6 +25,8 @@ export function CartCheckoutForm({ schemaName, carts, towers, gates, busy, onChe
   const [floors, setFloors] = useState<Floor[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loadingStep, setLoadingStep] = useState<string | null>(null);
+
+  const effectiveDefaultGate = gates.some(g => g.id === defaultGateId && g.is_active) ? defaultGateId : undefined;
 
   const loadFloors = async (tid: string) => {
     setLoadingStep('pisos');
@@ -87,6 +90,9 @@ export function CartCheckoutForm({ schemaName, carts, towers, gates, busy, onChe
   const selectDepartment = (id: string) => {
     setDeptId(id);
     resetAfterDept();
+    if (effectiveDefaultGate) {
+      setGateId(effectiveDefaultGate);
+    }
   };
 
   const selectGate = (id: string) => {
@@ -176,8 +182,19 @@ export function CartCheckoutForm({ schemaName, carts, towers, gates, busy, onChe
 
       {towerId !== '' && floorId !== '' && deptId !== '' && (
         <div className="checkout-field">
-          <label>4. Puerta</label>
-          {gates.length === 0 ? (
+          <label>4. Puerta {effectiveDefaultGate ? '(preseleccionada por tu garita)' : ''}</label>
+          {effectiveDefaultGate ? (
+            <div className="checkout-chip-row">
+              <button
+                type="button"
+                className="checkout-chip active"
+                disabled
+                title="Puerta automática según tu sesión de garita"
+              >
+                <span className="checkout-chip-code">{gates.find(g => g.id === effectiveDefaultGate)?.name}</span>
+              </button>
+            </div>
+          ) : gates.length === 0 ? (
             <span className="text-muted">Sin puertas configuradas.</span>
           ) : (
             <div className="checkout-chip-grid">
