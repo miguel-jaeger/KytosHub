@@ -191,76 +191,6 @@ export function SuperAdminDashboard() {
             </div>
           ))}
           </div>
-          {showAddModal && (
-            <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-              <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                  <div>
-                    <h3>Registrar Condominio</h3>
-                    <p className="text-on-surface-variant">Registra un condominio antes de configurar su estructura.</p>
-                  </div>
-                  <button className="modal-close" onClick={() => setShowAddModal(false)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
-                </div>
-                <div className="modal-body">
-                  <CondominiumRegistration onRegistered={() => { setShowAddModal(false); navigate('/setup'); }} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {editingCondo && (
-            <div className="modal-overlay" onClick={() => setEditingId(null)}>
-              <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                  <div>
-                    <h3>Editar Condominio</h3>
-                    <p className="text-on-surface-variant">{editingCondo.name}</p>
-                  </div>
-                  <button className="modal-close" onClick={() => setEditingId(null)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
-                </div>
-                <div className="modal-body">
-                  <div className="form-group">
-                    <label>Nombre</label>
-                    <input value={editData.name} onChange={e => setEditData({ ...editData, name: e.target.value })} />
-                  </div>
-                  <div className="form-group">
-                    <label>Dirección</label>
-                    <input value={editData.address} onChange={e => setEditData({ ...editData, address: e.target.value })} />
-                  </div>
-                  <div className="form-group">
-                    <label>Teléfono administración</label>
-                    <input value={editData.admin_phone} onChange={e => setEditData({ ...editData, admin_phone: e.target.value })} />
-                  </div>
-                  <div className="form-group">
-                    <label>Imagen del condominio</label>
-                    <div className="image-uploader">
-                      <div className="image-click-area" onClick={() => fileInputRef.current?.click()} title="Haz clic para seleccionar una imagen">
-                        {editImageFile ? (
-                          <div className="image-preview">
-                            <img src={URL.createObjectURL(editImageFile)} alt="Nueva imagen" />
-                          </div>
-                        ) : editingCondo.image_url && !failedImages[editingCondo.id] ? (
-                          <div className="image-preview">
-                            <img src={editingCondo.image_url} alt={editingCondo.name} onError={() => setFailedImages(prev => ({ ...prev, [editingCondo.id]: true }))} />
-                          </div>
-                        ) : (
-                          <div className="image-placeholder">
-                            <span className="material-symbols-outlined">add_a_photo</span>
-                            <p>Selecciona una imagen</p>
-                          </div>
-                        )}
-                      </div>
-                      <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={e => setEditImageFile(e.target.files?.[0] || null)} />
-                    </div>
-                  </div>
-                  <div className="form-actions">
-                    <button className="btn-cancel" onClick={() => setEditingId(null)}><span className="material-symbols-outlined">close</span> Cancelar</button>
-                    <button onClick={handleSaveEdit} disabled={saving}><span className="material-symbols-outlined">save</span> {saving ? 'Guardando...' : 'Guardar'}</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
           <PaginationBar
             total={visibleCondominiums.length}
             page={page}
@@ -270,6 +200,77 @@ export function SuperAdminDashboard() {
             itemLabel="condominio"
           />
         </>
+      )}
+
+      {showAddModal && (
+        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>Registrar Condominio</h3>
+                <p className="text-on-surface-variant">Registra un condominio antes de configurar su estructura.</p>
+              </div>
+              <button className="modal-close" onClick={() => setShowAddModal(false)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
+            </div>
+            <div className="modal-body">
+              <CondominiumRegistration onRegistered={() => { setShowAddModal(false); navigate('/setup'); }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingCondo && (
+        <div className="modal-overlay" onClick={() => setEditingId(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>Editar Condominio</h3>
+                <p className="text-on-surface-variant">{editingCondo.name}</p>
+              </div>
+              <button className="modal-close" onClick={() => setEditingId(null)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label>Nombre</label>
+                <input value={editData.name} onChange={e => setEditData({ ...editData, name: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>Dirección</label>
+                <input value={editData.address} onChange={e => setEditData({ ...editData, address: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>Teléfono administración</label>
+                <input value={editData.admin_phone} onChange={e => setEditData({ ...editData, admin_phone: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>Imagen del condominio</label>
+                <div className="image-uploader">
+                  <div className="image-click-area" onClick={() => fileInputRef.current?.click()} title="Haz clic para seleccionar una imagen">
+                    {editImageFile ? (
+                      <div className="image-preview">
+                        <img src={URL.createObjectURL(editImageFile)} alt="Nueva imagen" />
+                      </div>
+                    ) : editingCondo.image_url && !failedImages[editingCondo.id] ? (
+                      <div className="image-preview">
+                        <img src={editingCondo.image_url} alt={editingCondo.name} onError={() => setFailedImages(prev => ({ ...prev, [editingCondo.id]: true }))} />
+                      </div>
+                    ) : (
+                      <div className="image-placeholder">
+                        <span className="material-symbols-outlined">add_a_photo</span>
+                        <p>Selecciona una imagen</p>
+                      </div>
+                    )}
+                  </div>
+                  <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={e => setEditImageFile(e.target.files?.[0] || null)} />
+                </div>
+              </div>
+              <div className="form-actions">
+                <button className="btn-cancel" onClick={() => setEditingId(null)}><span className="material-symbols-outlined">close</span> Cancelar</button>
+                <button onClick={handleSaveEdit} disabled={saving}><span className="material-symbols-outlined">save</span> {saving ? 'Guardando...' : 'Guardar'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
