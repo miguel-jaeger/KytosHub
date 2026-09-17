@@ -293,3 +293,23 @@ export interface ExitRegisterResult {
   log: ParkingAccessLog;
   exit_gate: { id: string; name: string } | null;
 }
+
+export interface CondoStats {
+  id: number;
+  access_total: number;
+  access_inside: number;
+  access_entry_today: number;
+  access_exit_total: number;
+  access_exit_today: number;
+  vehicles_total: number;
+  spots_total: number;
+  spots_occupied: number;
+  parking_loans_total: number;
+  parking_loans_active: number;
+  carts_total: number;
+  carts_disponible: number;
+  carts_prestado: number;
+  carts_mantenimiento: number;
+  cart_loans_total: number;
+  cart_loans_active: number;
+}

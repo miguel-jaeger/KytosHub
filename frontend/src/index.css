@@ -1654,6 +1654,43 @@ html.dark .checkout-chip-count { color: #69db7c; }
 .cart-kpi-prestado .material-symbols-outlined { color: #c2410c; }
 .cart-kpi-mant .material-symbols-outlined { color: #7c3aed; }
 
+/* ---- Parking stats: compact history filters ---- */
+.parking-stats .condo-search-panel {
+  padding: 0.6rem 0.75rem;
+  margin: 0.75rem 0 1rem;
+}
+.parking-stats .condo-search-panel .form-row {
+  gap: 0.5rem;
+}
+.parking-stats .condo-search-panel .form-group {
+  margin-bottom: 0.5rem;
+}
+.parking-stats .condo-search-panel .form-group label {
+  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.parking-stats .condo-search-panel .form-group input {
+  padding: 0.4rem 0.5rem;
+  font-size: 0.85rem;
+  min-height: 34px;
+}
+.parking-stats .condo-search-panel .form-actions {
+  margin-top: 0.25rem;
+  gap: 0.4rem;
+}
+.parking-stats .condo-search-panel .form-actions button {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.82rem;
+}
+.parking-stats input[type='date']::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
+html.dark .parking-stats input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.85;
+}
+
 .cart-gates, .cart-loans-table, .cart-fines { margin-top: 1rem; }
 .cart-gates h4, .cart-loans-table h4, .cart-fines h4 { margin: 0 0 0.7rem; color: #0b1c30; }
 .cart-gate-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 0.7rem; }
