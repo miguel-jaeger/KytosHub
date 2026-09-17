@@ -93,20 +93,21 @@ export default async function(req: Request): Promise<Response> {
         return json({ success: false, data: null, error: { code: 'FORBIDDEN', message: 'No tienes permisos para editar la configuración' } }, 403);
       }
 
-      // When only the config is edited (no explicit toggle), keep the current
-      // enabled state instead of resetting it to the module default.
-      let currentEnabled: boolean | null = null;
-      if (!wantsToggle) {
-        const { data: cur } = await db.from('condo_settings').select('is_enabled').eq('module_key', moduleKey).single();
-        currentEnabled = cur ? Boolean((cur as { is_enabled: boolean }).is_enabled) : null;
-      }
+      // Preserve the field that is not being updated: toggling the module must
+      // keep the current config (e.g. the parking layout), and editing the
+      // config must keep the current enabled state.
+      const { data: cur } = await db.from('condo_settings').select('is_enabled, config_json').eq('module_key', moduleKey).single();
+      const curEnabled = cur ? Boolean((cur as { is_enabled: boolean }).is_enabled) : null;
+      const curConfig = (cur && (cur as { config_json: unknown }).config_json && typeof (cur as { config_json: unknown }).config_json === 'object')
+        ? ((cur as { config_json: Record<string, unknown> }).config_json)
+        : def.default_config;
 
       const nextEnabled = wantsToggle
         ? body.is_enabled as boolean
-        : (currentEnabled ?? def.default_enabled);
+        : (curEnabled ?? def.default_enabled);
       const nextConfig = wantsConfig
         ? sanitizeConfig(moduleKey, body.config as Record<string, unknown>)
-        : def.default_config;
+        : { ...def.default_config, ...curConfig };
 
       const now = new Date().toISOString();
 
