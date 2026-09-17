@@ -165,6 +165,18 @@ function sanitizeConfig(key: string, config: Record<string, unknown>): Record<st
     cfg.fine_interval_minutes = Math.round(num(cfg.fine_interval_minutes, 30));
     if (cfg.fine_type !== 'FIXED' && cfg.fine_type !== 'PER_INTERVAL' && cfg.fine_type !== 'FIXED_OR_PER_INTERVAL') cfg.fine_type = 'FIXED_OR_PER_INTERVAL';
   }
+  if (key === 'parking_control' && cfg.layout && typeof cfg.layout === 'object') {
+    const layout = cfg.layout as Record<string, unknown>;
+    const rows = Math.max(1, Math.min(50, Math.round(Number(layout.rows) || 1)));
+    if (Array.isArray(layout.spots_per_row)) {
+      const counts: number[] = (layout.spots_per_row as unknown[]).map(v => Math.max(1, Math.min(50, Math.round(Number(v) || 1))));
+      while (counts.length < rows) counts.push(counts[counts.length - 1] || 1);
+      cfg.layout = { rows, spots_per_row: counts.slice(0, rows) };
+    } else {
+      const per = Math.max(1, Math.min(50, Math.round(Number(layout.spots_per_row) || 1)));
+      cfg.layout = { rows, spots_per_row: per };
+    }
+  }
   return cfg;
 }
 

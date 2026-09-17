@@ -63,9 +63,19 @@ export default async function(req: Request): Promise<Response> {
       case 'provision-layout': {
         if (!isAdmin) return forbidden();
         const rows = Number(body.rows);
-        const spotsPerRow = Number(body.spots_per_row);
-        if (!Number.isInteger(rows) || rows < 1 || !Number.isInteger(spotsPerRow) || spotsPerRow < 1) {
-          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'rows y spots_per_row deben ser enteros mayores a 0' } }, 400);
+        if (!Number.isInteger(rows) || rows < 1 || rows > 50) {
+          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'rows debe ser un entero entre 1 y 50' } }, 400);
+        }
+
+        // spots_per_row may be a single number (uniform) or an array (per row)
+        let counts: number[] = [];
+        if (Array.isArray(body.spots_per_row)) {
+          counts = (body.spots_per_row as unknown[]).map(v => Math.max(1, Math.min(50, Math.round(Number(v) || 1))));
+          if (counts.length > rows) counts = counts.slice(0, rows);
+          while (counts.length < rows) counts.push(counts[counts.length - 1] || 1);
+        } else {
+          const per = Math.max(1, Math.min(50, Math.round(Number(body.spots_per_row) || 1)));
+          counts = Array.from({ length: rows }, () => per);
         }
 
         const { data: tenantRow } = await client.database.from('tenants').select('id').eq('schema_name', schemaName).single();
@@ -75,7 +85,7 @@ export default async function(req: Request): Promise<Response> {
         const { data: rpcResult, error: rpcError } = await client.database.rpc('provision_parking_layout', {
           p_tenant_id: tenantRow.id,
           p_rows: rows,
-          p_spots_per_row: spotsPerRow
+          p_spots_per_row: counts
         });
         if (rpcError) {
           console.error('provision_parking_layout error:', rpcError);
@@ -91,7 +101,7 @@ export default async function(req: Request): Promise<Response> {
 
         return json({
           success: true,
-          data: { layout: layout || { rows, spots_per_row: spotsPerRow }, result: rpcResult, spots: enriched },
+          data: { layout: layout || { rows, spots_per_row: counts }, result: rpcResult, spots: enriched },
           error: null
         }, 201);
       }
@@ -729,13 +739,22 @@ async function enrichLogs(
 // Support helpers
 // ---------------------------------------------------------------------------
 
-async function getLayoutConfig(db: { from(t: string): any }): Promise<{ rows: number; spots_per_row: number } | null> {
+async function getLayoutConfig(db: { from(t: string): any }): Promise<{ rows: number; spots_per_row: number[] } | null> {
   try {
     const { data } = await db.from('condo_settings').select('config_json').eq('module_key', 'parking_control').single();
     const cfg = data?.config_json && typeof data.config_json === 'object' ? (data.config_json as Record<string, unknown>) : {};
     const layout = cfg.layout as Record<string, unknown> | undefined;
-    if (layout && Number(layout.rows) > 0 && Number(layout.spots_per_row) > 0) {
-      return { rows: Number(layout.rows), spots_per_row: Number(layout.spots_per_row) };
+    if (layout && Number(layout.rows) > 0) {
+      const rows = Number(layout.rows);
+      if (Array.isArray(layout.spots_per_row)) {
+        const counts = (layout.spots_per_row as unknown[]).map(v => Math.max(1, Math.round(Number(v) || 1)));
+        while (counts.length < rows) counts.push(counts[counts.length - 1] || 1);
+        return { rows, spots_per_row: counts };
+      }
+      if (Number(layout.spots_per_row) > 0) {
+        const per = Math.max(1, Math.round(Number(layout.spots_per_row)));
+        return { rows, spots_per_row: Array.from({ length: rows }, () => per) };
+      }
     }
     return null;
   } catch {
