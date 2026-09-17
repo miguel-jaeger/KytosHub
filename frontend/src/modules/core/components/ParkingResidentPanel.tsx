@@ -464,10 +464,11 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
                   {towers.length === 0 ? (
                     <span className="text-muted">No hay torres registradas.</span>
                   ) : (
-                    <div className="checkout-chip-grid">
+                    <div className="checkout-chip-grid checkout-chip-grid-towers">
                       {towers.map(t => (
-                        <button key={t.id} type="button" className={`checkout-chip ${loanTowerId === t.id ? 'active' : ''}`} onClick={() => { setLoanTowerId(t.id); setLoanFloorId(''); setLoanTowerDeptId(''); void loadLoanFloors(t.id); }}>
-                          Torre {t.code}{t.name !== t.code ? ` · ${t.name}` : ''}
+                        <button key={t.id} type="button" className={`checkout-chip checkout-chip-wide ${loanTowerId === t.id ? 'active' : ''}`} onClick={() => { setLoanTowerId(t.id); setLoanFloorId(''); setLoanTowerDeptId(''); void loadLoanFloors(t.id); }}>
+                          <span className="checkout-chip-code">Torre {t.code}</span>
+                          {t.name !== t.code && <span className="checkout-chip-name">{t.name}</span>}
                         </button>
                       ))}
                     </div>
