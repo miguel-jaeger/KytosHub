@@ -31,7 +31,7 @@ const toLocalInput = (iso: string): string => {
 };
 
 export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
-  const parking = useParking();
+  const { listSpots, listVehicles, listLoans, createVehicle, createLoan, updateLoanStatus, deleteVehicle } = useParking();
   const [spots, setSpots] = useState<ParkingSpot[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loans, setLoans] = useState<ParkingLoan[]>([]);
@@ -58,9 +58,9 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
     setError(null);
     try {
       const [sp, ve, ln] = await Promise.all([
-        parking.listSpots(schemaName),
-        parking.listVehicles(schemaName),
-        parking.listLoans(schemaName)
+        listSpots(schemaName),
+        listVehicles(schemaName),
+        listLoans(schemaName)
       ]);
       setSpots(sp);
       setVehicles(ve);
@@ -70,7 +70,7 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
     } finally {
       setLoading(false);
     }
-  }, [schemaName, parking]);
+  }, [schemaName, listSpots, listVehicles, listLoans]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -100,7 +100,7 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
     if (!schemaName || !vehicleForm.license_plate.trim()) { alert('Indica la placa'); return; }
     setSaving(true);
     try {
-      await parking.createVehicle(schemaName, {
+      await createVehicle(schemaName, {
         license_plate: vehicleForm.license_plate.trim().toUpperCase(),
         brand: vehicleForm.brand.trim() || null,
         model: vehicleForm.model.trim() || null,
@@ -125,7 +125,7 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
     }
     setSaving(true);
     try {
-      await parking.createLoan(schemaName, {
+      await createLoan(schemaName, {
         spot_id: loanForm.spot_id,
         borrower_department_id: loanForm.borrower_department_id || undefined,
         borrower_vehicle_plate: loanForm.borrower_vehicle_plate.trim().toUpperCase() || undefined,
@@ -146,7 +146,7 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
     if (!schemaName) return;
     if (!confirm(`¿Cancelar el préstamo de la bahía ${loan.spot_number || ''}?`)) return;
     try {
-      await parking.updateLoanStatus(schemaName, loan.id, 'CANCELADO');
+      await updateLoanStatus(schemaName, loan.id, 'CANCELADO');
       setMessage('Préstamo cancelado');
       await load();
     } catch (err) {
@@ -205,7 +205,7 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
                   <td>
                     <button className="btn-cancel" onClick={async () => {
                       if (!confirm(`¿Eliminar ${v.license_plate}?`)) return;
-                      try { await parking.deleteVehicle(schemaName, v.id); setMessage('Vehículo eliminado'); await load(); }
+                      try { await deleteVehicle(schemaName, v.id); setMessage('Vehículo eliminado'); await load(); }
                       catch (err) { setError(err instanceof Error ? err.message : 'Error'); }
                     }}>Eliminar</button>
                   </td>

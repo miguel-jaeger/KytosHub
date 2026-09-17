@@ -2602,6 +2602,7 @@ html.dark .parking-spot-number { color: #e5e7eb; }
 .plaza-total-preview strong { font-size: 1.2rem; color: #006c49; margin: 0 0.35rem; }
 .parking-layout-config .form-actions { flex-wrap: wrap; gap: 0.5rem; }
 .parking-layout-config .form-actions small { width: 100%; }
+.plaza-per-row-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr)); gap: 0.6rem; margin-bottom: 0.75rem; }
 html.dark .plaza-map-title { color: #e5e7eb; }
 html.dark .plaza-row-label { color: #888; }
 html.dark .plaza-cell-empty { border-color: #333; }

@@ -18,7 +18,7 @@ function fmtDateTime(iso: string): string {
 }
 
 export function ParkingLoansTab({ schemaName }: { schemaName?: string }) {
-  const parking = useParking();
+  const { listLoans, updateLoanStatus } = useParking();
   const [loans, setLoans] = useState<ParkingLoan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,14 +29,14 @@ export function ParkingLoansTab({ schemaName }: { schemaName?: string }) {
     setLoading(true);
     setError(null);
     try {
-      const ln = await parking.listLoans(schemaName);
+      const ln = await listLoans(schemaName);
       setLoans(ln);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar');
     } finally {
       setLoading(false);
     }
-  }, [schemaName, parking]);
+  }, [schemaName, listLoans]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -45,7 +45,7 @@ export function ParkingLoansTab({ schemaName }: { schemaName?: string }) {
     const label = LOAN_STATUS_LABELS[status];
     if (!confirm(`¿Marcar el préstamo de la bahía ${loan.spot_number} como "${label}"?`)) return;
     try {
-      await parking.updateLoanStatus(schemaName, loan.id, status);
+      await updateLoanStatus(schemaName, loan.id, status);
       setMessage(`Préstamo marcado como ${label}`);
       await load();
     } catch (err) {

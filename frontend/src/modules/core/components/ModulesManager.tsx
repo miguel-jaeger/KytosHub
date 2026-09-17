@@ -87,22 +87,24 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
     setConfigDrafts(prev => ({ ...prev, [m.module_key]: JSON.stringify(parsed, null, 2) }));
   };
 
-  const updateParkingLayoutField = (m: ModuleInfo, key: 'rows' | 'spots_per_row', value: number) => {
+  const updateParkingLayoutField = (m: ModuleInfo, value: { rows: number; spots_per_row: number[] }) => {
     const current = configDrafts[m.module_key] || '{}';
     const parsed = parseDraft(current);
-    const layout = (parsed.layout && typeof parsed.layout === 'object') ? { ...(parsed.layout as Record<string, unknown>) } : {};
-    layout[key] = Math.max(1, Math.min(50, value));
-    parsed.layout = layout;
+    parsed.layout = value;
     setConfigDrafts(prev => ({ ...prev, [m.module_key]: JSON.stringify(parsed, null, 2) }));
   };
 
-  const parkingLayoutOf = (m: ModuleInfo): { rows: number; spots_per_row: number } => {
+  const parkingLayoutOf = (m: ModuleInfo): { rows: number; spots_per_row: number[] } => {
     const cfg = parseDraft(configDrafts[m.module_key] || '{}');
     const layout = cfg.layout && typeof cfg.layout === 'object' ? cfg.layout as Record<string, unknown> : {};
-    return {
-      rows: Number(layout.rows) || 2,
-      spots_per_row: Number(layout.spots_per_row) || 4
-    };
+    const rows = Number(layout.rows) || 2;
+    if (Array.isArray(layout.spots_per_row)) {
+      const counts = (layout.spots_per_row as unknown[]).map(v => Math.max(1, Math.round(Number(v) || 1)));
+      while (counts.length < rows) counts.push(counts[counts.length - 1] || 1);
+      return { rows, spots_per_row: counts.slice(0, rows) };
+    }
+    const per = Math.max(1, Number(layout.spots_per_row) || 4);
+    return { rows, spots_per_row: Array.from({ length: rows }, () => per) };
   };
 
   if (loading) return <div className="loading-message">Cargando módulos...</div>;
@@ -191,25 +193,38 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
                           max={50}
                           disabled={!canEdit}
                           value={String(parkingLayoutOf(m).rows)}
-                          onChange={e => updateParkingLayoutField(m, 'rows', Number(e.target.value))}
+                          onChange={e => {
+                            const n = Math.max(1, Math.min(50, Number(e.target.value) || 1));
+                            const current = parkingLayoutOf(m);
+                            const counts = [...current.spots_per_row];
+                            while (counts.length < n) counts.push(counts[counts.length - 1] || 1);
+                            updateParkingLayoutField(m, { rows: n, spots_per_row: counts.slice(0, n) });
+                          }}
                         />
                       </label>
-                      <label>
-                        Plazas por fila
-                        <input
-                          type="number"
-                          min={1}
-                          max={50}
-                          disabled={!canEdit}
-                          value={String(parkingLayoutOf(m).spots_per_row)}
-                          onChange={e => updateParkingLayoutField(m, 'spots_per_row', Number(e.target.value))}
-                        />
-                      </label>
+                      {Array.from({ length: parkingLayoutOf(m).rows }, (_, i) => (
+                        <label key={i}>
+                          Plazas en fila {i + 1}
+                          <input
+                            type="number"
+                            min={1}
+                            max={50}
+                            disabled={!canEdit}
+                            value={String(parkingLayoutOf(m).spots_per_row[i] ?? 1)}
+                            onChange={e => {
+                              const current = parkingLayoutOf(m);
+                              const counts = [...current.spots_per_row];
+                              counts[i] = Math.max(1, Math.min(50, Number(e.target.value) || 1));
+                              updateParkingLayoutField(m, { rows: current.rows, spots_per_row: counts });
+                            }}
+                          />
+                        </label>
+                      ))}
                     </div>
                     <div className="module-example">
                       <span className="material-symbols-outlined">info</span>
                       <span>
-                        El layout visual (filas × plazas por fila) y el mapa de plazas se administran en la pestaña <strong>Estacionamiento</strong>. Guardado aquí solo persiste el layout indicado.
+                        El layout visual (filas × plazas por fila, distintas por fila) y el mapa de plazas se administran en la pestaña <strong>Estacionamiento</strong>. Guardado aquí solo persiste el layout indicado.
                       </span>
                     </div>
                   </>

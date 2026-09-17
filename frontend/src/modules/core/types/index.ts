@@ -192,7 +192,7 @@ export interface ParkingSpot {
 
 export interface ParkingLayout {
   rows: number;
-  spots_per_row: number;
+  spots_per_row: number[] | number;
   total_spots?: number;
 }
 

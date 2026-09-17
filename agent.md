@@ -94,11 +94,11 @@ Modela la jerarquía: **Condominio → Torres → Pisos → Departamentos**.
   - `parking_access_logs` (`id`, `spot_id`, `license_plate`, `driver_name`, `entry_time`, `exit_time`, `entry_gate_id`, `exit_gate_id`, `authorized_by_user_id`, `guard_user_id`) — registra **la puerta de ingreso y la puerta de salida** por separado.
   - `guard_gate_sessions` (`id`, `user_id`, `gate_id`, `started_at`, `ended_at`) — persiste en qué puerta está autenticado cada agente de seguridad.
 - **Layout del estacionamiento (configuración visual):**
-  - El administrador/super admin configura en una vista propia cuántas **filas** y **plazas por fila** habrá (`provisionParkingLayout` / RPC `provision_parking_layout`).
+  - El administrador/super admin configura en una vista propia cuántas **filas** tendrá el estacionamiento y **cuántas plazas en cada fila** (la cantidad puede variar por fila) (`provisionParkingLayout` / RPC `provision_parking_layout`).
   - Cada plaza se numera automáticamente de forma **secuencial global** (01, 02, 03 ...) y se guardan `spot_row`/`spot_index`.
-  - El layout se persiste en `condo_settings.config_json` (`parking_control.layout = { rows, spots_per_row }`) y la generación es **upsert por número**: conserva plazas existentes y agrega las que falten (no borra nada).
-  - `parking-control` expone `get-layout` y `provision-layout`. Los roles admin/super la generan desde la pestaña "Estacionamiento" (configuración visual con mapa), pudiendo hacer clic en cada plaza para asignar tipo/departamento.
-  - **El guardia visualiza un mapa** de todas las plazas (columnas x filas) con estado de ocupación y tipo (libre/ocupada/visita/discapacitados) en su panel de garita.
+  - El layout se persiste en `condo_settings.config_json` (`parking_control.layout = { rows, spots_per_row: [...] }` con `spots_per_row` como array) y la generación es **upsert por número**: conserva plazas existentes y agrega las que falten (no borra nada).
+  - `parking-control` expone `get-layout` y `provision-layout` (acepta `spots_per_row` como número uniforme o array por fila). Los roles admin/super la generan desde la pestaña "Estacionamiento" (configuración visual con mapa), pudiendo hacer clic en cada plaza para asignar tipo/departamento.
+  - **El guardia visualiza un mapa** de todas las plazas (filas con su propio número de columnas) con estado de ocupación y tipo (libre/ocupada/visita/discapacitados) en su panel de garita.
 - **Reglas de Negocio:**
   - Los residentes gestionan y prestan sus bahías asignadas (`PROPIO`) a otros residentes o visitantes autorizados con ventana de tiempo (`parking_loans`). Estado inicial `PENDIENTE`, luego `ACTIVO`/`FINALIZADO`/`CANCELADO`.
   - En garita, el agente valida la placa contra: (1) el vehículo registrado del propietario con bahía `PROPIO` libre, (2) un préstamo `ACTIVO` dentro de la ventana de tiempo del prestatario, (3) disponibilidad de bahías `VISITA`, o (4) asignación explícita por el guardia.

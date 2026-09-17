@@ -36,8 +36,18 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend }: Props) {
     );
   }
 
+  const countsForRow = (row: number): number => {
+    if (!layout) return 1;
+    if (Array.isArray(layout.spots_per_row)) return layout.spots_per_row[row - 1] || 1;
+    return layout.spots_per_row;
+  };
+
   // If we have a persisted layout, render rows x columns map
-  const hasLayout = Boolean(layout && layout.rows > 0 && layout.spots_per_row > 0 && (spots[0]?.spot_row != null || spots[0]?.spot_index != null));
+  const hasLayout = Boolean(
+    layout && layout.rows > 0 &&
+    (Array.isArray(layout.spots_per_row) ? layout.spots_per_row.length > 0 : layout.spots_per_row > 0) &&
+    (spots[0]?.spot_row != null || spots[0]?.spot_index != null)
+  );
   const spotByPos = new Map<string, ParkingSpot>();
   for (const s of spots) {
     if (s.spot_row != null && s.spot_index != null) spotByPos.set(`${s.spot_row}-${s.spot_index}`, s);
@@ -47,7 +57,7 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend }: Props) {
 
   const placed = [...Array(rows)].map((_, r) => {
     const row = r + 1;
-    const cols = hasLayout ? layout!.spots_per_row : (spots.filter(s => s.spot_row === row).length || spots.length);
+    const cols = hasLayout ? countsForRow(row) : (spots.filter(s => s.spot_row === row).length || spots.length);
     const rowSpots: (ParkingSpot | null)[] = [];
     for (let c = 1; c <= cols; c++) {
       const s = hasLayout ? spotByPos.get(`${row}-${c}`) : spots.find(x => x.spot_index === c || x.spot_row === row);

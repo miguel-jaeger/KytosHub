@@ -171,7 +171,7 @@ export function useParking() {
     return data.data;
   }, []);
 
-  const provisionLayout = useCallback(async (schemaName: string, rows: number, spotsPerRow: number): Promise<{ layout: ParkingLayout; result: Record<string, unknown>; spots: ParkingSpot[] }> => {
+  const provisionLayout = useCallback(async (schemaName: string, rows: number, spotsPerRow: number | number[]): Promise<{ layout: ParkingLayout; result: Record<string, unknown>; spots: ParkingSpot[] }> => {
     const { data, error } = await invokeFunction<{ success: boolean; data: { layout: ParkingLayout; result: Record<string, unknown>; spots: ParkingSpot[] } | null; error: { message: string } | null }>('parking-control', {
       method: 'POST',
       body: { action: 'provision-layout', schema_name: schemaName, rows, spots_per_row: spotsPerRow }

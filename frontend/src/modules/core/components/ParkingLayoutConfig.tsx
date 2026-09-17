@@ -13,7 +13,7 @@ interface DepartmentOption {
 const emptySpotForm = { type: 'PROPIO' as ParkingSpotType, department_id: '' };
 
 export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
-  const parking = useParking();
+  const { listSpots, getLayout, provisionLayout, updateSpot } = useParking();
   const [layout, setLayout] = useState<ParkingLayout | null>(null);
   const [spots, setSpots] = useState<ParkingSpot[]>([]);
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
@@ -22,7 +22,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
   const [message, setMessage] = useState<string | null>(null);
 
   const [rowsInput, setRowsInput] = useState('2');
-  const [colsInput, setColsInput] = useState('4');
+  const [perRowInputs, setPerRowInputs] = useState<string[]>(['4', '4']);
   const [generating, setGenerating] = useState(false);
 
   const [editingSpot, setEditingSpot] = useState<ParkingSpot | null>(null);
@@ -54,26 +54,45 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
     setLoading(true);
     setError(null);
     try {
-      const [sp, ly] = await Promise.all([parking.listSpots(schemaName), parking.getLayout(schemaName)]);
+      const [sp, ly] = await Promise.all([listSpots(schemaName), getLayout(schemaName)]);
       setSpots(sp);
       setLayout(ly);
       if (ly) {
         setRowsInput(String(ly.rows));
-        setColsInput(String(ly.spots_per_row));
+        const counts = Array.isArray(ly.spots_per_row)
+          ? ly.spots_per_row.map(v => String(v))
+          : Array.from({ length: ly.rows }, () => String(ly.spots_per_row));
+        setPerRowInputs(counts);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar');
     } finally {
       setLoading(false);
     }
-  }, [schemaName, parking]);
+  }, [schemaName, listSpots, getLayout]);
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { void loadDepartments(); }, [loadDepartments]);
 
   const rows = Math.max(1, Math.min(50, Number(rowsInput) || 1));
-  const cols = Math.max(1, Math.min(50, Number(colsInput) || 1));
-  const totalExpected = rows * cols;
+  const perRowCounts = perRowInputs.map(v => Math.max(1, Math.min(50, Number(v) || 1)));
+  while (perRowCounts.length < rows) perRowCounts.push(1);
+  const effectiveCounts = perRowCounts.slice(0, rows);
+  const totalExpected = effectiveCounts.reduce((a, b) => a + b, 0);
+
+  const handleRowsChange = (value: string) => {
+    setRowsInput(value);
+    const n = Math.max(1, Math.min(50, Number(value) || 1));
+    setPerRowInputs(prev => {
+      const next = [...prev];
+      while (next.length < n) next.push('1');
+      return next.slice(0, n);
+    });
+  };
+
+  const handleRowColsChange = (idx: number, value: string) => {
+    setPerRowInputs(prev => prev.map((v, i) => i === idx ? value : v));
+  };
 
   const handleProvision = async () => {
     if (!schemaName) return;
@@ -81,10 +100,13 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
     setError(null);
     setMessage(null);
     try {
-      const res = await parking.provisionLayout(schemaName, rows, cols);
+      const res = await provisionLayout(schemaName, rows, effectiveCounts);
       setLayout(res.layout);
       setSpots(res.spots);
-      setMessage(`Layout generado: ${res.result.total ?? totalExpected} plazas (${res.result.rows} filas × ${res.result.spots_per_row} por fila). Creadas: ${res.result.created ?? 0}, actualizadas: ${res.result.updated ?? 0}.`);
+      setPerRowInputs(Array.isArray(res.result.spots_per_row)
+        ? (res.result.spots_per_row as number[]).map(v => String(v))
+        : effectiveCounts.map(v => String(v)));
+      setMessage(`Layout generado: ${res.result.total ?? totalExpected} plazas en ${res.result.rows ?? rows} fila(s). Creadas: ${res.result.created ?? 0}, actualizadas: ${res.result.updated ?? 0}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al generar layout');
     } finally {
@@ -103,7 +125,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
     setSavingSpot(true);
     setError(null);
     try {
-      const updated = await parking.updateSpot(schemaName, editingSpot.id, {
+      const updated = await updateSpot(schemaName, editingSpot.id, {
         type: spotForm.type,
         department_id: spotForm.type === 'PROPIO' ? spotForm.department_id || null : (spotForm.department_id || null)
       });
@@ -127,7 +149,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
       <div className="header">
         <div>
           <h3>Configuración del estacionamiento</h3>
-          <small>Define cuántas filas y cuántas plazas por fila tendrá el estacionamiento. Las plazas se numeran automáticamente (01, 02, 03...).</small>
+          <small>Define cuántas filas tendrá el estacionamiento y cuántas plazas en cada fila (pueden variar). Las plazas se numeran automáticamente (01, 02, 03...).</small>
         </div>
       </div>
 
@@ -139,16 +161,26 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
         <div className="form-row">
           <div className="form-group">
             <label>Filas de estacionamiento</label>
-            <input type="number" min={1} max={50} value={rowsInput} onChange={e => setRowsInput(e.target.value)} />
-          </div>
-          <div className="form-group">
-            <label>Plazas por fila</label>
-            <input type="number" min={1} max={50} value={colsInput} onChange={e => setColsInput(e.target.value)} />
+            <input type="number" min={1} max={50} value={rowsInput} onChange={e => handleRowsChange(e.target.value)} />
           </div>
           <div className="form-group" style={{ justifyContent: 'center' }}>
             <label>Total de plazas</label>
             <div className="plaza-total-preview"><strong>{totalExpected}</strong> plazas · numeración 01…{String(totalExpected).padStart(Math.max(2, String(totalExpected).length), '0')}</div>
           </div>
+        </div>
+        <div className="plaza-per-row-grid">
+          {effectiveCounts.map((_, idx) => (
+            <div key={idx} className="form-group">
+              <label>Plazas en fila {idx + 1}</label>
+              <input
+                type="number"
+                min={1}
+                max={50}
+                value={perRowInputs[idx] ?? '1'}
+                onChange={e => handleRowColsChange(idx, e.target.value)}
+              />
+            </div>
+          ))}
         </div>
         <div className="form-actions">
           <button onClick={handleProvision} disabled={generating || !schemaName}>

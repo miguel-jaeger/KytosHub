@@ -13,7 +13,7 @@ interface DepartmentOption {
 const emptyVehicleForm = { license_plate: '', brand: '', model: '', color: '' };
 
 export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
-  const parking = useParking();
+  const { listVehicles, createVehicle, updateVehicle, deleteVehicle } = useParking();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,14 +54,14 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
     setLoading(true);
     setError(null);
     try {
-      const ve = await parking.listVehicles(schemaName, deptFilter ? { department_id: deptFilter } : {});
+      const ve = await listVehicles(schemaName, deptFilter ? { department_id: deptFilter } : {});
       setVehicles(ve);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar');
     } finally {
       setLoading(false);
     }
-  }, [schemaName, parking, deptFilter]);
+  }, [schemaName, listVehicles, deptFilter]);
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { void loadDepartments(); }, [loadDepartments]);
@@ -79,12 +79,12 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
         color: vehicleForm.color.trim() || null
       };
       if (editingVehicle) {
-        await parking.updateVehicle(schemaName, editingVehicle.id, payload);
+        await updateVehicle(schemaName, editingVehicle.id, payload);
         setMessage('Vehículo actualizado');
       } else {
         const chosenDept = deptFilter || departments[0]?.id;
         if (!chosenDept) { alert('Selecciona un departamento'); return; }
-        await parking.createVehicle(schemaName, { ...payload, department_id: chosenDept });
+        await createVehicle(schemaName, { ...payload, department_id: chosenDept });
         setMessage('Vehículo registrado');
       }
       setVehicleForm(emptyVehicleForm);
@@ -108,7 +108,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
     if (!schemaName) return;
     if (!confirm(`¿Eliminar el vehículo ${v.license_plate}?`)) return;
     try {
-      await parking.deleteVehicle(schemaName, v.id);
+      await deleteVehicle(schemaName, v.id);
       setMessage('Vehículo eliminado');
       await load();
     } catch (err) {
