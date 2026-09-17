@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCondominiums } from '../hooks/useCondominiums';
 import { useCondominium } from '../../../contexts/CondominiumContext';
 import { useAuth } from '../../../contexts/AuthContext';
+import { CondominiumRegistration } from './CondominiumRegistration';
 import { invokeFunction } from '../../../lib/insforge';
 import { PaginationBar, paginate } from '../../../components/Pagination';
 
@@ -36,6 +37,7 @@ export function SuperAdminDashboard() {
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
+  const [showAddModal, setShowAddModal] = useState(false);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState<number | 'all'>(10);
 
@@ -97,7 +99,7 @@ export function SuperAdminDashboard() {
 
   const openAddCondo = () => {
     clearCondominium();
-    navigate('/setup');
+    setShowAddModal(true);
   };
 
   const handleDelete = async (id: string, name: string) => {
@@ -189,6 +191,23 @@ export function SuperAdminDashboard() {
             </div>
           ))}
           </div>
+          {showAddModal && (
+            <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+              <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                  <div>
+                    <h3>Registrar Condominio</h3>
+                    <p className="text-on-surface-variant">Registra un condominio antes de configurar su estructura.</p>
+                  </div>
+                  <button className="modal-close" onClick={() => setShowAddModal(false)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
+                </div>
+                <div className="modal-body">
+                  <CondominiumRegistration onRegistered={() => { setShowAddModal(false); navigate('/setup'); }} />
+                </div>
+              </div>
+            </div>
+          )}
+
           {editingCondo && (
             <div className="modal-overlay" onClick={() => setEditingId(null)}>
               <div className="modal-content" onClick={(e) => e.stopPropagation()}>
