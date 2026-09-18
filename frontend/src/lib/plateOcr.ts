@@ -39,13 +39,19 @@ function loadImage(dataUrl: string): Promise<HTMLImageElement> {
   });
 }
 
-// Crop to a normalized box (0..1) around the plate.
+// Crop to a normalized box (0..1) around the plate, with a small margin so the
+// entire plate is never cut off.
 async function cropBox(dataUrl: string, box: ScanBox): Promise<string> {
   const img = await loadImage(dataUrl);
-  const sx = Math.max(0, Math.min(img.width, Math.round(img.width * box.x)));
-  const sy = Math.max(0, Math.min(img.height, Math.round(img.height * box.y)));
-  const sw = Math.max(1, Math.min(img.width - sx, Math.round(img.width * box.w)));
-  const sh = Math.max(1, Math.min(img.height - sy, Math.round(img.height * box.h)));
+  const margin = 0.06;
+  const x = Math.max(0, box.x - margin);
+  const y = Math.max(0, box.y - margin);
+  const w = Math.min(1 - x, box.w + margin * 2);
+  const h = Math.min(1 - y, box.h + margin * 2);
+  const sx = Math.max(0, Math.min(img.width, Math.round(img.width * x)));
+  const sy = Math.max(0, Math.min(img.height, Math.round(img.height * y)));
+  const sw = Math.max(1, Math.min(img.width - sx, Math.round(img.width * w)));
+  const sh = Math.max(1, Math.min(img.height - sy, Math.round(img.height * h)));
   const canvas = document.createElement('canvas');
   canvas.width = sw;
   canvas.height = sh;

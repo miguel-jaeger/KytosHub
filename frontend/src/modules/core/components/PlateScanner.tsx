@@ -6,10 +6,35 @@ interface Props {
   onCapture: (dataUrl: string, box: ScanBox) => void;
 }
 
-export const SCAN_BOX: ScanBox = { x: 0.12, y: 0.33, w: 0.76, h: 0.11 };
+// Guide rectangle shown on the camera (percentages of the rendered frame).
+export const SCAN_BOX: ScanBox = { x: 0.05, y: 0.46, w: 0.9, h: 0.2 };
+// The captured frame already matches the guide, so OCR uses the whole frame.
+export const FULL_BOX: ScanBox = { x: 0, y: 0, w: 1, h: 1 };
+
+// Maps a rectangle in container space to video coordinates for object-fit: cover.
+function coverRegion(container: HTMLDivElement, videoW: number, videoH: number, box: ScanBox) {
+  const cw = container.clientWidth;
+  const ch = container.clientHeight;
+  const scale = Math.max(cw / videoW, ch / videoH);
+  const dw = videoW * scale;
+  const dh = videoH * scale;
+  const ox = (cw - dw) / 2;
+  const oy = (ch - dh) / 2;
+  const x = (box.x * cw - ox) / scale;
+  const y = (box.y * ch - oy) / scale;
+  const w = (box.w * cw) / scale;
+  const h = (box.h * ch) / scale;
+  return {
+    x: Math.max(0, x),
+    y: Math.max(0, y),
+    w: Math.min(videoW - Math.max(0, x), w),
+    h: Math.min(videoH - Math.max(0, y), h)
+  };
+}
 
 export function PlateScanner({ onClose, onCapture }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const viewRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -44,18 +69,26 @@ export function PlateScanner({ onClose, onCapture }: Props) {
 
   const capture = () => {
     const video = videoRef.current;
-    if (!video || !video.videoWidth) return;
+    const view = viewRef.current;
+    if (!video || !video.videoWidth || !view) return;
+
+    const videoW = video.videoWidth;
+    const videoH = video.videoHeight;
+    const region = coverRegion(view, videoW, videoH, SCAN_BOX);
+    if (region.w <= 0 || region.h <= 0) return;
+
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = Math.round(region.w);
+    canvas.height = Math.round(region.h);
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(video, region.x, region.y, region.w, region.h, 0, 0, canvas.width, canvas.height);
+
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
       streamRef.current = null;
     }
-    onCapture(canvas.toDataURL('image/jpeg', 0.9), SCAN_BOX);
+    onCapture(canvas.toDataURL('image/jpeg', 0.9), FULL_BOX);
   };
 
   return (
@@ -64,11 +97,11 @@ export function PlateScanner({ onClose, onCapture }: Props) {
         <div className="modal-header">
           <div>
             <h3>Escanear matrícula</h3>
-            <p className="text-on-surface-variant">Ubica la placa dentro del rectángulo y presiona "Capturar placa".</p>
+            <p className="text-on-surface-variant">Ubica la matrícula completa dentro del rectángulo y presiona "Capturar placa".</p>
           </div>
           <button className="modal-close" onClick={onClose} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
         </div>
-        <div className="plate-scanner-view">
+        <div ref={viewRef} className="plate-scanner-view">
           <video ref={videoRef} autoPlay playsInline muted />
           <div className="plate-scan-box">
             <span className="plate-scan-corner plate-scan-tl" />
