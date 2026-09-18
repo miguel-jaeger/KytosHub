@@ -1,0 +1,89 @@
+import { useEffect, useRef, useState } from 'react';
+import type { ScanBox } from '../../../lib/plateOcr';
+
+interface Props {
+  onClose: () => void;
+  onCapture: (dataUrl: string, box: ScanBox) => void;
+}
+
+export const SCAN_BOX: ScanBox = { x: 0.12, y: 0.33, w: 0.76, h: 0.11 };
+
+export function PlateScanner({ onClose, onCapture }: Props) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        if (cancelled) {
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play().catch(() => {});
+        }
+        setReady(true);
+      } catch {
+        if (!cancelled) setError('No se pudo acceder a la cámara. Usa "Subir foto" para elegir una imagen manualmente.');
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
+    };
+  }, []);
+
+  const capture = () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    onCapture(canvas.toDataURL('image/jpeg', 0.9), SCAN_BOX);
+  };
+
+  return (
+    <div className="modal-overlay plate-scanner-overlay" onClick={onClose}>
+      <div className="plate-scanner" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div>
+            <h3>Escanear matrícula</h3>
+            <p className="text-on-surface-variant">Ubica la placa dentro del rectángulo y presiona "Capturar placa".</p>
+          </div>
+          <button className="modal-close" onClick={onClose} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
+        </div>
+        <div className="plate-scanner-view">
+          <video ref={videoRef} autoPlay playsInline muted />
+          <div className="plate-scan-box">
+            <span className="plate-scan-corner plate-scan-tl" />
+            <span className="plate-scan-corner plate-scan-tr" />
+            <span className="plate-scan-corner plate-scan-bl" />
+            <span className="plate-scan-corner plate-scan-br" />
+          </div>
+          {!ready && !error && <div className="plate-scan-loading">Iniciando cámara...</div>}
+        </div>
+        {error && <p className="text-muted">{error}</p>}
+        <div className="form-actions">
+          <button className="btn-cancel" onClick={onClose}>Cancelar</button>
+          <button className="btn-primary" onClick={capture} disabled={!ready}>{ready ? 'Capturar placa' : 'Iniciando cámara...'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,8 +1,8 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useParking } from '../hooks/useParking';
-import { ParkingMap } from './ParkingMap';
-import { recognizePlate } from '../../../lib/plateOcr';
-import type { ParkingLayout, ParkingSpot, PlateStatus, GuardGateSession, Vehicle, VehicleType } from '../types';
+import { PlateScanner } from './PlateScanner';
+import { recognizePlate, type ScanBox } from '../../../lib/plateOcr';
+import type { PlateStatus, GuardGateSession, Vehicle, VehicleType } from '../types';
 
 interface Props {
   schemaName?: string;
@@ -21,9 +21,7 @@ function fmtDateTime(iso: string | null): string {
 const VEHICLE_TYPE_LABELS: Record<VehicleType, string> = { AUTO: 'Auto', MOTO: 'Moto' };
 
 export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
-  const { listSpots, getLayout, searchPlates, plateStatus, registerEntry, registerExit, updateVehicleDriver } = useParking();
-  const [spots, setSpots] = useState<ParkingSpot[]>([]);
-  const [layout, setLayout] = useState<ParkingLayout | null>(null);
+  const { searchPlates, plateStatus, registerEntry, registerExit, updateVehicleDriver } = useParking();
   const [plate, setPlate] = useState('');
   const [results, setResults] = useState<Vehicle[]>([]);
   const [searchDone, setSearchDone] = useState(false);
@@ -33,22 +31,12 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
   const [spotOverride, setSpotOverride] = useState('');
   const [loading, setLoading] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
   const [busy, setBusy] = useState<'enter' | 'exit' | null>(null);
   const [savingDriver, setSavingDriver] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const loadMap = useCallback(async () => {
-    if (!schemaName) return;
-    try {
-      const [sp, ly] = await Promise.all([listSpots(schemaName), getLayout(schemaName)]);
-      setSpots(sp);
-      setLayout(ly);
-    } catch {}
-  }, [schemaName, listSpots, getLayout]);
-
-  useEffect(() => { void loadMap(); }, [loadMap]);
 
   const normalizePlate = (v: string) => v.trim().toUpperCase().replace(/\s+/g, '');
 
@@ -97,58 +85,54 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
     }
   };
 
-  const handleScan = async (file: File | null) => {
-    if (!file) return;
+  const runOcr = async (dataUrl: string, box?: ScanBox) => {
     setOcrLoading(true);
     setError(null);
     setMessage(null);
     try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const dataUrl = String(reader.result || '');
-        try {
-          const res = await recognizePlate(dataUrl);
-          const candidates = res.candidates;
-          let used = false;
-          // Try each candidate against the registry; pick the first match.
-          for (const c of candidates) {
-            if (!schemaName) continue;
-            const matches = await searchPlates(schemaName, c);
-            if (matches.length > 0) {
-              setPlate(c);
-              setSearchDone(false);
-              setStatus(null);
-              setDriverName('');
-              await consult(c);
-              setMessage(`Placa reconocida: ${c}`);
-              used = true;
-              break;
-            }
-          }
-          if (!used) {
-            if (candidates.length > 0) {
-              setPlate(candidates[0]);
-              setSearchDone(false);
-              setStatus(null);
-              setDriverName('');
-              await consult(candidates[0]);
-              setMessage(`Placa leída: ${candidates[0]} — verifica en la lista y confirma el ingreso.`);
-            } else {
-              setError(`No se pudo reconocer una matrícula clara. Texto detectado: ${res.full_text.trim() || 'ninguno'} — ingrésala manualmente en el campo de búsqueda.`);
-            }
-          }
-        } catch (err) {
-          setError(`${err instanceof Error ? err.message : 'Error al reconocer la placa'} — ingrésala manualmente.`);
-        } finally {
-          setOcrLoading(false);
+      const res = await recognizePlate(dataUrl, box);
+      const candidates = res.candidates;
+      let used = false;
+      // Try each candidate against the registry; pick the first match.
+      for (const c of candidates) {
+        if (!schemaName) continue;
+        const matches = await searchPlates(schemaName, c);
+        if (matches.length > 0) {
+          setPlate(c);
+          setSearchDone(false);
+          setStatus(null);
+          setDriverName('');
+          await consult(c);
+          setMessage(`Placa reconocida: ${c}`);
+          used = true;
+          break;
         }
-      };
-      reader.onerror = () => { setOcrLoading(false); setError('No se pudo leer la imagen'); };
-      reader.readAsDataURL(file);
+      }
+      if (!used) {
+        if (candidates.length > 0) {
+          setPlate(candidates[0]);
+          setSearchDone(false);
+          setStatus(null);
+          setDriverName('');
+          await consult(candidates[0]);
+          setMessage(`Placa leída: ${candidates[0]} — verifica en la lista y confirma el ingreso.`);
+        } else {
+          setError(`No se pudo reconocer una matrícula clara. Texto detectado: ${res.full_text.trim() || 'ninguno'} — ingrésala manualmente en el campo de búsqueda.`);
+        }
+      }
     } catch (err) {
+      setError(`${err instanceof Error ? err.message : 'Error al reconocer la placa'} — ingrésala manualmente.`);
+    } finally {
       setOcrLoading(false);
-      setError(err instanceof Error ? err.message : 'Error al leer la imagen');
     }
+  };
+
+  const handleScan = async (file: File | null) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => void runOcr(String(reader.result || ''));
+    reader.onerror = () => { setOcrLoading(false); setError('No se pudo leer la imagen'); };
+    reader.readAsDataURL(file);
   };
 
   const handleSaveDriver = async () => {
@@ -193,7 +177,6 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
         : `Ingreso registrado en el estacionamiento ${res.spot.spot_number} (${res.authorization})`);
       setResults([]);
       setSearchDone(false);
-      await loadMap();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar ingreso');
     } finally {
@@ -215,7 +198,6 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
       setMessage(`Salida registrada${res.exit_gate ? ` por ${res.exit_gate.name}` : ''} · Estacionamiento ${status.inside_spot?.spot_number || ''}`);
       setResults([]);
       setSearchDone(false);
-      await loadMap();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar salida');
     } finally {
@@ -253,22 +235,27 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
           <button className="btn-primary" onClick={() => void consult()} disabled={loading || ocrLoading}>
             {loading ? 'Buscando...' : 'Buscar'}
           </button>
-          {true && (
-            <button
-              className="btn-edit"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={ocrLoading}
-              title="Escanear matrícula con cámara/imagen"
-            >
-              <span className="material-symbols-outlined">{ocrLoading ? 'hourglass_top' : 'document_scanner'}</span>
-              {ocrLoading ? 'Leyendo...' : 'Escanear'}
-            </button>
-          )}
+          <button
+            className="btn-edit"
+            onClick={() => setScanOpen(true)}
+            disabled={ocrLoading}
+            title="Escanear matrícula con cámara"
+          >
+            <span className="material-symbols-outlined">{ocrLoading ? 'hourglass_top' : 'document_scanner'}</span>
+            {ocrLoading ? 'Leyendo...' : 'Escanear'}
+          </button>
+          <button
+            className="btn-cancel"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={ocrLoading}
+            title="Subir una foto de la matrícula"
+          >
+            <span className="material-symbols-outlined">photo_camera</span> Subir foto
+          </button>
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             style={{ display: 'none' }}
             onChange={e => void handleScan(e.target.files?.[0] || null)}
           />
@@ -300,10 +287,6 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
           <p>No hay vehículos registrados con esa matrícula. Verifica la placa o escanéala.</p>
         </div>
       )}
-
-      <div className="parking-map-wrap">
-        <ParkingMap spots={spots} layout={layout} showLegend />
-      </div>
 
       {status && (
         <div className={`parking-status ${status.inside ? 'parking-status-in' : 'parking-status-out'}`}>
@@ -414,6 +397,13 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
             </>
           )}
         </div>
+      )}
+
+      {scanOpen && (
+        <PlateScanner
+          onClose={() => setScanOpen(false)}
+          onCapture={(d, b) => { setScanOpen(false); void runOcr(d, b); }}
+        />
       )}
     </div>
   );
