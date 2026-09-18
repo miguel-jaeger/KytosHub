@@ -31,17 +31,20 @@ function mapUser(raw: Record<string, unknown>): AuthUser {
   };
 }
 
-// The SDK keeps the session (access token + user) in memory. There is no public
-// getter, but we can read it defensively so the token can be persisted to
-// localStorage and survive a page reload (F5).
-function readSdkSession(): { accessToken?: string } | null {
+// The SDK keeps the session (access token + user) in memory. There is a public
+// documented getter (`getValidAccessToken`) that returns a non-expired token,
+// refreshing it when near expiry. We fall back to reading the in-memory session
+// defensively so the token can be persisted to localStorage and survive reloads.
+async function readSdkToken(): Promise<string | null> {
   try {
-    const auth = (insforge as unknown as {
-      auth?: { tokenManager?: { getSession?: () => { accessToken?: string } | null } };
-    }).auth;
-    const session = auth?.tokenManager?.getSession?.();
-    if (session?.accessToken) return session;
-    return null;
+    const token = await insforge.getHttpClient().getValidAccessToken();
+    if (token) return token;
+  } catch {}
+  try {
+    const auth = insforge.auth as unknown as {
+      tokenManager?: { getSession?: () => { accessToken?: string } | null };
+    };
+    return auth?.tokenManager?.getSession?.()?.accessToken ?? null;
   } catch {
     return null;
   }
@@ -57,22 +60,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(u);
   }, []);
 
-  const persistSession = useCallback((activeUser?: AuthUser) => {
+  const persistSession = useCallback(async (activeUser?: AuthUser) => {
     try {
-      const session = readSdkSession();
       const u = activeUser ?? userRef.current;
-      if (u?.id && session?.accessToken) {
-        // Keep the original refresh token across access-token rotations.
-        const stored = loadAuth();
-        saveAuth(session.accessToken, u, stored?.refreshToken);
-      }
+      if (!u?.id) return;
+      const sessionToken = await readSdkToken();
+      if (!sessionToken) return;
+      // Keep the original refresh token across access-token rotations.
+      const stored = loadAuth();
+      saveAuth(sessionToken, u, stored?.refreshToken);
     } catch {}
   }, []);
 
   // Keep localStorage in sync whenever the SDK rotates the session token
   // (sign-in, refresh, OAuth callback).
   useEffect(() => {
-    return insforge.auth.onAuthStateChange(() => persistSession());
+    return insforge.auth.onAuthStateChange(() => {
+      void persistSession();
+    });
   }, [persistSession]);
 
   useEffect(() => {
@@ -105,7 +110,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           body: { action: 'list-by-user', user_id: cached.user.id }
         });
         if (!cancelled && !res.error && res.data?.success) {
-          applyUser({ id: cached.user.id, email: cached.user.email, name: cached.user.name, avatar_url: cached.user.avatar_url });
+          const restoredUser = { id: cached.user.id, email: cached.user.email, name: cached.user.name, avatar_url: cached.user.avatar_url };
+          applyUser(restoredUser);
+          // Sync the stored token in case the SDK rotated it during validation.
+          persistSession(restoredUser);
           return;
         }
         if (!cancelled) {
@@ -199,6 +207,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateAvatar = useCallback((url: string) => {
     setUser(prev => prev ? { ...prev, avatar_url: url } : prev);
     userRef.current = userRef.current ? { ...userRef.current, avatar_url: url } : userRef.current;
+    if (userRef.current) {
+      const stored = loadAuth();
+      if (stored) saveAuth(stored.token, userRef.current, stored.refreshToken);
+    }
   }, []);
 
   return (

@@ -15,6 +15,7 @@ interface StoredAuth {
 
 export function saveAuth(token: string, user: StoredAuthUser, refreshToken?: string): void {
   try {
+    if (!token || !user?.id) return;
     localStorage.setItem(KEY, JSON.stringify({ token, refreshToken, user } as StoredAuth));
   } catch {}
 }
