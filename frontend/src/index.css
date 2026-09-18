@@ -2906,6 +2906,21 @@ html.dark .condo-card-actions .icon-btn.danger .material-symbols-outlined { colo
 html.dark .condo-card-actions .icon-btn:hover,
 html.dark .condo-card-actions .icon-btn:hover .material-symbols-outlined { color: #fff; }
 
+/* ---- Garita: mobile adjustments ---- */
+@media (max-width: 600px) {
+  .parking-search .search-bar,
+  .parking-plate-search { flex-wrap: wrap; }
+  .parking-search .search-bar input,
+  .parking-plate-search input { flex: 1 1 100%; }
+  .parking-search .search-bar .btn-primary,
+  .parking-search .search-bar .btn-edit { flex: 0 0 auto; }
+  .parking-status { padding: 0.75rem; }
+  .parking-status-grid { grid-template-columns: 1fr; }
+  .parking-status-head { flex-wrap: wrap; }
+  .parking-status .btn-primary,
+  .parking-status .btn-danger { width: 100%; justify-content: center; }
+}
+
 /* ---- Text size control ---- */
 .text-size-control {
   position: fixed;
