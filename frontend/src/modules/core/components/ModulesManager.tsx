@@ -248,20 +248,28 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
                       </span>
                     </div>
                   </>
-                ) : (
+                ) : m.module_key === 'visitor_access' ? (
                   <>
+                    <div className="cart-config-form">
+                      <label>
+                        Máximo de visitas simultáneas por departamento
+                        <input
+                          type="number"
+                          min={1}
+                          max={50}
+                          disabled={!canEdit}
+                          value={String((JSON.parse(configDrafts?.[m.module_key] || '{}') || {} as Record<string, unknown>).max_simultaneous_per_department ?? 2)}
+                          onChange={e => updateDraftField(m, 'max_simultaneous_per_department', Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
+                        />
+                      </label>
+                    </div>
                     <div className="module-example">
                       <span className="material-symbols-outlined">info</span>
-                      <span>Ejemplo de configuración JSON: <code>{'{ "clave": "valor" }'}</code></span>
+                      <span>Regla de restricción: cantidad máxima de visitas simultáneas (pendientes o dentro del condominio) por departamento.</span>
                     </div>
-                    <textarea
-                      className="module-json"
-                      rows={5}
-                      readOnly={!canEdit}
-                      value={configDrafts?.[m.module_key] || '{}'}
-                      onChange={e => setConfigDrafts(prev => ({ ...prev, [m.module_key]: e.target.value }))}
-                    />
                   </>
+                ) : (
+                  <p className="text-muted">Este módulo no requiere configuración adicional.</p>
                 )}
                 {canEdit && (
                   <button className="btn-primary" onClick={() => handleSaveConfig(m)} disabled={savingKey === m.module_key}>
