@@ -363,11 +363,37 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
               {[...status.visitor_spots, ...status.rented_spots].length > 0 && (
                 <div className="checkout-field">
                   <label>Estacionamiento (opcional)</label>
-                  <select value={spotOverride} onChange={e => setSpotOverride(e.target.value)}>
-                    <option value="">Automática</option>
-                    {status.visitor_spots.map(s => <option key={s.id} value={s.id}>Estacionamiento {s.spot_number} (Visita)</option>)}
-                    {status.rented_spots.map(s => <option key={s.id} value={s.id}>Estacionamiento {s.spot_number} (Alquilada)</option>)}
-                  </select>
+                  <div className="checkout-chip-grid">
+                    <button
+                      type="button"
+                      className={`checkout-chip ${spotOverride === '' ? 'active' : ''}`}
+                      onClick={() => setSpotOverride('')}
+                    >
+                      Automática
+                    </button>
+                    {status.visitor_spots.map(s => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        className={`checkout-chip checkout-chip-wide ${spotOverride === s.id ? 'active' : ''}`}
+                        onClick={() => setSpotOverride(s.id)}
+                      >
+                        <span className="checkout-chip-code">{s.spot_number}</span>
+                        <span className="checkout-chip-name">Visita</span>
+                      </button>
+                    ))}
+                    {status.rented_spots.map(s => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        className={`checkout-chip checkout-chip-wide ${spotOverride === s.id ? 'active' : ''}`}
+                        onClick={() => setSpotOverride(s.id)}
+                      >
+                        <span className="checkout-chip-code">{s.spot_number}</span>
+                        <span className="checkout-chip-name">Alquilada</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
               <button className="btn-primary" onClick={handleEnter} disabled={busy !== null}>

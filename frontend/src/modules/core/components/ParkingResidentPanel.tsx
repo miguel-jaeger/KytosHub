@@ -395,12 +395,24 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
                 <button className="modal-close" onClick={() => setShowLoanForm(false)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
               </div>
               <div className="modal-body">
-                <div className="form-group">
+                <div className="checkout-field">
                   <label>Estacionamiento a prestar</label>
-                  <select value={loanForm.spot_id} onChange={e => setLoanForm({ ...loanForm, spot_id: e.target.value })}>
-                    <option value="">— Seleccionar —</option>
-                    {lendableSpots.map(s => <option key={s.id} value={s.id}>Estacionamiento {s.spot_number}</option>)}
-                  </select>
+                  {lendableSpots.length === 0 ? (
+                    <span className="text-muted">No hay estacionamientos disponibles para prestar.</span>
+                  ) : (
+                    <div className="checkout-chip-grid checkout-chip-grid-towers">
+                      {lendableSpots.map(s => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          className={`checkout-chip checkout-chip-wide ${loanForm.spot_id === s.id ? 'active' : ''}`}
+                          onClick={() => setLoanForm({ ...loanForm, spot_id: s.id })}
+                        >
+                          Estacionamiento {s.spot_number}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
             <h4>Datos de la persona que recibirá la estacionamiento</h4>
