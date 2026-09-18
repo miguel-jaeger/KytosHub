@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useParking } from '../hooks/useParking';
 import { ParkingMap } from './ParkingMap';
+import { recognizePlate } from '../../../lib/plateOcr';
 import type { ParkingLayout, ParkingSpot, PlateStatus, GuardGateSession, Vehicle, VehicleType } from '../types';
 
 interface Props {
@@ -20,7 +21,7 @@ function fmtDateTime(iso: string | null): string {
 const VEHICLE_TYPE_LABELS: Record<VehicleType, string> = { AUTO: 'Auto', MOTO: 'Moto' };
 
 export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
-  const { listSpots, getLayout, searchPlates, plateStatus, registerEntry, registerExit, updateVehicleDriver, ocrPlate, ocrConfigured } = useParking();
+  const { listSpots, getLayout, searchPlates, plateStatus, registerEntry, registerExit, updateVehicleDriver } = useParking();
   const [spots, setSpots] = useState<ParkingSpot[]>([]);
   const [layout, setLayout] = useState<ParkingLayout | null>(null);
   const [plate, setPlate] = useState('');
@@ -32,7 +33,6 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
   const [spotOverride, setSpotOverride] = useState('');
   const [loading, setLoading] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
-  const [ocrReady, setOcrReady] = useState(false);
   const [busy, setBusy] = useState<'enter' | 'exit' | null>(null);
   const [savingDriver, setSavingDriver] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -49,13 +49,6 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
   }, [schemaName, listSpots, getLayout]);
 
   useEffect(() => { void loadMap(); }, [loadMap]);
-
-  // Hide the scan button until the OCR module (Google Vision key) is configured
-  useEffect(() => {
-    let cancelled = false;
-    ocrConfigured().then(ok => { if (!cancelled) setOcrReady(ok); }).catch(() => { if (!cancelled) setOcrReady(false); });
-    return () => { cancelled = true; };
-  }, [ocrConfigured]);
 
   const normalizePlate = (v: string) => v.trim().toUpperCase().replace(/\s+/g, '');
 
@@ -114,19 +107,38 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
       reader.onload = async () => {
         const dataUrl = String(reader.result || '');
         try {
-          const res = await ocrPlate(dataUrl);
-          if (res.plate) {
-            setPlate(res.plate.toUpperCase());
-            setSearchDone(false);
-            setStatus(null);
-            setDriverName('');
-            await consult(res.plate);
-            setMessage(`Placa reconocida: ${res.plate.toUpperCase()}`);
-          } else {
-            setError(`No se pudo reconocer una matrícula clara. Texto detectado: ${res.full_text.trim() || 'ninguno'} — ingrésala manualmente.`);
+          const res = await recognizePlate(dataUrl);
+          const candidates = res.candidates;
+          let used = false;
+          // Try each candidate against the registry; pick the first match.
+          for (const c of candidates) {
+            if (!schemaName) continue;
+            const matches = await searchPlates(schemaName, c);
+            if (matches.length > 0) {
+              setPlate(c);
+              setSearchDone(false);
+              setStatus(null);
+              setDriverName('');
+              await consult(c);
+              setMessage(`Placa reconocida: ${c}`);
+              used = true;
+              break;
+            }
+          }
+          if (!used) {
+            if (candidates.length > 0) {
+              setPlate(candidates[0]);
+              setSearchDone(false);
+              setStatus(null);
+              setDriverName('');
+              await consult(candidates[0]);
+              setMessage(`Placa leída: ${candidates[0]} — verifica en la lista y confirma el ingreso.`);
+            } else {
+              setError(`No se pudo reconocer una matrícula clara. Texto detectado: ${res.full_text.trim() || 'ninguno'} — ingrésala manualmente en el campo de búsqueda.`);
+            }
           }
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Error al reconocer la placa');
+          setError(`${err instanceof Error ? err.message : 'Error al reconocer la placa'} — ingrésala manualmente.`);
         } finally {
           setOcrLoading(false);
         }
@@ -241,7 +253,7 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
           <button className="btn-primary" onClick={() => void consult()} disabled={loading || ocrLoading}>
             {loading ? 'Buscando...' : 'Buscar'}
           </button>
-          {ocrReady && (
+          {true && (
             <button
               className="btn-edit"
               onClick={() => fileInputRef.current?.click()}
