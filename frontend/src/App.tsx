@@ -11,6 +11,7 @@ import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { GaritaPage } from './pages/GaritaPage';
 import { ParkingPage } from './pages/ParkingPage';
+import { VisitorPage } from './pages/VisitorPage';
 import { SetupWizard } from './modules/core/components/SetupWizard';
 import { SuperAdminDashboard } from './modules/core/components/SuperAdminDashboard';
 import { CondominioAdminDashboard } from './modules/core/components/CondominioAdminDashboard';
@@ -45,6 +46,7 @@ function AppShell() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/garita" element={<GaritaPage />} />
           <Route path="/parking" element={<ParkingPage />} />
+          <Route path="/visitor" element={<VisitorPage />} />
           <Route path="/admin/condominiums" element={<SuperAdminDashboard />} />
           <Route path="/admin/users" element={<AdminUsersRoute><CondominioAdminDashboard /></AdminUsersRoute>} />
           <Route path="/setup" element={<SetupWizard />} />
@@ -179,6 +181,14 @@ function Dashboard() {
     if (m.module_key === 'cart_lending') {
       if (role === 'security') modulesByAccess.push({ to: '/garita', title: 'Carritos', desc: 'Préstamo y devolución de carritos en garita', icon: 'shopping_cart' });
       else if (role === 'admin' || role === 'super') modulesByAccess.push({ onClick: () => void openCondoSection('carts'), title: 'Carritos y Multas', desc: 'Registro de carritos, estadísticas y multas', icon: 'shopping_cart' });
+    }
+    if (m.module_key === 'visitor_access') {
+      modulesByAccess.push({
+        to: '/visitor',
+        title: 'Visitantes',
+        desc: role === 'resident' ? 'Registra tus visitas y paquetería' : 'Visitas anticipadas, pases QR y paquetería en garita',
+        icon: 'badge'
+      });
     }
   }
 

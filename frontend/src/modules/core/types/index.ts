@@ -315,3 +315,43 @@ export interface CondoStats {
   cart_loans_total: number;
   cart_loans_active: number;
 }
+
+export type VisitorVisitStatus = 'PENDIENTE' | 'ACTIVO' | 'EXPIRADO' | 'CANCELADO';
+
+export interface VisitorVisit {
+  id: string;
+  department_id: string | null;
+  full_name: string;
+  document_type: string;
+  document_number: string;
+  vehicle_plate: string | null;
+  vehicle_type: VehicleType;
+  scheduled_start: string;
+  scheduled_end: string | null;
+  entry_time: string | null;
+  exit_time: string | null;
+  status: VisitorVisitStatus;
+  access_code: string;
+  created_by_user_id: string | null;
+  created_at: string;
+  inside?: boolean;
+  departments?: {
+    department_number: string;
+    towers?: { name: string; code: string };
+  };
+}
+
+export interface VisitorPackage {
+  id: string;
+  department_id: string | null;
+  description: string;
+  carrier: string | null;
+  received_at: string;
+  notified: boolean;
+  delivered_at: string | null;
+  created_at: string;
+  departments?: {
+    department_number: string;
+    towers?: { name: string; code: string };
+  };
+}

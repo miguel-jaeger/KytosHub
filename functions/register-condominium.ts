@@ -123,6 +123,11 @@ export default async function(req: Request): Promise<Response> {
       await client.database.rpc('seed_condo_stats', { p_tenant_id: tenant.id });
     } catch (e) { console.error('seed_condo_stats failed:', e); }
 
+    // Provision Sprint 5.1 visitor access tables + feature flag
+    try {
+      await client.database.rpc('seed_visitor_access', { p_tenant_id: tenant.id });
+    } catch (e) { console.error('seed_visitor_access failed:', e); }
+
     // Promote the registering user to SUPER_ADMIN of the tenant (if provided)
     if (body.owner_user_id) {
       await client.database.from('tenant_users').insert([

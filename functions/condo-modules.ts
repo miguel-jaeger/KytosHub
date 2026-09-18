@@ -30,6 +30,14 @@ const MODULES: Record<string, ModuleDef> = {
     description: 'Bahías de estacionamiento, vehículos por departamento, préstamos de bahía entre propietarios y registros de entrada/salida en garita por puerta.',
     default_enabled: true,
     default_config: {}
+  },
+  visitor_access: {
+    name: 'Acceso de Visitantes',
+    description: 'Visitas anticipadas con pase QR, control de paquetería y delivery en garita, con historial de accesos.',
+    default_enabled: false,
+    default_config: {
+      max_simultaneous_per_department: 2
+    }
   }
 };
 

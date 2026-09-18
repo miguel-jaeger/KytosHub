@@ -22,6 +22,7 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
   const [error, setError] = useState<string | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [configDrafts, setConfigDrafts] = useState<Record<string, string>>({});
+  const [openConfig, setOpenConfig] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!schemaName) { setModules([]); setLoading(false); return; }
@@ -143,7 +144,19 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
                   <h4>{m.name}</h4>
                   <p>{m.description}</p>
                 </div>
-                <span className={`status-badge ${m.is_enabled ? 'status-occupied' : 'status-vacant'}`}>{m.is_enabled ? 'Activado' : 'Desactivado'}</span>
+                <div className="module-head-actions">
+                  <span className={`status-badge ${m.is_enabled ? 'status-occupied' : 'status-vacant'}`}>{m.is_enabled ? 'Activado' : 'Desactivado'}</span>
+                  {canEdit && (
+                    <button
+                      className="icon-btn"
+                      onClick={() => setOpenConfig(openConfig === m.module_key ? null : m.module_key)}
+                      title={openConfig === m.module_key ? 'Ocultar configuración' : 'Configuración'}
+                      aria-label="Configuración"
+                    >
+                      <span className="material-symbols-outlined">{openConfig === m.module_key ? 'close' : 'settings'}</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
               {canToggle && (
@@ -156,6 +169,7 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
                 </div>
               )}
 
+              {openConfig === m.module_key && (
               <div className="module-config">
                 {cartConfig ? (
                   <>
@@ -255,6 +269,7 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
                   </button>
                 )}
               </div>
+              )}
             </div>
           );
         })}
