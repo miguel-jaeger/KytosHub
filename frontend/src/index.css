@@ -267,7 +267,7 @@ header h1 {
   margin-right: auto;
 }
 
-html.dark .welcome-card { background: #1e1e1e; border-color: #333; }
+html.dark .welcome-card { background: #27313c; border-color: #333; }
 html.dark .welcome-card h3 { color: #e5e7eb; }
 html.dark .welcome-card p { color: #aaa; }
 
@@ -453,7 +453,7 @@ html.dark .link-user-form .link-user-role {
 }
 
 html.dark .link-user-form .link-user-role select {
-  background: #2a2a2a;
+  background: #333d48;
   border-color: #444;
   color: #e5e7eb;
 }
@@ -611,8 +611,8 @@ button:disabled {
   font-size: 0.85rem;
 }
 
-html.dark .import-summary { background: #2a2a2a; border-color: #333; color: #e5e7eb; }
-html.dark .import-preview thead th { background: #2a2a2a; color: #e5e7eb; }
+html.dark .import-summary { background: #333d48; border-color: #333; color: #e5e7eb; }
+html.dark .import-preview thead th { background: #333d48; color: #e5e7eb; }
 html.dark .import-preview th, html.dark .import-preview td { border-color: #333; }
 html.dark .import-result { background: #1a2e1a; border-color: #2f4a2f; }
 html.dark .import-result-count { color: #e5e7eb; }
@@ -685,7 +685,7 @@ table {
   align-items: center;
 }
 
-html.dark .user-card { background: #1e1e1e; border-color: #333; }
+html.dark .user-card { background: #27313c; border-color: #333; }
 html.dark .user-card-label { color: #aaa; }
 html.dark .user-card-avatar { background: #14253f; color: #90caf9; }
 
@@ -1175,7 +1175,7 @@ html.dark .status-late { background: rgba(230, 57, 70, 0.2); color: #ff8a8a; }
 }
 
 html.dark .sidebar-toggle {
-  background: #2a2a2a;
+  background: #333d48;
   border-color: #3a3a3a;
   color: #e5e7eb;
 }
@@ -1399,33 +1399,33 @@ button .material-symbols-outlined { font-size: 16px; vertical-align: middle; }
 .btn-danger .material-symbols-outlined, .btn-edit .material-symbols-outlined { font-size: 16px; }
 
 /* Dark mode overrides */
-html.dark body { background-color: #1a1a1a; color: #e5e7eb; }
-html.dark .app-layout { background: #121212; }
-html.dark .sidebar { background: #1e1e1e; border-right-color: #333; }
+html.dark body { background-color: #202932; color: #e5e7eb; }
+html.dark .app-layout { background: #1b222b; }
+html.dark .sidebar { background: #27313c; border-right-color: #333; }
 html.dark .sidebar-logo-text, html.dark .sidebar-link, html.dark .sidebar-condominium { color: #e5e7eb; }
-html.dark .sidebar-link:hover, html.dark .sidebar-link.active { background: #2a2a2a; color: #90caf9; }
+html.dark .sidebar-link:hover, html.dark .sidebar-link.active { background: #333d48; color: #90caf9; }
 html.dark .sidebar-user-name { color: #e5e7eb; } html.dark .sidebar-user-role { color: #aaa; } html.dark .sidebar-user { color: #aaa; }
 html.dark .dashboard h2, html.dark .dashboard h1, html.dark .header h2 { color: #e5e7eb; }
-html.dark .action-card { background: #1e1e1e; border-color: #333; }
+html.dark .action-card { background: #27313c; border-color: #333; }
 html.dark .action-card h3 { color: #90caf9; }
 html.dark .action-card p { color: #aaa; }
 html.dark .action-card:hover { background: #123b2a; border-color: #1b5e44; }
 html.dark .action-card:hover h3, html.dark .action-card:hover p { color: #69db7c; }
 html.dark .tower-card, html.dark .department-card, html.dark .wizard-container,
-html.dark .tower-structure, html.dark .residents-manager, html.dark .condo-registration { background: #1e1e1e; border-color: #333; }
+html.dark .tower-structure, html.dark .residents-manager, html.dark .condo-registration { background: #27313c; border-color: #333; }
 html.dark .tower-card h3, html.dark .department-number, html.dark .tower-info h3, html.dark .floor-label { color: #e5e7eb; }
 html.dark .tower-code, html.dark .floor-count, html.dark .tower-stats, html.dark .dept-residents { color: #aaa; }
-html.dark .tower-header:hover, html.dark .floor-header:hover { background: #2a2a2a; }
-html.dark .form-modal, html.dark .modal-content { background: #1e1e1e; }
+html.dark .tower-header:hover, html.dark .floor-header:hover { background: #333d48; }
+html.dark .form-modal, html.dark .modal-content { background: #27313c; }
 html.dark .modal-content h3, html.dark .modal-content h4, html.dark .residents-table th, html.dark .residents-table td { color: #e5e7eb; }
 html.dark .form-group label { color: #ccc; }
 html.dark .form-group input, html.dark .form-group select, html.dark .form-group textarea,
-html.dark .search-bar input { background: #2a2a2a; color: #e5e7eb; border-color: #444; }
-html.dark th { background: #2a2a2a; color: #ccc; }
+html.dark .search-bar input { background: #333d48; color: #e5e7eb; border-color: #444; }
+html.dark th { background: #333d48; color: #ccc; }
 html.dark td { border-bottom-color: #333; color: #e5e7eb; }
-html.dark tr:hover { background: #2a2a2a; }
+html.dark tr:hover { background: #333d48; }
 html.dark .empty-state, html.dark .loading-message { color: #aaa; }
-html.dark .profile-card, html.dark .password-card, html.dark .theme-card { background: #1e1e1e; border-color: #333; }
+html.dark .profile-card, html.dark .password-card, html.dark .theme-card { background: #27313c; border-color: #333; }
 html.dark .profile-card h3, html.dark .password-card h3, html.dark .theme-card h3 { color: #e5e7eb; }
 
 .profile-page { padding: 1rem 0; }
@@ -1491,11 +1491,11 @@ html.dark .profile-card h3, html.dark .password-card h3, html.dark .theme-card h
 .profile-role-badge.role-security_agent { background: #fff4e5; border-color: #ffb74d; color: #b26a00; }
 .profile-role-badge.role-visitor { background: #f1f5f9; border-color: #c6c6cd; color: #45464d; }
 
-html.dark .profile-role-badge { background: #2a2a2a; border-color: #444; color: #e5e7eb; }
+html.dark .profile-role-badge { background: #333d48; border-color: #444; color: #e5e7eb; }
 html.dark .profile-role-badge.role-admin { background: #123b2a; border-color: #006c49; color: #7bd8a8; }
 html.dark .profile-role-badge.role-resident { background: #14253f; border-color: #90caf9; color: #90caf9; }
 html.dark .profile-role-badge.role-security_agent { background: #3a2c12; border-color: #ffb74d; color: #ffb74d; }
-html.dark .profile-role-badge.role-visitor { background: #2a2a2a; border-color: #555; color: #aaa; }
+html.dark .profile-role-badge.role-visitor { background: #333d48; border-color: #555; color: #aaa; }
 
 .theme-card, .password-card {
   background: #fff;
@@ -1704,9 +1704,9 @@ html.dark .checkout-chip-count { color: #69db7c; }
 .filter-bar input:disabled, .filter-bar select:disabled { opacity: 0.55; cursor: not-allowed; }
 .filter-actions { flex: 1 1 100%; display: flex; gap: 0.5rem; justify-content: flex-end; padding-top: 0.1rem; }
 .filter-actions button { padding: 0.4rem 0.8rem; font-size: 0.82rem; }
-html.dark .filter-bar { background: #1e1e1e; border-color: #333; }
+html.dark .filter-bar { background: #27313c; border-color: #333; }
 html.dark .filter-bar .form-group label { color: #c8cad1; }
-html.dark .filter-bar input, html.dark .filter-bar select { background: #2a2a2a; border-color: #444; color: #e5e7eb; }
+html.dark .filter-bar input, html.dark .filter-bar select { background: #333d48; border-color: #444; color: #e5e7eb; }
 
 input[type='date']::-webkit-calendar-picker-indicator,
 input[type='datetime-local']::-webkit-calendar-picker-indicator {
@@ -1742,10 +1742,10 @@ html.dark input[type='datetime-local']::-webkit-calendar-picker-indicator {
 .cart-gate-prestado { color: #76777d; }
 .cart-gate-prestado.has { color: #c2410c; font-weight: 700; }
 html.dark .cart-gates h4, html.dark .cart-loans-table h4, html.dark .cart-fines h4 { color: #e5e7eb; }
-html.dark .cart-gate-card { background: #1e1e1e; border-color: #333; color: #c8cad1; box-shadow: none; }
+html.dark .cart-gate-card { background: #27313c; border-color: #333; color: #c8cad1; box-shadow: none; }
 html.dark .cart-gate-card:hover { border-color: #444; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35); }
 html.dark .cart-gate-num { color: #e5e7eb; }
-html.dark .cart-gate-code { background: #2a2a2a; color: #9aa0a6; }
+html.dark .cart-gate-code { background: #333d48; color: #9aa0a6; }
 html.dark .cart-gate-badge { color: #69db7c; border-color: rgba(105, 219, 124, 0.35); background: rgba(105, 219, 124, 0.08); }
 html.dark .cart-gate-type { border-top-color: #333; }
 html.dark .cart-gate-type-label { color: #c8cad1; }
@@ -1762,7 +1762,7 @@ html.dark .cart-gate-prestado.has { color: #fb923c; }
 .loan-row td .loan-overdue-label { color: #c62828; font-weight: 700; }
 .loan-row.loan-warning .loan-timer { color: #b26b00; }
 .loan-row.loan-overdue .loan-timer { color: #c62828; }
-html.dark .loan-row.loan-ok { background: #1e1e1e; }
+html.dark .loan-row.loan-ok { background: #27313c; }
 html.dark .loan-row.loan-warning { background: #33281a; }
 html.dark .loan-row.loan-overdue { background: #2b1a1a; }
 
@@ -1779,25 +1779,25 @@ html.dark .cart-checkout-form h4,
 html.dark .cart-gates h4,
 html.dark .cart-loans-table h4,
 html.dark .cart-fines h4 { color: #e5e7eb; }
-html.dark .module-card { background: #1e1e1e; border-color: #333; }
+html.dark .module-card { background: #27313c; border-color: #333; }
 html.dark .module-card-head p { color: #aaa; }
 html.dark .module-toggle { color: #e5e7eb; }
 html.dark .cart-config-form label { color: #c8cad1; }
 html.dark .cart-config-form input[type='number'],
-html.dark .module-json { background: #2a2a2a; border-color: #444; color: #e5e7eb; }
-html.dark .cart-form, html.dark .cart-checkout-form { background: #1e1e1e; border-color: #333; }
+html.dark .module-json { background: #333d48; border-color: #444; color: #e5e7eb; }
+html.dark .cart-form, html.dark .cart-checkout-form { background: #27313c; border-color: #333; }
 html.dark .checkout-field > label { color: #c8cad1; }
-html.dark .checkout-field select { background: #2a2a2a; border-color: #444; color: #e5e7eb; }
-html.dark .checkout-chip { background: #2a2a2a; border-color: #444; color: #c8cad1; }
+html.dark .checkout-field select { background: #333d48; border-color: #444; color: #e5e7eb; }
+html.dark .checkout-chip { background: #333d48; border-color: #444; color: #c8cad1; }
 html.dark .checkout-chip.active { background: #006c49; border-color: #006c49; color: #fff; }
-html.dark .setup-tabs button { background: #1e1e1e; border-color: #3a3a3a; color: #c8cad1; }
-html.dark .setup-tabs button:hover { background: #2a2a2a; }
+html.dark .setup-tabs button { background: #27313c; border-color: #3a3a3a; color: #c8cad1; }
+html.dark .setup-tabs button:hover { background: #333d48; }
 html.dark .setup-tabs button.active { background: #006c49; border-color: #006c49; color: #fff; }
-html.dark .module-example { background: #2a2a2a; border-color: #444; color: #c8cad1; }
-html.dark .module-example code { background: #1e1e1e; border-color: #3a3a3a; }
-html.dark .cart-kpi { background: #1e1e1e; border-color: #333; color: #c8cad1; }
+html.dark .module-example { background: #333d48; border-color: #444; color: #c8cad1; }
+html.dark .module-example code { background: #27313c; border-color: #3a3a3a; }
+html.dark .cart-kpi { background: #27313c; border-color: #333; color: #c8cad1; }
 html.dark .cart-kpi strong { color: #e5e7eb; }
-html.dark .cart-gate-card { background: #1e1e1e; border-color: #333; color: #c8cad1; }
+html.dark .cart-gate-card { background: #27313c; border-color: #333; color: #c8cad1; }
 html.dark .text-muted { color: #888; }
 
 /* Condominium count links */
@@ -1821,7 +1821,7 @@ html.dark .text-muted { color: #888; }
   cursor: pointer;
   margin: 0;
 }
-html.dark .checkbox-row { background: #1e1e1e; border-color: #333; color: #c8cad1; }
+html.dark .checkbox-row { background: #27313c; border-color: #333; color: #c8cad1; }
 
 /* Separate the "Solo dentro" toggle from the filters below */
 .access-log-tab .header {
@@ -1874,7 +1874,7 @@ html.dark .checkbox-row { background: #1e1e1e; border-color: #333; color: #c8cad
   color: #76777d;
 }
 
-html.dark .condominium-card { background: #1e1e1e; border-color: #333; }
+html.dark .condominium-card { background: #27313c; border-color: #333; }
 html.dark .condominium-card .condo-info h3 { color: #e5e7eb; }
 html.dark .condominium-card .condo-info p { color: #aaa; }
 
@@ -1910,7 +1910,7 @@ html.dark .condominium-card .condo-info p { color: #aaa; }
   opacity: 0.6;
 }
 
-html.dark .condo-thumb { background: #2a2a2a; }
+html.dark .condo-thumb { background: #333d48; }
 
 .btn-add-condo {
   display: inline-flex;
@@ -1984,8 +1984,8 @@ html.dark .condo-thumb { background: #2a2a2a; }
   color: #006c49;
 }
 
-html.dark .condo-search-panel { background: #1e1e1e; border-color: #333; }
-html.dark .condo-search-panel .search-bar input { background: #2a2a2a; color: #e5e7eb; border-color: #444; }
+html.dark .condo-search-panel { background: #27313c; border-color: #333; }
+html.dark .condo-search-panel .search-bar input { background: #333d48; color: #e5e7eb; border-color: #444; }
 html.dark .condo-search-panel .search-icon { color: #aaa; }
 html.dark .condo-count { color: #ccc; }
 
@@ -2055,10 +2055,10 @@ html.dark .condo-count { color: #ccc; }
   font-size: 0.85rem;
 }
 
-html.dark .condo-picker-dropdown { background: #1e1e1e; border-color: #333; }
+html.dark .condo-picker-dropdown { background: #27313c; border-color: #333; }
 html.dark .condo-picker-item { color: #e5e7eb; }
-html.dark .condo-picker-item:hover { background: #2a2a2a; color: #90caf9; }
-html.dark .condo-picker-item.selected { background: #2a2a2a; color: #90caf9; }
+html.dark .condo-picker-item:hover { background: #333d48; color: #90caf9; }
+html.dark .condo-picker-item.selected { background: #333d48; color: #90caf9; }
 
 .pagination-bar {
   display: flex;
@@ -2120,8 +2120,8 @@ html.dark .condo-picker-item.selected { background: #2a2a2a; color: #90caf9; }
 }
 
 html.dark .pagination-size { color: #ccc; }
-html.dark .pagination-size select { background: #2a2a2a; color: #e5e7eb; border-color: #444; }
-html.dark .pagination button { background: #2a2a2a; color: #ccc; border-color: #444; }
+html.dark .pagination-size select { background: #333d48; color: #e5e7eb; border-color: #444; }
+html.dark .pagination button { background: #333d48; color: #ccc; border-color: #444; }
 html.dark .pagination span { color: #ccc; }
 
 .icon-btn {
@@ -2160,7 +2160,7 @@ html.dark .pagination span { color: #ccc; }
   font-size: 20px;
 }
 
-html.dark .icon-btn { background: #2a2a2a; border-color: #444; color: #ccc; }
+html.dark .icon-btn { background: #333d48; border-color: #444; color: #ccc; }
 html.dark .icon-btn:hover { background: #006c49; border-color: #006c49; color: #fff; }
 html.dark .icon-btn.danger { background: rgba(186,26,26,0.2); border-color: #ba1a1a; color: #ff8a80; }
 html.dark .icon-btn.danger:hover { background: #ba1a1a; color: #fff; }
@@ -2245,7 +2245,7 @@ html.dark .condo-card-actions { border-top-color: #333; }
   font-size: 1.1rem;
   color: #0b1c30;
 }
-html.dark .modal-close { background: #2a2a2a; border-color: #3a3a3a; color: #e5e7eb; }
+html.dark .modal-close { background: #333d48; border-color: #3a3a3a; color: #e5e7eb; }
 html.dark .modal-close .material-symbols-outlined { color: #e5e7eb; }
 html.dark .modal-close:hover { background: #243328; border-color: #006c49; color: #7fe0b0; }
 html.dark .modal-close:hover .material-symbols-outlined { color: #7fe0b0; }
@@ -2260,10 +2260,10 @@ html.dark .modal-close:hover .material-symbols-outlined { color: #7fe0b0; }
 .btn-primary { background: #006c49 !important; color: #fff !important; padding: 0.35rem 0.7rem !important; border-radius: 6px !important; font-size: 0.85rem !important; cursor: pointer; border: none; }
 .btn-primary:hover { background: #00503a !important; }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-html.dark .residents-header button { background: #2a2a2a; border-color: #444; color: #e5e7eb; }
+html.dark .residents-header button { background: #333d48; border-color: #444; color: #e5e7eb; }
 html.dark .residents-header button:hover { background: #333; color: #90caf9; border-color: #90caf9; }
-html.dark .resident-search { background: #1e1e1e; border-color: #333; }
-html.dark .resident-search input { background: #2a2a2a; border-color: #444; color: #e5e7eb; }
+html.dark .resident-search { background: #27313c; border-color: #333; }
+html.dark .resident-search input { background: #333d48; border-color: #444; color: #e5e7eb; }
 .residents-table { width: 100%; border-collapse: collapse; }
 .residents-table th, .residents-table td { padding: 0.6rem; border-bottom: 1px solid #e5e7eb; text-align: left; font-size: 0.9rem; }
 .residents-table th { background: #f8f9ff; color: #45464d; }
@@ -2328,7 +2328,7 @@ html.dark .resident-search input { background: #2a2a2a; border-color: #444; colo
   min-width: 70px;
 }
 
-html.dark .resident-grid-card { background: #1e1e1e; border-color: #333; }
+html.dark .resident-grid-card { background: #27313c; border-color: #333; }
 html.dark .resident-grid-name { color: #e5e7eb; }
 html.dark .resident-grid-meta { color: #aaa; }
 html.dark .resident-grid-line { color: #e5e7eb; }
@@ -2415,7 +2415,7 @@ html.dark .resident-grid-label { color: #aaa; }
     font-size: 30px;
   }
 
-  html.dark .mobile-navbar { background: #1e1e1e; border-top-color: #333; }
+  html.dark .mobile-navbar { background: #27313c; border-top-color: #333; }
   html.dark .mobile-nav-link { color: #ccc; }
   html.dark .mobile-nav-link.active { color: #fff; background: #1b5e44; }
   html.dark .mobile-logout { color: #ff8a80; }
@@ -2622,7 +2622,7 @@ html.dark .resident-grid-label { color: #aaa; }
 .garita-tabs button.active .material-symbols-outlined,
 .garita-tabs button:hover .material-symbols-outlined { color: #fff; }
 .garita-tabs button .material-symbols-outlined { font-size: 18px; }
-html.dark .garita-tabs button { background: #1e1e1e; border-color: #444; color: #c8cad1; }
+html.dark .garita-tabs button { background: #27313c; border-color: #444; color: #c8cad1; }
 html.dark .garita-tabs button.active { background: #006c49; border-color: #006c49; color: #fff; }
 html.dark .garita-tabs button:hover { background: #1b5e44; border-color: #1b5e44; color: #fff; }
 
@@ -2661,7 +2661,7 @@ html.dark .garita-tabs button:hover { background: #1b5e44; border-color: #1b5e44
 .guard-gate-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr)); gap: 0.6rem; margin: 0.75rem 0; }
 html.dark .guard-gate-bar { background: #2b2415; border-color: #5a4a22; color: #ded3b0; }
 html.dark .guard-gate-bar strong { color: #e5e7eb; }
-html.dark .guard-gate-change { background: #1e1e1e; border-color: #6a5730; color: #e6d5a0; }
+html.dark .guard-gate-change { background: #27313c; border-color: #6a5730; color: #e6d5a0; }
 
 /* ---------- Parking panel (garita) ---------- */
 .parking-panel { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; }
@@ -2710,11 +2710,11 @@ html.dark .guard-gate-change { background: #1e1e1e; border-color: #6a5730; color
 .parking-panel .checkout-field { display: flex; flex-direction: column; gap: 0.3rem; }
 .parking-panel .checkout-field select, .parking-panel .checkout-field input { width: 100%; padding: 0.5rem 0.6rem; border: 1px solid #c6c6cd; border-radius: 8px; background: #fff; color: #0b1c30; }
 html.dark .parking-panel { border-color: #333; }
-html.dark .parking-status { background: #1e1e1e; border-color: #333; }
-html.dark .parking-status-cell { background: #2a2a2a; border-color: #333; }
+html.dark .parking-status { background: #27313c; border-color: #333; }
+html.dark .parking-status-cell { background: #333d48; border-color: #333; }
 html.dark .parking-status-cell span { color: #e5e7eb; }
-html.dark .parking-search .search-bar input { background: #1e1e1e; color: #e5e7eb; border-color: #444; }
-html.dark .parking-plate-search { background: #1e1e1e; border-color: #444; }
+html.dark .parking-search .search-bar input { background: #27313c; color: #e5e7eb; border-color: #444; }
+html.dark .parking-plate-search { background: #27313c; border-color: #444; }
 html.dark .parking-plate-search input { background: transparent; color: #e5e7eb; }
 html.dark .parking-plate-search:focus-within { border-color: #69db7c; box-shadow: 0 0 0 3px rgba(105, 219, 124, 0.15); }
 
@@ -2734,7 +2734,7 @@ html.dark .parking-plate-search:focus-within { border-color: #69db7c; box-shadow
 .parking-spot-occupied { border-color: #c62828; background: #fff5f5; }
 .parking-spot-number { font-size: 1.05rem; font-weight: 700; color: #0b1c30; }
 .parking-manager .setup-tabs { margin-bottom: 1rem; }
-html.dark .parking-spot-card { background: #1e1e1e; border-color: #333; }
+html.dark .parking-spot-card { background: #27313c; border-color: #333; }
 html.dark .parking-spot-free { border-color: #2e7d5b; background: #14291e; }
 html.dark .parking-spot-occupied { border-color: #8d3a3a; background: #2b1717; }
 html.dark .parking-spot-number { color: #e5e7eb; }
@@ -2816,8 +2816,8 @@ html.dark .parking-spot-number { color: #e5e7eb; }
 .plaza-legend-item.plaza-rented::before { background: #e8890c; }
 .plaza-legend-item.plaza-rented .material-symbols-outlined { color: #e8890c; }
 .plaza-legend-item.plaza-rented { border-color: #f5d3a4; background: #fef7ec; }
-html.dark .plaza-legend { background: #1e1e1e; border-color: #333; }
-html.dark .plaza-legend-item { background: #2a2a2a; border-color: #444; color: #c8cad1; }
+html.dark .plaza-legend { background: #27313c; border-color: #333; }
+html.dark .plaza-legend-item { background: #333d48; border-color: #444; color: #c8cad1; }
 html.dark .plaza-legend-item.plaza-free { background: #15281c; border-color: #2e7d5b; }
 html.dark .plaza-legend-item.plaza-unassigned { background: #22252a; border-color: #565b63; }
 html.dark .plaza-legend-item.plaza-occupied { background: #2b1717; border-color: #8d3a3a; }
@@ -2877,7 +2877,7 @@ html.dark .checkout-chip:hover:not(:disabled) .checkout-chip-name, html.dark .ch
 html.dark .module-card-head p { color: #9aa0a6; }
 html.dark .cart-config-form label { color: #c8cad1; }
 html.dark .cart-config-form input[type='number'],
-html.dark .module-json { background: #2a2a2a; border-color: #444; color: #e5e7eb; }
+html.dark .module-json { background: #333d48; border-color: #444; color: #e5e7eb; }
 html.dark .count-link .material-symbols-outlined { color: #69db7c; }
 html.dark .cart-kpi .material-symbols-outlined { color: #69db7c; }
 html.dark .cart-kpi-prestado .material-symbols-outlined { color: #fb923c; }
@@ -2888,9 +2888,9 @@ html.dark .guard-gate-bar .material-symbols-outlined { color: #ffd54f; }
 html.dark .parking-status-head .material-symbols-outlined { color: #69db7c; }
 html.dark .parking-status-out .parking-status-head .material-symbols-outlined { color: #aaa; }
 html.dark .parking-search .search-bar .search-icon { color: #aaa; }
-html.dark .residents-table th { background: #2a2a2a; }
-html.dark .residents-manager { background: #1e1e1e; border-color: #333; }
-html.dark .image-click-area { background: #2a2a2a; border-color: #444; }
+html.dark .residents-table th { background: #333d48; }
+html.dark .residents-manager { background: #27313c; border-color: #333; }
+html.dark .image-click-area { background: #333d48; border-color: #444; }
 html.dark .text-muted, html.dark .empty-text { color: #9aa0a6; }
 html.dark .modules-header small, html.dark .panel-header small { color: #9aa0a6; }
 html.dark .cart-checkout-hint { color: #9aa0a6; }
@@ -2921,7 +2921,7 @@ html.dark .cart-checkout-hint { color: #9aa0a6; }
 .text-size-control button:hover { background: #e8f5ec; color: #006c49; }
 .text-size-control .material-symbols-outlined { font-size: 18px; }
 .text-size-value { font-size: 0.72rem; font-weight: 600; color: #45464d; min-width: 34px; text-align: center; }
-html.dark .text-size-control { background: #1e1e1e; border-color: #333; }
+html.dark .text-size-control { background: #27313c; border-color: #333; }
 html.dark .text-size-control button { color: #c8cad1; }
-html.dark .text-size-control button:hover { background: #2a2a2a; color: #7fe0b0; }
+html.dark .text-size-control button:hover { background: #333d48; color: #7fe0b0; }
 html.dark .text-size-value { color: #c8cad1; }

@@ -62,7 +62,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const session = readSdkSession();
       const u = activeUser ?? userRef.current;
       if (u?.id && session?.accessToken) {
-        saveAuth(session.accessToken, u);
+        // Keep the original refresh token across access-token rotations.
+        const stored = loadAuth();
+        saveAuth(session.accessToken, u, stored?.refreshToken);
       }
     } catch {}
   }, []);
@@ -95,6 +97,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const cached = loadAuth();
       if (cached?.token) {
         insforge.setAccessToken(cached.token);
+        if (cached.refreshToken) {
+          insforge.getHttpClient().setRefreshToken(cached.refreshToken || null);
+        }
         const res = await invokeFunction<{ success: boolean; error: { message: string } | null }>('list-condominium-users', {
           method: 'POST',
           body: { action: 'list-by-user', user_id: cached.user.id }
@@ -145,10 +150,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data?.user) {
       const u = mapUser(data.user as unknown as Record<string, unknown>);
       applyUser(u);
-      persistSession(u);
+      const sessionData = data as { accessToken?: string; refreshToken?: string };
+      const stored = loadAuth();
+      if (sessionData.accessToken) saveAuth(sessionData.accessToken, u, sessionData.refreshToken || stored?.refreshToken);
     }
     return { error: null };
-  }, [applyUser, persistSession]);
+  }, [applyUser]);
 
   const signUp = useCallback(async (email: string, password: string, name: string) => {
     const { data, error } = await insforge.auth.signUp({
@@ -166,7 +173,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.user) {
         const u = mapUser(data.user as unknown as Record<string, unknown>);
         applyUser(u);
-        persistSession(u);
+        const sessionData = data as { refreshToken?: string };
+        const stored = loadAuth();
+        saveAuth(data.accessToken, u, sessionData.refreshToken || stored?.refreshToken);
       }
       return { error: null, requireVerification: false };
     }

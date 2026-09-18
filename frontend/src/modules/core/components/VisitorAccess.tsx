@@ -51,7 +51,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
 
   const [visits, setVisits] = useState<VisitorVisit[]>([]);
   const [packages, setPackages] = useState<VisitorPackage[]>([]);
-  const [tab, setTab] = useState<'visits' | 'packages'>('visits');
+  const [tab, setTab] = useState<'visits' | 'packages' | 'history'>('visits');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -258,6 +258,8 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
     return true;
   });
 
+  const completedVisits = visits.filter(v => v.exit_time);
+
   const openPackages = packages.filter(p => !p.delivered_at);
   const deliveredPackages = packages.filter(p => p.delivered_at);
 
@@ -265,6 +267,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
     <div className="visitor-access">
       <div className="setup-tabs">
         <button className={tab === 'visits' ? 'active' : ''} onClick={() => setTab('visits')}>Visitas</button>
+        <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}>Historial</button>
         <button className={tab === 'packages' ? 'active' : ''} onClick={() => setTab('packages')}>Paquetería y delivery</button>
       </div>
 
@@ -388,6 +391,64 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
                       {isOperator && v.status === 'PENDIENTE' && <button className="btn-primary" onClick={() => void handleVisitOp(v, 'confirm-entry')}>Ingreso</button>}
                       {isOperator && v.status === 'ACTIVO' && v.inside && <button className="btn-danger" onClick={() => void handleVisitOp(v, 'confirm-exit')}>Salida</button>}
                       {(v.status === 'PENDIENTE' || v.status === 'ACTIVO') && <button className="btn-cancel" onClick={() => void handleVisitOp(v, 'cancel')}>Cancelar</button>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {tab === 'history' && (
+        <>
+          <div className="panel-header">
+            <div>
+              <h3>Historial de visitas completadas</h3>
+              <small>Visitas que ya registraron su salida, al igual que el historial del estacionamiento.</small>
+            </div>
+          </div>
+
+          {completedVisits.length === 0 ? (
+            <div className="empty-state"><p>Aún no hay visitas completadas.</p></div>
+          ) : (
+            <>
+              <table className="residents-table residents-desktop">
+                <thead>
+                  <tr>
+                    <th>Visitante</th>
+                    <th>Documento</th>
+                    <th>Departamento</th>
+                    <th>Horario</th>
+                    <th>Ingreso</th>
+                    <th>Salida</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {completedVisits.map(v => (
+                    <tr key={v.id}>
+                      <td><strong>{v.full_name}</strong></td>
+                      <td>{v.document_type} {v.document_number}</td>
+                      <td>{v.departments ? `${v.departments.department_number} (${v.departments.towers?.code || ''})` : 'General'}</td>
+                      <td>{fmtDT(v.scheduled_start)}{v.scheduled_end ? ` → ${fmtDT(v.scheduled_end)}` : ''}</td>
+                      <td>{fmtDT(v.entry_time)}</td>
+                      <td>{fmtDT(v.exit_time)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="residents-mobile-grid">
+                {completedVisits.map(v => (
+                  <div key={v.id} className="resident-grid-card">
+                    <div className="resident-grid-main">
+                      <span className="resident-grid-name">{v.full_name}</span>
+                      <span className="resident-grid-meta">{v.departments ? `Dpto ${v.departments.department_number}` : 'General'}</span>
+                    </div>
+                    <div className="resident-grid-fields">
+                      <div className="resident-grid-line"><span className="resident-grid-label">Documento</span><span>{v.document_type} {v.document_number}</span></div>
+                      <div className="resident-grid-line"><span className="resident-grid-label">Ingreso</span><span>{fmtDT(v.entry_time)}</span></div>
+                      <div className="resident-grid-line"><span className="resident-grid-label">Salida</span><span>{fmtDT(v.exit_time)}</span></div>
                     </div>
                   </div>
                 ))}

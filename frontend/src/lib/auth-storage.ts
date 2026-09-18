@@ -9,12 +9,13 @@ export interface StoredAuthUser {
 
 interface StoredAuth {
   token: string;
+  refreshToken?: string;
   user: StoredAuthUser;
 }
 
-export function saveAuth(token: string, user: StoredAuthUser): void {
+export function saveAuth(token: string, user: StoredAuthUser, refreshToken?: string): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ token, user } as StoredAuth));
+    localStorage.setItem(KEY, JSON.stringify({ token, refreshToken, user } as StoredAuth));
   } catch {}
 }
 
