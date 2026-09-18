@@ -58,13 +58,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           method: 'POST',
           body: { action: 'list-by-user', user_id: cached.user.id }
         });
+        if (!cancelled && !error && data?.success) {
+          setUser({ id: cached.user.id, email: cached.user.email, name: cached.user.name, avatar_url: cached.user.avatar_url });
+          return;
+        }
         if (!cancelled) {
-          if (!error && data?.success) {
-            setUser({ id: cached.user.id, email: cached.user.email, name: cached.user.name, avatar_url: cached.user.avatar_url });
-          } else {
-            clearAuth();
-            try { await insforge.auth.signOut(); } catch {}
+          // The persisted access token may have expired: let the SDK refresh
+          // the session (refresh/CSRF cookies) before giving up.
+          const { data: current, error: currentError } = await insforge.auth.getCurrentUser();
+          if (!currentError && current?.user) {
+            setUser(mapUser(current.user));
+            return;
           }
+          clearAuth();
+          try { await insforge.auth.signOut(); } catch {}
         }
         return;
       }
