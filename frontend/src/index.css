@@ -2870,3 +2870,19 @@ html.dark .checkout-chip:hover:not(:disabled), html.dark .checkout-chip:hover:no
 html.dark .checkout-chip:hover:not(:disabled) .checkout-chip-name, html.dark .checkout-chip:hover:not(:disabled) .material-symbols-outlined {
   color: #fff;
 }
+
+/* ---- Dark mode: keep icons and texts legible ---- */
+html.dark .module-card-head p { color: #9aa0a6; }
+html.dark .cart-config-form label { color: #c8cad1; }
+html.dark .cart-config-form input[type='number'],
+html.dark .module-json { background: #2a2a2a; border-color: #444; color: #e5e7eb; }
+html.dark .count-link .material-symbols-outlined { color: #69db7c; }
+html.dark .cart-kpi .material-symbols-outlined { color: #69db7c; }
+html.dark .cart-kpi-prestado .material-symbols-outlined { color: #fb923c; }
+html.dark .cart-kpi-mant .material-symbols-outlined { color: #b197fc; }
+html.dark .module-example .material-symbols-outlined { color: #69db7c; }
+html.dark .avatar-circle .material-symbols-outlined { color: #aaa; }
+html.dark .guard-gate-bar .material-symbols-outlined { color: #ffd54f; }
+html.dark .parking-status-head .material-symbols-outlined { color: #69db7c; }
+html.dark .parking-status-out .parking-status-head .material-symbols-outlined { color: #aaa; }
+html.dark .parking-search .search-bar .search-icon { color: #aaa; }
