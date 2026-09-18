@@ -2894,6 +2894,8 @@ html.dark .image-click-area { background: #333d48; border-color: #444; }
 html.dark .text-muted, html.dark .empty-text { color: #9aa0a6; }
 html.dark .modules-header small, html.dark .panel-header small { color: #9aa0a6; }
 html.dark .cart-checkout-hint { color: #9aa0a6; }
+html.dark .action-card-btn { background: #27313c !important; }
+html.dark .action-card-btn:hover { background: #333d48 !important; }
 
 /* ---- Text size control ---- */
 .text-size-control {
