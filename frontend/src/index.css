@@ -2965,26 +2965,26 @@ html.dark .text-size-value { color: #c8cad1; }
 .plate-scanner-view video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .plate-scan-box {
   position: absolute;
-  left: 5%;
-  top: 46%;
-  width: 90%;
-  height: 20%;
-  border: 2px solid rgba(255, 255, 255, 0.9);
-  border-radius: 8px;
+  left: 2%;
+  top: 33%;
+  width: 96%;
+  height: 34%;
+  border: 3px solid rgba(255, 255, 255, 0.92);
+  border-radius: 10px;
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
 }
 .plate-scan-corner {
   position: absolute;
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   border-color: #69db7c;
   border-style: solid;
   border-width: 0;
 }
-.plate-scan-tl { top: -7px; left: -7px; border-top-width: 3px; border-left-width: 3px; }
-.plate-scan-tr { top: -7px; right: -7px; border-top-width: 3px; border-right-width: 3px; }
-.plate-scan-bl { bottom: -7px; left: -7px; border-bottom-width: 3px; border-left-width: 3px; }
-.plate-scan-br { bottom: -7px; right: -7px; border-bottom-width: 3px; border-right-width: 3px; }
+.plate-scan-tl { top: -8px; left: -8px; border-top-width: 4px; border-left-width: 4px; }
+.plate-scan-tr { top: -8px; right: -8px; border-top-width: 4px; border-right-width: 4px; }
+.plate-scan-bl { bottom: -8px; left: -8px; border-bottom-width: 4px; border-left-width: 4px; }
+.plate-scan-br { bottom: -8px; right: -8px; border-bottom-width: 4px; border-right-width: 4px; }
 .plate-scan-loading {
   position: absolute;
   inset: 0;
@@ -2994,4 +2994,9 @@ html.dark .text-size-value { color: #c8cad1; }
   color: #fff;
   background: rgba(0, 0, 0, 0.4);
   font-size: 0.9rem;
+}
+
+/* Mobile: taller view so the guide box fills more of the screen */
+@media (max-width: 600px) {
+  .plate-scanner-view { aspect-ratio: 3 / 4; max-height: 56vh; }
 }

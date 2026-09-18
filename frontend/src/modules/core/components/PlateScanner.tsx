@@ -7,7 +7,7 @@ interface Props {
 }
 
 // Guide rectangle shown on the camera (percentages of the rendered frame).
-export const SCAN_BOX: ScanBox = { x: 0.05, y: 0.46, w: 0.9, h: 0.2 };
+export const SCAN_BOX: ScanBox = { x: 0.02, y: 0.33, w: 0.96, h: 0.34 };
 // The captured frame already matches the guide, so OCR uses the whole frame.
 export const FULL_BOX: ScanBox = { x: 0, y: 0, w: 1, h: 1 };
 
