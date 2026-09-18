@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
-import { insforge } from '../lib/insforge';
+import { insforge, invokeFunction } from '../lib/insforge';
+import { saveAuth, loadAuth, clearAuth } from '../lib/auth-storage';
 
 interface AuthUser {
   id: string;
@@ -38,15 +39,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     async function hydrateAuth() {
+      // Google/other OAuth callback landing: always let the SDK process the
+      // authorization code (never reuse a cached token over it).
+      const isOAuthCallback = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('insforge_code');
+      if (isOAuthCallback) {
+        const { data, error } = await insforge.auth.getCurrentUser();
+        if (!cancelled && !error && data?.user) {
+          setUser(mapUser(data.user));
+        }
+        return;
+      }
+
+      // Restore the persisted token from localStorage and validate auth + role.
+      const cached = loadAuth();
+      if (cached?.token) {
+        insforge.setAccessToken(cached.token);
+        const { data, error } = await invokeFunction<{ success: boolean; error: { message: string } | null }>('list-condominium-users', {
+          method: 'POST',
+          body: { action: 'list-by-user', user_id: cached.user.id }
+        });
+        if (!cancelled) {
+          if (!error && data?.success) {
+            setUser({ id: cached.user.id, email: cached.user.email, name: cached.user.name, avatar_url: cached.user.avatar_url });
+          } else {
+            clearAuth();
+            try { await insforge.auth.signOut(); } catch {}
+          }
+        }
+        return;
+      }
+
+      // No persisted token: rely on the SDK session (e.g. OAuth cookie refresh).
       const { data, error } = await insforge.auth.getCurrentUser();
-      if (cancelled) return;
-      if (!error && data?.user) {
+      if (!cancelled && !error && data?.user) {
         setUser(mapUser(data.user));
       }
-      setLoading(false);
     }
 
-    void hydrateAuth();
+    void hydrateAuth().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
     return () => {
       cancelled = true;
     };
@@ -58,7 +90,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: error.message };
     }
     if (data?.user) {
-      setUser(mapUser(data.user));
+      const u = mapUser(data.user as unknown as Record<string, unknown>);
+      setUser(u);
+      const token = (data as { accessToken?: string }).accessToken;
+      if (token) saveAuth(token, u);
     }
     return { error: null };
   }, []);
@@ -77,7 +112,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (data?.accessToken) {
       if (data.user) {
-        setUser(mapUser(data.user));
+        const u = mapUser(data.user as unknown as Record<string, unknown>);
+        setUser(u);
+        saveAuth(data.accessToken, u);
       }
       return { error: null, requireVerification: false };
     }
@@ -94,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     await insforge.auth.signOut();
+    clearAuth();
     setUser(null);
   }, []);
 
