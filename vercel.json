@@ -3,6 +3,7 @@
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
   "installCommand": "cd frontend && npm install",
+  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"main\" ]; then exit 1; else exit 0; fi",
   "framework": "vite",
   "rewrites": [
     {
