@@ -1577,7 +1577,7 @@ html.dark .theme-switch input:checked + .theme-switch-track { background: #006c4
 /* Setup section tabs */
 .setup-tabs { display: flex; gap: 0.5rem; margin: 0 0 1rem; flex-wrap: wrap; }
 .setup-tabs button { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.9rem; border: 1px solid #c6c6cd; background: #fff; color: #45464d; border-radius: 8px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; }
-.setup-tabs button:hover { background: #eff4ff; }
+.setup-tabs button:hover { background: #e8f5ec; }
 .setup-tabs button.active { background: #006c49; border-color: #006c49; color: #fff; }
 
 /* Modules manager */
@@ -1791,7 +1791,7 @@ html.dark .checkout-field select { background: #333d48; border-color: #444; colo
 html.dark .checkout-chip { background: #333d48; border-color: #444; color: #c8cad1; }
 html.dark .checkout-chip.active { background: #006c49; border-color: #006c49; color: #fff; }
 html.dark .setup-tabs button { background: #27313c; border-color: #3a3a3a; color: #c8cad1; }
-html.dark .setup-tabs button:hover { background: #333d48; }
+html.dark .setup-tabs button:hover { background: #1e5138; }
 html.dark .setup-tabs button.active { background: #006c49; border-color: #006c49; color: #fff; }
 html.dark .module-example { background: #333d48; border-color: #444; color: #c8cad1; }
 html.dark .module-example code { background: #27313c; border-color: #3a3a3a; }
@@ -2895,7 +2895,8 @@ html.dark .text-muted, html.dark .empty-text { color: #9aa0a6; }
 html.dark .modules-header small, html.dark .panel-header small { color: #9aa0a6; }
 html.dark .cart-checkout-hint { color: #9aa0a6; }
 html.dark .action-card-btn { background: #27313c !important; }
-html.dark .action-card-btn:hover { background: #333d48 !important; }
+html.dark .action-card-btn:hover { background: #1e5138 !important; }
+html.dark .condo-counts .count-link:hover { background: #1e5138; border-color: #24563f; color: #7fe0b0; }
 
 /* ---- Text size control ---- */
 .text-size-control {
