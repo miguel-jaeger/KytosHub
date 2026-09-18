@@ -60,10 +60,6 @@ function Dashboard() {
   const { condominium, setCondominium } = useCondominium();
   const { list: listModules } = useCondoModules();
   const navigate = useNavigate();
-  const canManageUsers = role === 'super' || role === 'admin';
-  const canManageCondo = role === 'admin';
-  const isSecurity = role === 'security';
-  const isGaritaOperator = role === 'security';
 
   const [schemaName, setSchemaName] = useState<string | null>(condominium?.schema_name || null);
   const [tenantId, setTenantId] = useState<string | null>(null);
@@ -158,6 +154,22 @@ function Dashboard() {
   };
 
   const modulesByAccess: { to?: string; onClick?: () => void; title: string; desc: string; icon: string }[] = [];
+
+  // Platform modules always available to managers.
+  if (role === 'super') {
+    modulesByAccess.push(
+      { to: '/admin/condominiums', title: 'Administrar Condominios', desc: 'Ver, registrar y gestionar condominios', icon: 'apartment' },
+      { onClick: () => void openMyCondominium(), title: 'Mi Condominio', desc: 'Estructura, puertas, módulos activos, carritos y estacionamiento', icon: 'home_work' },
+      { to: '/admin/users', title: 'Gestionar Usuarios', desc: 'Administrar roles y accesos del condominio', icon: 'group' }
+    );
+  } else if (role === 'admin') {
+    modulesByAccess.push(
+      { onClick: () => void openMyCondominium(), title: 'Mi Condominio', desc: 'Estructura, puertas, módulos activos, carritos y estacionamiento', icon: 'home_work' },
+      { to: '/admin/users', title: 'Gestionar Usuarios', desc: 'Administrar roles y accesos del condominio', icon: 'group' }
+    );
+  }
+
+  // Condominium modules the user can access per active flags.
   for (const m of activeModules) {
     if (m.module_key === 'parking_control') {
       if (role === 'security') modulesByAccess.push({ to: '/garita', title: 'Estacionamiento', desc: 'Control de entradas y salidas en garita', icon: 'local_parking' });
@@ -175,45 +187,6 @@ function Dashboard() {
   return (
     <div className="dashboard">
       <h2>Panel de Control</h2>
-
-      {(!canManageUsers && !isSecurity) ? (
-        <div className="welcome-card">
-          <span className="material-symbols-outlined">waving_hand</span>
-          <h3>¡Bienvenido{user?.name ? `, ${user.name}` : ''}!</h3>
-          <p>Estos son los módulos del condominio a los que tienes acceso según tus permisos.</p>
-        </div>
-      ) : (
-        <div className="quick-actions">
-          {role === 'super' && (
-            <Link to="/admin/condominiums" className="action-card">
-              <span className="material-symbols-outlined">apartment</span>
-              <h3>Administrar Condominios</h3>
-              <p>Ver, registrar y gestionar condominios</p>
-            </Link>
-          )}
-          {isGaritaOperator && (
-            <Link to="/garita" className="action-card">
-              <span className="material-symbols-outlined">shield</span>
-              <h3>Panel de Garita</h3>
-              <p>Préstamo de carritos y control de estacionamiento</p>
-            </Link>
-          )}
-          {canManageCondo && (
-            <button onClick={openMyCondominium} className="action-card action-card-btn">
-              <span className="material-symbols-outlined">home_work</span>
-              <h3>Mi Condominio</h3>
-              <p>Estructura, puertas, módulos activos, carritos y estacionamiento</p>
-            </button>
-          )}
-          {canManageUsers && (
-            <Link to="/admin/users" className="action-card">
-              <span className="material-symbols-outlined">group</span>
-              <h3>Gestionar Usuarios</h3>
-              <p>Administrar roles y accesos del condominio</p>
-            </Link>
-          )}
-        </div>
-      )}
 
       <div className="modules-header">
         <h3>Módulos disponibles</h3>
