@@ -81,17 +81,57 @@ async function thresholdVariant(dataUrl: string, width: number, threshold: numbe
   return canvas.toDataURL('image/png');
 }
 
-// Common Peruvian plates: ABC-123, ABC-1234 (plus hyphenless variants).
-function hyphenVariants(token: string): string[] {
-  const out = [token];
-  if (/^[A-Z]{3}[0-9]{3}$/.test(token)) out.push(`${token.slice(0, 3)}-${token.slice(3)}`);
-  if (/^[A-Z]{3}[0-9]{4}$/.test(token)) out.push(`${token.slice(0, 3)}-${token.slice(3)}`);
-  if (/^[A-Z]{4}[0-9]{3}$/.test(token)) out.push(`${token.slice(0, 4)}-${token.slice(4)}`);
+// Peruvian plates are 6 characters split by a hyphen: the first 3 are
+// alphanumeric (ABC-123, A1B-234) and the last 3 are digits. Legacy 7-char
+// formats (ABC-1234, ABCD-123) are kept as fallbacks.
+const HEAD_LETTER_FIX: Record<string, string> = { '0': 'O', '1': 'I', '2': 'Z', '4': 'A', '5': 'S', '6': 'G', '8': 'B' };
+const TAIL_DIGIT_FIX: Record<string, string> = { O: '0', I: '1', L: '1', Z: '2', S: '5', B: '8', G: '6' };
+
+// Normalize a raw OCR token into canonical hyphenated plate candidates.
+function plateVariants(token: string): string[] {
+  const base = token.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!base) return [];
+  const out: string[] = [];
+  const add = (p: string) => { if (p && !out.includes(p)) out.push(p); };
+
+  if (/^[A-Z0-9]{3}[0-9]{3}$/.test(base)) {
+    add(`${base.slice(0, 3)}-${base.slice(3)}`);
+  }
+  // Legacy 7-char plates.
+  if (/^[A-Z]{3}[0-9]{4}$/.test(base)) add(`${base.slice(0, 3)}-${base.slice(3)}`);
+  if (/^[A-Z]{4}[0-9]{3}$/.test(base)) add(`${base.slice(0, 4)}-${base.slice(4)}`);
+
+  // Fix common OCR misreads on 6-char plates: the last 3 must be digits and
+  // the first 3 usually letters.
+  if (/^[A-Z0-9]{6}$/.test(base)) {
+    const head = base.slice(0, 3);
+    const fixedTail = [...base.slice(3)].map(ch => TAIL_DIGIT_FIX[ch] ?? ch).join('');
+    if (/^[0-9]{3}$/.test(fixedTail)) {
+      add(`${head}-${fixedTail}`);
+      for (let i = 0; i < head.length; i++) {
+        const fix = HEAD_LETTER_FIX[head[i]];
+        if (!fix) continue;
+        add(`${head.slice(0, i)}${fix}${head.slice(i + 1)}-${fixedTail}`);
+      }
+    }
+  }
   return out;
 }
 
 function tokenize(text: string): string[] {
-  return text.toUpperCase().split(/[^A-Z0-9]/).filter(t => t.length >= 4 && t.length <= 8);
+  const upper = text.toUpperCase();
+  const tokens = new Set<string>();
+  for (const word of upper.split(/\s+/)) {
+    const compact = word.replace(/[^A-Z0-9]/g, '');
+    if (compact.length >= 4 && compact.length <= 8) tokens.add(compact);
+  }
+  // OCR can glue the plate to neighboring text; scan the full line, but avoid
+  // partial/spurious matches inside longer alphanumeric runs.
+  const compactAll = upper.replace(/[^A-Z0-9]/g, '');
+  for (const m of compactAll.matchAll(/(?<![A-Z0-9])(?:[A-Z0-9]{3}[0-9]{3}|[A-Z]{3}[0-9]{4}|[A-Z]{4}[0-9]{3})(?![A-Z0-9])/g)) {
+    tokens.add(m[0]);
+  }
+  return [...tokens];
 }
 
 export async function recognizePlate(imageDataUrl: string, box?: ScanBox): Promise<PlateOcrResult> {
@@ -116,7 +156,7 @@ export async function recognizePlate(imageDataUrl: string, box?: ScanBox): Promi
       if (text) {
         texts.push(text.trim());
         for (const tok of tokenize(text)) {
-          for (const c of hyphenVariants(tok)) {
+          for (const c of plateVariants(tok)) {
             if (!seen.has(c)) {
               seen.add(c);
             }
@@ -126,11 +166,12 @@ export async function recognizePlate(imageDataUrl: string, box?: ScanBox): Promi
     } catch {}
   }
 
-  // Prefer variants that look like a plate (letters + digits) first.
+  // Prefer canonical ABC-123 plates first, then other letter+digit plates.
   const ordered: string[] = [];
-  const plateLike = [...seen].filter(t => /[A-Z]/.test(t) && /[0-9]/.test(t));
-  const others = [...seen].filter(t => !plateLike.includes(t));
-  ordered.push(...plateLike, ...others);
+  const canonical = [...seen].filter(t => /^[A-Z0-9]{3}-[0-9]{3}$/.test(t));
+  const plateLike = [...seen].filter(t => !canonical.includes(t) && /[A-Z]/.test(t) && /[0-9]/.test(t));
+  const others = [...seen].filter(t => !canonical.includes(t) && !plateLike.includes(t));
+  ordered.push(...canonical, ...plateLike, ...others);
 
   return { candidates: ordered, full_text: texts.join(' · ') };
 }
