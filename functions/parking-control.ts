@@ -874,10 +874,14 @@ async function enrichSpots(db: { from(t: string): any }, spots: Array<Record<str
   return spots.map(s => {
     const dept = s.department_id ? deptMap.get(s.department_id as string) : undefined;
     const tower = dept ? towerMap.get(dept.tower_id) : undefined;
+    const inside = Boolean(s.id && insideSpotIds.has(s.id as string));
     return {
       ...s,
-      departments: dept ? { department_number: dept.department_number, towers: tower ? { name: tower.name, code: tower.code } : undefined } : undefined,
-      inside: Boolean(s.id && insideSpotIds.has(s.id as string))
+      // Status is derived from the actual occupancy (open access logs) so a
+      // stale OCUPADO row never leaves the spot visually occupied.
+      status: inside ? 'OCUPADO' : 'DISPONIBLE',
+      inside,
+      departments: dept ? { department_number: dept.department_number, towers: tower ? { name: tower.name, code: tower.code } : undefined } : undefined
     };
   });
 }

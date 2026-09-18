@@ -2821,3 +2821,40 @@ html.dark .plaza-cell-empty { border-color: #333; }
 html.dark .plaza-legend-item { color: #c8cad1; }
 html.dark .plaza-total-preview { color: #c8cad1; }
 html.dark .plaza-total-preview strong { color: #69db7c; }
+
+/* ---- Card hover: text & icons follow the theme (black light / white dark) ---- */
+.action-card:hover, .action-card:hover h3, .action-card:hover p,
+.action-card:hover .material-symbols-outlined,
+.condominium-card:hover, .condominium-card:hover .condo-info h3, .condominium-card:hover .condo-info p,
+.condominium-card:hover .material-symbols-outlined,
+.module-card:hover, .module-card:hover h3, .module-card:hover h4, .module-card:hover p,
+.module-card:hover .material-symbols-outlined,
+.resident-grid-card:hover, .resident-grid-card:hover .resident-grid-name, .resident-grid-card:hover .resident-grid-meta,
+.resident-grid-card:hover .resident-grid-line, .resident-grid-card:hover .material-symbols-outlined,
+.parking-spot-card:hover, .parking-spot-card:hover .parking-spot-number, .parking-spot-card:hover .material-symbols-outlined,
+.tower-card:hover, .tower-card:hover h3, .tower-card:hover .tower-code, .tower-card:hover .tower-info, .tower-card:hover .material-symbols-outlined,
+.floor-card:hover, .floor-card:hover .floor-label, .floor-card:hover .floor-count, .floor-card:hover .material-symbols-outlined,
+.department-card:hover, .department-card:hover .department-number, .department-card:hover .material-symbols-outlined,
+.user-card:hover, .user-card:hover .user-card-line, .user-card:hover .user-card-label, .user-card:hover .material-symbols-outlined,
+.checkout-chip:hover:not(:disabled), .checkout-chip:hover:not(:disabled) .checkout-chip-code,
+.checkout-chip:hover:not(:disabled) .checkout-chip-name, .checkout-chip:hover:not(:disabled) .material-symbols-outlined {
+  color: #0b1c30;
+}
+
+html.dark .action-card:hover, html.dark .action-card:hover h3, html.dark .action-card:hover p,
+html.dark .action-card:hover .material-symbols-outlined,
+html.dark .condominium-card:hover, html.dark .condominium-card:hover .condo-info h3, html.dark .condominium-card:hover .condo-info p,
+html.dark .condominium-card:hover .material-symbols-outlined,
+html.dark .module-card:hover, html.dark .module-card:hover h3, html.dark .module-card:hover h4, html.dark .module-card:hover p,
+html.dark .module-card:hover .material-symbols-outlined,
+html.dark .resident-grid-card:hover, html.dark .resident-grid-card:hover .resident-grid-name, html.dark .resident-grid-card:hover .resident-grid-meta,
+html.dark .resident-grid-card:hover .resident-grid-line, html.dark .resident-grid-card:hover .material-symbols-outlined,
+html.dark .parking-spot-card:hover, html.dark .parking-spot-card:hover .parking-spot-number, html.dark .parking-spot-card:hover .material-symbols-outlined,
+html.dark .tower-card:hover, html.dark .tower-card:hover h3, html.dark .tower-card:hover .tower-code, html.dark .tower-card:hover .tower-info, html.dark .tower-card:hover .material-symbols-outlined,
+html.dark .floor-card:hover, html.dark .floor-card:hover .floor-label, html.dark .floor-card:hover .floor-count, html.dark .floor-card:hover .material-symbols-outlined,
+html.dark .department-card:hover, html.dark .department-card:hover .department-number, html.dark .department-card:hover .material-symbols-outlined,
+html.dark .user-card:hover, html.dark .user-card:hover .user-card-line, html.dark .user-card:hover .user-card-label, html.dark .user-card:hover .material-symbols-outlined,
+html.dark .checkout-chip:hover:not(:disabled), html.dark .checkout-chip:hover:not(:disabled) .checkout-chip-code,
+html.dark .checkout-chip:hover:not(:disabled) .checkout-chip-name, html.dark .checkout-chip:hover:not(:disabled) .material-symbols-outlined {
+  color: #fff;
+}
