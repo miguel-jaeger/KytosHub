@@ -2898,6 +2898,14 @@ html.dark .action-card-btn { background: #27313c !important; }
 html.dark .action-card-btn:hover { background: #1e5138 !important; }
 html.dark .condo-counts .count-link:hover { background: #1e5138; border-color: #24563f; color: #7fe0b0; }
 
+/* Ensure condo card action icons stay visible in dark mode */
+html.dark .condo-card-actions .icon-btn,
+html.dark .condo-card-actions .icon-btn .material-symbols-outlined { color: #e5e7eb; }
+html.dark .condo-card-actions .icon-btn.danger,
+html.dark .condo-card-actions .icon-btn.danger .material-symbols-outlined { color: #ff8a80; }
+html.dark .condo-card-actions .icon-btn:hover,
+html.dark .condo-card-actions .icon-btn:hover .material-symbols-outlined { color: #fff; }
+
 /* ---- Text size control ---- */
 .text-size-control {
   position: fixed;
