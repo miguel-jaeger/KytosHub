@@ -16,6 +16,7 @@ import { SetupWizard } from './modules/core/components/SetupWizard';
 import { SuperAdminDashboard } from './modules/core/components/SuperAdminDashboard';
 import { CondominioAdminDashboard } from './modules/core/components/CondominioAdminDashboard';
 import { invokeFunction } from './lib/insforge';
+import { TEXT_SCALES, getTextScale, setTextScale, applyTextScale, initTextScale } from './lib/text-size';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -35,8 +36,36 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function TextSizeControl() {
+  const [scale, setScale] = useState<number>(getTextScale());
+
+  useEffect(() => {
+    applyTextScale(getTextScale());
+  }, []);
+
+  const change = (delta: number) => {
+    const idx = Math.max(0, Math.min(TEXT_SCALES.length - 1, TEXT_SCALES.indexOf(scale) + delta));
+    const next = TEXT_SCALES[idx];
+    setScale(next);
+    setTextScale(next);
+  };
+
+  return (
+    <div className="text-size-control" title="Tamaño de texto">
+      <button aria-label="Disminuir tamaño de texto" onClick={() => change(-1)}>
+        <span className="material-symbols-outlined">text_decrease</span>
+      </button>
+      <span className="text-size-value">{Math.round(scale * 100)}%</span>
+      <button aria-label="Aumentar tamaño de texto" onClick={() => change(1)}>
+        <span className="material-symbols-outlined">text_increase</span>
+      </button>
+    </div>
+  );
+}
+
 function AppShell() {
   useTheme();
+  initTextScale();
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar />
@@ -52,6 +81,7 @@ function AppShell() {
           <Route path="/setup" element={<SetupWizard />} />
         </Routes>
       </div>
+      <TextSizeControl />
     </div>
   );
 }

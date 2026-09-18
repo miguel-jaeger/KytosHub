@@ -401,6 +401,8 @@ button:hover:not(:disabled) {
 button.btn-cancel {
   background: #ba1a1a;
   color: #fff;
+  padding: 0.3rem 0.5rem !important;
+  font-size: 0.85rem !important;
 }
 
 button.btn-cancel:hover:not(:disabled) {
@@ -2886,3 +2888,41 @@ html.dark .guard-gate-bar .material-symbols-outlined { color: #ffd54f; }
 html.dark .parking-status-head .material-symbols-outlined { color: #69db7c; }
 html.dark .parking-status-out .parking-status-head .material-symbols-outlined { color: #aaa; }
 html.dark .parking-search .search-bar .search-icon { color: #aaa; }
+html.dark .residents-table th { background: #2a2a2a; }
+html.dark .residents-manager { background: #1e1e1e; border-color: #333; }
+html.dark .image-click-area { background: #2a2a2a; border-color: #444; }
+html.dark .text-muted, html.dark .empty-text { color: #9aa0a6; }
+html.dark .modules-header small, html.dark .panel-header small { color: #9aa0a6; }
+html.dark .cart-checkout-hint { color: #9aa0a6; }
+
+/* ---- Text size control ---- */
+.text-size-control {
+  position: fixed;
+  right: 14px;
+  bottom: 82px;
+  z-index: 950;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  padding: 0.2rem 0.45rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
+}
+.text-size-control button {
+  background: none;
+  border: none;
+  color: #0b1c30;
+  padding: 0.1rem 0.3rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.text-size-control button:hover { background: #e8f5ec; color: #006c49; }
+.text-size-control .material-symbols-outlined { font-size: 18px; }
+.text-size-value { font-size: 0.72rem; font-weight: 600; color: #45464d; min-width: 34px; text-align: center; }
+html.dark .text-size-control { background: #1e1e1e; border-color: #333; }
+html.dark .text-size-control button { color: #c8cad1; }
+html.dark .text-size-control button:hover { background: #2a2a2a; color: #7fe0b0; }
+html.dark .text-size-value { color: #c8cad1; }
+@media (min-width: 821px) { .text-size-control { bottom: 16px; } }

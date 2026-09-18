@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import QRCode from 'qrcode';
+import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import { useVisitorAccess } from '../hooks/useVisitorAccess';
 import { useUserRole } from '../../../hooks/useUserRole';
@@ -13,6 +12,11 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const VEHICLE_LABELS: Record<VehicleType, string> = { AUTO: 'Auto', MOTO: 'Moto' };
+
+function vehicleLabel(v: VisitorVisit): string {
+  if (!v.vehicle_plate) return 'Sin vehículo';
+  return `${v.vehicle_plate} · ${VEHICLE_LABELS[v.vehicle_type] || v.vehicle_type}`;
+}
 
 function fmtDT(iso: string | null): string {
   if (!iso) return '-';
@@ -79,9 +83,8 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
   const [packageForm, setPackageForm] = useState({ description: '', carrier: '' });
   const [savingPackage, setSavingPackage] = useState(false);
 
-  const [qrVisit, setQrVisit] = useState<VisitorVisit | null>(null);
-  const [qrUrl, setQrUrl] = useState('');
-  const qrBusyRef = useRef(false);
+  const [noVehicle, setNoVehicle] = useState(false);
+  const [garitaDoc, setGaritaDoc] = useState('');
 
   const load = useCallback(async () => {
     if (!schemaName) { setLoading(false); return; }
@@ -134,22 +137,6 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
     }
   };
 
-  const openQr = async (v: VisitorVisit) => {
-    setQrVisit(v);
-    setQrUrl('');
-    setError(null);
-    if (qrBusyRef.current) return;
-    qrBusyRef.current = true;
-    try {
-      const url = await QRCode.toDataURL(`KYTOS:VISIT:${v.access_code}`, { width: 220, margin: 1 });
-      setQrUrl(url);
-    } catch {
-      setQrUrl('');
-    } finally {
-      qrBusyRef.current = false;
-    }
-  };
-
   const handleCreateVisit = async () => {
     if (!schemaName) return;
     if (!visitForm.full_name.trim() || !visitForm.document_number.trim()) {
@@ -169,7 +156,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
         full_name: visitForm.full_name.trim(),
         document_type: visitForm.document_type,
         document_number: visitForm.document_number.trim(),
-        vehicle_plate: visitForm.vehicle_plate.trim() || undefined,
+        vehicle_plate: noVehicle ? undefined : (visitForm.vehicle_plate.trim() || undefined),
         vehicle_type: visitForm.vehicle_type,
         scheduled_start: new Date(visitForm.scheduled_start).toISOString(),
         scheduled_end: new Date(visitForm.scheduled_end).toISOString()
@@ -184,6 +171,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
       });
       setVisitorTowerId(''); setVisitorFloorId(''); setVisitorDeptId('');
       setVisitorFloors([]); setVisitorDepts([]);
+      setNoVehicle(false);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error');
@@ -204,6 +192,22 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error');
     }
+  };
+
+  const handleGarita = async (op: 'confirm-entry' | 'confirm-exit') => {
+    if (!schemaName) return;
+    const doc = garitaDoc.trim();
+    if (!doc) { setError('Ingresa el documento (DNI/CE/Pasaporte) del visitante'); return; }
+    const match = visits.find(v =>
+      v.document_number.toLowerCase() === doc.toLowerCase() &&
+      (op === 'confirm-entry' ? v.status === 'PENDIENTE' : v.status === 'ACTIVO' && v.inside)
+    );
+    if (!match) {
+      setError(op === 'confirm-entry' ? 'No hay una visita pendiente con ese documento.' : 'No hay una visita dentro con ese documento.');
+      return;
+    }
+    await handleVisitOp(match, op);
+    setGaritaDoc('');
   };
 
   const handleCreatePackage = async () => {
@@ -260,8 +264,8 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
   return (
     <div className="visitor-access">
       <div className="setup-tabs">
-        <span className={tab === 'visits' ? 'active' : ''} onClick={() => setTab('visits')}>Visitas</span>
-        <span className={tab === 'packages' ? 'active' : ''} onClick={() => setTab('packages')}>Paquetería y delivery</span>
+        <button className={tab === 'visits' ? 'active' : ''} onClick={() => setTab('visits')}>Visitas</button>
+        <button className={tab === 'packages' ? 'active' : ''} onClick={() => setTab('packages')}>Paquetería y delivery</button>
       </div>
 
       {message && <div className="success-message" onClick={() => setMessage(null)}>{message} — clic para cerrar</div>}
@@ -269,10 +273,29 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
 
       {tab === 'visits' && (
         <>
+          {isOperator && (
+            <div className="cart-form visitor-garita">
+              <div className="modules-header">
+                <h4>Garita · Ingreso / Salida</h4>
+                <small>El visitante accede con su DNI, CE o Pasaporte: ingresa el documento y confirma su entrada o salida.</small>
+              </div>
+              <div className="filter-bar">
+                <div className="form-group">
+                  <label>Documento (DNI/CE/Pasaporte)</label>
+                  <input type="text" value={garitaDoc} onChange={e => setGaritaDoc(e.target.value)} placeholder="12345678" onKeyDown={e => { if (e.key === 'Enter') void handleGarita('confirm-entry'); }} />
+                </div>
+                <div className="filter-actions">
+                  <button className="btn-primary" onClick={() => void handleGarita('confirm-entry')}>Dar entrada</button>
+                  <button className="btn-danger" onClick={() => void handleGarita('confirm-exit')}>Dar salida</button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="panel-header">
             <div>
               <h3>Visitas anticipadas</h3>
-              <small>Registra visitas por adelantado; en garita se confirma el ingreso/salida con el código o pase QR.</small>
+              <small>Registra visitas por adelantado; en garita se confirma el ingreso/salida con el documento del visitante.</small>
             </div>
             <button onClick={() => setShowVisitForm(true)}>
               <span className="material-symbols-outlined">person_add</span> Registrar visita
@@ -282,7 +305,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
           <div className="filter-bar">
             <div className="form-group">
               <label>Buscar</label>
-              <input type="text" value={search} onChange={e => { setSearch(e.target.value); }} placeholder="Nombre, placa, documento o código..." />
+              <input type="text" value={search} onChange={e => { setSearch(e.target.value); }} placeholder="Nombre, documento o placa..." />
             </div>
             <div className="form-group">
               <label>Estado</label>
@@ -322,9 +345,9 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
                     const canCancel = v.status === 'PENDIENTE' || v.status === 'ACTIVO';
                     return (
                       <tr key={v.id}>
-                        <td><strong>{v.full_name}</strong><div className="text-muted">Código {v.access_code}</div></td>
+                        <td><strong>{v.full_name}</strong></td>
                         <td>{v.document_type} {v.document_number}</td>
-                        <td>{v.vehicle_plate || '-'} · {VEHICLE_LABELS[v.vehicle_type]}</td>
+                        <td>{vehicleLabel(v)}</td>
                         <td>{v.departments ? `${v.departments.department_number} (${v.departments.towers?.code || ''})` : 'General'}</td>
                         <td>{fmtDT(v.scheduled_start)}{v.scheduled_end ? ` → ${fmtDT(v.scheduled_end)}` : ''}</td>
                         <td>{fmtDT(v.entry_time)}</td>
@@ -332,7 +355,6 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
                         <td><VisitStatusBadge v={v} /></td>
                         <td>
                           <div className="resident-row-actions">
-                            <button className="btn-edit" onClick={() => void openQr(v)} title="Ver pase QR"><span className="material-symbols-outlined">qr_code_2</span></button>
                             {isOperator && v.status === 'PENDIENTE' && (
                               <button className="btn-primary" onClick={() => void handleVisitOp(v, 'confirm-entry')} title="Confirmar ingreso"><span className="material-symbols-outlined">login</span></button>
                             )}
@@ -355,15 +377,14 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
                   <div key={v.id} className="resident-grid-card">
                     <div className="resident-grid-main">
                       <span className="resident-grid-name">{v.full_name} · <VisitStatusBadge v={v} /></span>
-                      <span className="resident-grid-meta">Código {v.access_code} · {v.departments ? `Dpto ${v.departments.department_number}` : 'General'}</span>
+                      <span className="resident-grid-meta">{v.departments ? `Dpto ${v.departments.department_number}` : 'General'}</span>
                     </div>
                     <div className="resident-grid-fields">
                       <div className="resident-grid-line"><span className="resident-grid-label">Documento</span><span>{v.document_type} {v.document_number}</span></div>
-                      <div className="resident-grid-line"><span className="resident-grid-label">Vehículo</span><span>{v.vehicle_plate || '-'} · {VEHICLE_LABELS[v.vehicle_type]}</span></div>
+                      <div className="resident-grid-line"><span className="resident-grid-label">Vehículo</span><span>{vehicleLabel(v)}</span></div>
                       <div className="resident-grid-line"><span className="resident-grid-label">Horario</span><span>{fmtDT(v.scheduled_start)} → {fmtDT(v.scheduled_end)}</span></div>
                     </div>
                     <div className="resident-row-actions">
-                      <button className="btn-edit" onClick={() => void openQr(v)}><span className="material-symbols-outlined">qr_code_2</span> Ver pase</button>
                       {isOperator && v.status === 'PENDIENTE' && <button className="btn-primary" onClick={() => void handleVisitOp(v, 'confirm-entry')}>Ingreso</button>}
                       {isOperator && v.status === 'ACTIVO' && v.inside && <button className="btn-danger" onClick={() => void handleVisitOp(v, 'confirm-exit')}>Salida</button>}
                       {(v.status === 'PENDIENTE' || v.status === 'ACTIVO') && <button className="btn-cancel" onClick={() => void handleVisitOp(v, 'cancel')}>Cancelar</button>}
@@ -569,33 +590,6 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
                 <button className="btn-cancel" onClick={() => setShowPackageForm(false)}>Cancelar</button>
                 <button onClick={handleCreatePackage} disabled={savingPackage}>{savingPackage ? 'Guardando...' : 'Recibir paquete'}</button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {qrVisit && (
-        <div className="modal-overlay" onClick={() => setQrVisit(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
-            <div className="modal-header">
-              <div>
-                <h3>Pase QR · {qrVisit.full_name}</h3>
-                <p className="text-on-surface-variant">Código {qrVisit.access_code}</p>
-              </div>
-              <button className="modal-close" onClick={() => setQrVisit(null)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
-            </div>
-            <div className="modal-body" style={{ textAlign: 'center' }}>
-              {qrUrl ? (
-                <img src={qrUrl} alt={`QR ${qrVisit.access_code}`} style={{ maxWidth: 220, background: '#fff', borderRadius: 8, padding: 8 }} />
-              ) : (
-                <p className="text-muted">Generando código QR...</p>
-              )}
-              <p className="resident-grid-line" style={{ justifyContent: 'center' }}>
-                <span className="resident-grid-label" style={{ minWidth: 'auto' }}>{qrVisit.document_type} </span>
-                <span>{qrVisit.document_number}</span>
-              </p>
-              <p className="text-muted">Depto {qrVisit.departments?.department_number || 'General'} · {VEHICLE_LABELS[qrVisit.vehicle_type]}{qrVisit.vehicle_plate ? ` · ${qrVisit.vehicle_plate}` : ''}</p>
-              <p className="text-muted">{fmtDT(qrVisit.scheduled_start)} → {fmtDT(qrVisit.scheduled_end)}</p>
             </div>
           </div>
         </div>
