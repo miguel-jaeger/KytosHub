@@ -13,12 +13,13 @@ require_uppercase = false
 require_special_char = false
 
 [auth.smtp]
-enabled = false
-host = ""
+enabled = true
+host = "smtp.gmail.com"
 port = 465
-username = ""
-sender_email = ""
-sender_name = ""
+username = "miguel.jaeger@gmail.com"
+password = "env(SMTP_PASSWORD)"
+sender_email = "miguel.jaeger@gmail.com"
+sender_name = "KytosHub"
 min_interval_seconds = 60
 
 [storage]

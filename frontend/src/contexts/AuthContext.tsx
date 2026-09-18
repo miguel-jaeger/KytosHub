@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from 'react';
 import { insforge, invokeFunction } from '../lib/insforge';
 import { saveAuth, loadAuth, clearAuth } from '../lib/auth-storage';
 
@@ -31,21 +31,62 @@ function mapUser(raw: Record<string, unknown>): AuthUser {
   };
 }
 
+// The SDK keeps the session (access token + user) in memory. There is no public
+// getter, but we can read it defensively so the token can be persisted to
+// localStorage and survive a page reload (F5).
+function readSdkSession(): { accessToken?: string } | null {
+  try {
+    const auth = (insforge as unknown as {
+      auth?: { tokenManager?: { getSession?: () => { accessToken?: string } | null } };
+    }).auth;
+    const session = auth?.tokenManager?.getSession?.();
+    if (session?.accessToken) return session;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const userRef = useRef<AuthUser | null>(null);
+
+  const applyUser = useCallback((u: AuthUser | null) => {
+    userRef.current = u;
+    setUser(u);
+  }, []);
+
+  const persistSession = useCallback((activeUser?: AuthUser) => {
+    try {
+      const session = readSdkSession();
+      const u = activeUser ?? userRef.current;
+      if (u?.id && session?.accessToken) {
+        saveAuth(session.accessToken, u);
+      }
+    } catch {}
+  }, []);
+
+  // Keep localStorage in sync whenever the SDK rotates the session token
+  // (sign-in, refresh, OAuth callback).
+  useEffect(() => {
+    return insforge.auth.onAuthStateChange(() => persistSession());
+  }, [persistSession]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function hydrateAuth() {
-      // Google/other OAuth callback landing: always let the SDK process the
-      // authorization code (never reuse a cached token over it).
       const isOAuthCallback = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('insforge_code');
+
+      // Google/other OAuth callback landing: let the SDK process the code,
+      // then capture its token in localStorage.
       if (isOAuthCallback) {
         const { data, error } = await insforge.auth.getCurrentUser();
         if (!cancelled && !error && data?.user) {
-          setUser(mapUser(data.user));
+          const u = mapUser(data.user);
+          applyUser(u);
+          persistSession(u);
         }
         return;
       }
@@ -54,12 +95,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const cached = loadAuth();
       if (cached?.token) {
         insforge.setAccessToken(cached.token);
-        const { data, error } = await invokeFunction<{ success: boolean; error: { message: string } | null }>('list-condominium-users', {
+        const res = await invokeFunction<{ success: boolean; error: { message: string } | null }>('list-condominium-users', {
           method: 'POST',
           body: { action: 'list-by-user', user_id: cached.user.id }
         });
-        if (!cancelled && !error && data?.success) {
-          setUser({ id: cached.user.id, email: cached.user.email, name: cached.user.name, avatar_url: cached.user.avatar_url });
+        if (!cancelled && !res.error && res.data?.success) {
+          applyUser({ id: cached.user.id, email: cached.user.email, name: cached.user.name, avatar_url: cached.user.avatar_url });
           return;
         }
         if (!cancelled) {
@@ -67,7 +108,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // the session (refresh/CSRF cookies) before giving up.
           const { data: current, error: currentError } = await insforge.auth.getCurrentUser();
           if (!currentError && current?.user) {
-            setUser(mapUser(current.user));
+            const u = mapUser(current.user);
+            applyUser(u);
+            persistSession(u);
             return;
           }
           clearAuth();
@@ -76,10 +119,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // No persisted token: rely on the SDK session (e.g. OAuth cookie refresh).
+      // No persisted token: rely on the SDK session (e.g. OAuth cookie refresh)
+      // and persist it so the next reload does not depend on cookies.
       const { data, error } = await insforge.auth.getCurrentUser();
       if (!cancelled && !error && data?.user) {
-        setUser(mapUser(data.user));
+        const u = mapUser(data.user);
+        applyUser(u);
+        persistSession(u);
       }
     }
 
@@ -89,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [applyUser, persistSession]);
 
   const signInWithPassword = useCallback(async (email: string, password: string) => {
     const { data, error } = await insforge.auth.signInWithPassword({ email, password });
@@ -98,12 +144,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     if (data?.user) {
       const u = mapUser(data.user as unknown as Record<string, unknown>);
-      setUser(u);
-      const token = (data as { accessToken?: string }).accessToken;
-      if (token) saveAuth(token, u);
+      applyUser(u);
+      persistSession(u);
     }
     return { error: null };
-  }, []);
+  }, [applyUser, persistSession]);
 
   const signUp = useCallback(async (email: string, password: string, name: string) => {
     const { data, error } = await insforge.auth.signUp({
@@ -120,14 +165,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data?.accessToken) {
       if (data.user) {
         const u = mapUser(data.user as unknown as Record<string, unknown>);
-        setUser(u);
-        saveAuth(data.accessToken, u);
+        applyUser(u);
+        persistSession(u);
       }
       return { error: null, requireVerification: false };
     }
 
     return { error: null, requireVerification: Boolean(data?.requireEmailVerification) };
-  }, []);
+  }, [applyUser, persistSession]);
 
   const signInWithGoogle = useCallback(async () => {
     const { error } = await insforge.auth.signInWithOAuth('google', {
@@ -139,11 +184,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     await insforge.auth.signOut();
     clearAuth();
-    setUser(null);
-  }, []);
+    applyUser(null);
+  }, [applyUser]);
 
   const updateAvatar = useCallback((url: string) => {
     setUser(prev => prev ? { ...prev, avatar_url: url } : prev);
+    userRef.current = userRef.current ? { ...userRef.current, avatar_url: url } : userRef.current;
   }, []);
 
   return (
