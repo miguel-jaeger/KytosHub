@@ -108,6 +108,119 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
     return { rows, spots_per_row: Array.from({ length: rows }, () => per) };
   };
 
+  const renderModuleConfig = (m: ModuleInfo) => {
+    const canEdit = m.can_edit_config ?? isSuperAdmin;
+    const cartConfig = m.module_key === 'cart_lending';
+    const parkingConfig = m.module_key === 'parking_control';
+    if (cartConfig) {
+      return (
+        <>
+          <div className="cart-config-form">
+            {CART_CONFIG_FIELDS.map(f => (
+              <label key={f.key}>
+                {f.label}
+                {f.type === 'checkbox' ? (
+                  <input
+                    type="checkbox"
+                    disabled={!canEdit}
+                    checked={!!((JSON.parse(configDrafts?.[m.module_key] || '{}') || {} as Record<string, unknown>)[f.key])}
+                    onChange={e => updateDraftField(m, f.key, e.target.checked)}
+                  />
+                ) : (
+                  <input
+                    type="number"
+                    disabled={!canEdit}
+                    value={String((JSON.parse(configDrafts?.[m.module_key] || '{}') || {} as Record<string, unknown>)[f.key] ?? '')}
+                    onChange={e => updateDraftField(m, f.key, Number(e.target.value))}
+                  />
+                )}
+              </label>
+            ))}
+          </div>
+          <div className="module-example">
+            <span className="material-symbols-outlined">info</span>
+            <span>
+              Parámetros de préstamo y multas por demora. Las <strong>puertas</strong> y su capacidad por tipo de carrito se configuran en la pestaña <strong>Puertas</strong>.
+            </span>
+          </div>
+        </>
+      );
+    }
+    if (parkingConfig) {
+      return (
+        <>
+          <div className="cart-config-form">
+            <label>
+              Filas de estacionamiento
+              <input
+                type="number"
+                min={1}
+                max={50}
+                disabled={!canEdit}
+                value={String(parkingLayoutOf(m).rows)}
+                onChange={e => {
+                  const n = Math.max(1, Math.min(50, Number(e.target.value) || 1));
+                  const current = parkingLayoutOf(m);
+                  const counts = [...current.spots_per_row];
+                  while (counts.length < n) counts.push(counts[counts.length - 1] || 1);
+                  updateParkingLayoutField(m, { rows: n, spots_per_row: counts.slice(0, n) });
+                }}
+              />
+            </label>
+            {Array.from({ length: parkingLayoutOf(m).rows }, (_, i) => (
+              <label key={i}>
+                Plazas en fila {i + 1}
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  disabled={!canEdit}
+                  value={String(parkingLayoutOf(m).spots_per_row[i] ?? 1)}
+                  onChange={e => {
+                    const current = parkingLayoutOf(m);
+                    const counts = [...current.spots_per_row];
+                    counts[i] = Math.max(1, Math.min(50, Number(e.target.value) || 1));
+                    updateParkingLayoutField(m, { rows: current.rows, spots_per_row: counts });
+                  }}
+                />
+              </label>
+            ))}
+          </div>
+          <div className="module-example">
+            <span className="material-symbols-outlined">info</span>
+            <span>
+              El layout visual (filas × plazas por fila, distintas por fila) y el mapa de plazas se administran en la pestaña <strong>Estacionamiento</strong>. Guardado aquí solo persiste el layout indicado.
+            </span>
+          </div>
+        </>
+      );
+    }
+    if (m.module_key === 'visitor_access') {
+      return (
+        <>
+          <div className="cart-config-form">
+            <label>
+              Máximo de visitas simultáneas por departamento
+              <input
+                type="number"
+                min={1}
+                max={50}
+                disabled={!canEdit}
+                value={String((JSON.parse(configDrafts?.[m.module_key] || '{}') || {} as Record<string, unknown>).max_simultaneous_per_department ?? 2)}
+                onChange={e => updateDraftField(m, 'max_simultaneous_per_department', Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
+              />
+            </label>
+          </div>
+          <div className="module-example">
+            <span className="material-symbols-outlined">info</span>
+            <span>Regla de restricción: cantidad máxima de visitas simultáneas (pendientes o dentro del condominio) por departamento.</span>
+          </div>
+        </>
+      );
+    }
+    return <p className="text-muted">Este módulo no requiere configuración adicional.</p>;
+  };
+
   if (loading) return <div className="loading-message">Cargando módulos...</div>;
   if (error) return <div className="error-message">{error}</div>;
   if (!schemaName) return <div className="empty-state"><p>Seleccione un condominio para ver sus módulos.</p></div>;
@@ -119,6 +232,8 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
   const visibleModules = canManageModules ? modules : modules.filter(m => m.is_enabled);
 
   if (visibleModules.length === 0) return <div className="empty-state"><p>Este condominio no tiene módulos activos.</p></div>;
+
+  const activeConfig = modules.find(m => m.module_key === openConfig) ?? null;
 
   return (
     <div className="modules-manager">
@@ -133,8 +248,6 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
 
       <div className="modules-grid">
         {visibleModules.map(m => {
-          const cartConfig = m.module_key === 'cart_lending';
-          const parkingConfig = m.module_key === 'parking_control';
           const canToggle = m.can_toggle ?? isSuperAdmin;
           const canEdit = m.can_edit_config ?? isSuperAdmin;
           return (
@@ -149,11 +262,11 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
                   {canEdit && (
                     <button
                       className="icon-btn"
-                      onClick={() => setOpenConfig(openConfig === m.module_key ? null : m.module_key)}
-                      title={openConfig === m.module_key ? 'Ocultar configuración' : 'Configuración'}
+                      onClick={() => setOpenConfig(m.module_key)}
+                      title="Configuración"
                       aria-label="Configuración"
                     >
-                      <span className="material-symbols-outlined">{openConfig === m.module_key ? 'close' : 'settings'}</span>
+                      <span className="material-symbols-outlined">settings</span>
                     </button>
                   )}
                 </div>
@@ -168,120 +281,37 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
                   <span>{m.is_enabled ? 'Activo' : 'Inactivo'}</span>
                 </div>
               )}
-
-              {openConfig === m.module_key && (
-              <div className="module-config">
-                {cartConfig ? (
-                  <>
-                    <div className="cart-config-form">
-                      {CART_CONFIG_FIELDS.map(f => (
-                        <label key={f.key}>
-                          {f.label}
-                          {f.type === 'checkbox' ? (
-                            <input
-                              type="checkbox"
-                              disabled={!canEdit}
-                              checked={!!((JSON.parse(configDrafts?.[m.module_key] || '{}') || {} as Record<string, unknown>)[f.key])}
-                              onChange={e => updateDraftField(m, f.key, e.target.checked)}
-                            />
-                          ) : (
-                            <input
-                              type="number"
-                              disabled={!canEdit}
-                              value={String((JSON.parse(configDrafts?.[m.module_key] || '{}') || {} as Record<string, unknown>)[f.key] ?? '')}
-                              onChange={e => updateDraftField(m, f.key, Number(e.target.value))}
-                            />
-                          )}
-                        </label>
-                      ))}
-                    </div>
-                    <div className="module-example">
-                      <span className="material-symbols-outlined">info</span>
-                      <span>
-                        Parámetros de préstamo y multas por demora. Las <strong>puertas</strong> y su capacidad por tipo de carrito se configuran en la pestaña <strong>Puertas</strong>.
-                      </span>
-                    </div>
-                  </>
-                ) : parkingConfig ? (
-                  <>
-                    <div className="cart-config-form">
-                      <label>
-                        Filas de estacionamiento
-                        <input
-                          type="number"
-                          min={1}
-                          max={50}
-                          disabled={!canEdit}
-                          value={String(parkingLayoutOf(m).rows)}
-                          onChange={e => {
-                            const n = Math.max(1, Math.min(50, Number(e.target.value) || 1));
-                            const current = parkingLayoutOf(m);
-                            const counts = [...current.spots_per_row];
-                            while (counts.length < n) counts.push(counts[counts.length - 1] || 1);
-                            updateParkingLayoutField(m, { rows: n, spots_per_row: counts.slice(0, n) });
-                          }}
-                        />
-                      </label>
-                      {Array.from({ length: parkingLayoutOf(m).rows }, (_, i) => (
-                        <label key={i}>
-                          Plazas en fila {i + 1}
-                          <input
-                            type="number"
-                            min={1}
-                            max={50}
-                            disabled={!canEdit}
-                            value={String(parkingLayoutOf(m).spots_per_row[i] ?? 1)}
-                            onChange={e => {
-                              const current = parkingLayoutOf(m);
-                              const counts = [...current.spots_per_row];
-                              counts[i] = Math.max(1, Math.min(50, Number(e.target.value) || 1));
-                              updateParkingLayoutField(m, { rows: current.rows, spots_per_row: counts });
-                            }}
-                          />
-                        </label>
-                      ))}
-                    </div>
-                    <div className="module-example">
-                      <span className="material-symbols-outlined">info</span>
-                      <span>
-                        El layout visual (filas × plazas por fila, distintas por fila) y el mapa de plazas se administran en la pestaña <strong>Estacionamiento</strong>. Guardado aquí solo persiste el layout indicado.
-                      </span>
-                    </div>
-                  </>
-                ) : m.module_key === 'visitor_access' ? (
-                  <>
-                    <div className="cart-config-form">
-                      <label>
-                        Máximo de visitas simultáneas por departamento
-                        <input
-                          type="number"
-                          min={1}
-                          max={50}
-                          disabled={!canEdit}
-                          value={String((JSON.parse(configDrafts?.[m.module_key] || '{}') || {} as Record<string, unknown>).max_simultaneous_per_department ?? 2)}
-                          onChange={e => updateDraftField(m, 'max_simultaneous_per_department', Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
-                        />
-                      </label>
-                    </div>
-                    <div className="module-example">
-                      <span className="material-symbols-outlined">info</span>
-                      <span>Regla de restricción: cantidad máxima de visitas simultáneas (pendientes o dentro del condominio) por departamento.</span>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-muted">Este módulo no requiere configuración adicional.</p>
-                )}
-                {canEdit && (
-                  <button className="btn-primary" onClick={() => handleSaveConfig(m)} disabled={savingKey === m.module_key}>
-                    Guardar configuración
-                  </button>
-                )}
-              </div>
-              )}
             </div>
           );
         })}
       </div>
+
+      {activeConfig && (
+        <div className="modal-overlay" onClick={() => setOpenConfig(null)}>
+          <div className="modal-content module-config-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>Configuración de {activeConfig.name}</h3>
+                <p className="text-muted">{activeConfig.description}</p>
+              </div>
+              <button className="modal-close" onClick={() => setOpenConfig(null)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
+            </div>
+            <div className="modal-body">
+              <div className="module-config">
+                {renderModuleConfig(activeConfig)}
+              </div>
+              {(activeConfig.can_edit_config ?? isSuperAdmin) && (
+                <div className="form-actions">
+                  <button className="btn-cancel" onClick={() => setOpenConfig(null)}>Cancelar</button>
+                  <button className="btn-primary" onClick={() => handleSaveConfig(activeConfig)} disabled={savingKey === activeConfig.module_key}>
+                    {savingKey === activeConfig.module_key ? 'Guardando...' : 'Guardar configuración'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
