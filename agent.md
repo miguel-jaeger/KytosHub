@@ -16,7 +16,8 @@ SaaS modular para la administración, control operativo, reservas, estacionamien
 
 > Fuente única de instrucciones de trabajo. El usuario no repetirá estas reglas en cada
 > mensaje: leerlas desde este fichero y mantenerlas actualizadas cuando cambien flujos,
-> comandos o convenciones.
+> comandos o convenciones. Al terminar cada cambio, el agente lo entrega por su cuenta
+> (commit → merge hasta `main` → push) siguiendo la sección 0.3, sin que el usuario lo pida.
 
 ### 0.1. Ramas y Git (reglas obligatorias)
 - **Nunca trabajar sobre `main` directamente** y **nunca commitear/pushear commits de trabajo
@@ -42,17 +43,26 @@ y `git stash pop` (no perder trabajo en el checkout).
 - En **inglés**, estilo convencional: `feat(scope): subject` / `fix(scope): subject`.
 - Un commit por cambio lógico/atómico; stagear únicamente los archivos de ese commit.
 
-### 0.3. Validación obligatoria
+### 0.3. Entrega automática (commit → merge → push)
+- Al terminar de implementar un cambio y **validar el build**, el agente **debe** entregarlo
+  por sí mismo **sin esperar a que el usuario lo pida**: commitear en rama nueva desde `dev`,
+  pushearla, mergearla a `dev`, mergearla a `main` y pushear ambas (ciclo de entrega del 0.1).
+- Mientras haya cambios sin commitear en el árbol, el agente **no debe** dar por terminada la
+  tarea; debe commitearlos y llevar la entrega hasta `main` automáticamente.
+- No preguntar "¿commiteo y pusheo?" salvo que haya un conflicto, un riesgo de `--force` o una
+  ambigüedad real (por ejemplo, cambios no solicitados o incompletos).
+
+### 0.4. Validación obligatoria
 - Todo cambio en `frontend/` debe validarse ejecutando `npm run build` en `frontend/`
   (ejecuta `tsc` + `vite build`). No finalizar una tarea si el build no pasa.
 
-### 0.4. Convenciones de idioma y estilo (resumen)
+### 0.5. Convenciones de idioma y estilo (resumen)
 - Código, funciones, APIs, DTOs, ramas, commits y nombres: **inglés**.
 - Interfaz, labels, mensajes y validaciones visibles al usuario: **español**.
 - React + TypeScript estricto (sin `any`), componentes organizados por módulos en
   `frontend/src/modules/`.
 
-### 0.5. Mantener este fichero al día
+### 0.6. Mantener este fichero al día
 - Actualizar esta sección siempre que cambien las reglas de trabajo, ramas, comandos o
   convenciones del proyecto.
 
