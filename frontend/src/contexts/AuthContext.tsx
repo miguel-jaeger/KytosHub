@@ -73,12 +73,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Keep localStorage in sync whenever the SDK rotates the session token
-  // (sign-in, refresh, OAuth callback).
+  // (sign-in, refresh, OAuth callback). When React has no user yet (e.g. the
+  // Google OAuth exchange landing), adopt the SDK's session so the app flips
+  // to the newly authenticated account without relying on stale local data.
   useEffect(() => {
-    return insforge.auth.onAuthStateChange(() => {
-      void persistSession();
+    return insforge.auth.onAuthStateChange(async () => {
+      try {
+        const { data, error } = await insforge.auth.getCurrentUser();
+        if (error) return;
+        const u = data?.user ? mapUser(data.user) : null;
+        if (u?.id) {
+          if (!userRef.current) applyUser(u);
+          void persistSession(u);
+        }
+      } catch {
+        /* ignore */
+      }
     });
-  }, [persistSession]);
+  }, [persistSession, applyUser]);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,7 +110,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Restore the persisted token from localStorage and validate auth + role.
+      // The SDK session (httpOnly refresh cookie) is the source of truth. It
+      // reflects the account the backend actually holds, including a freshly
+      // exchanged Google OAuth session, so it must win over any localStorage
+      // cache from a previous/other account.
+      const { data: current, error: currentError } = await insforge.auth.getCurrentUser();
+      if (!cancelled && !currentError && current?.user) {
+        const u = mapUser(current.user);
+        applyUser(u);
+        persistSession(u);
+        return;
+      }
+
+      // No SDK session: fall back to the persisted token (offline reloads or
+      // restored single-page state), validating it before restoring.
       const cached = loadAuth();
       if (cached?.token) {
         insforge.setAccessToken(cached.token);
@@ -119,9 +144,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!cancelled) {
           // The persisted access token may have expired: let the SDK refresh
           // the session (refresh/CSRF cookies) before giving up.
-          const { data: current, error: currentError } = await insforge.auth.getCurrentUser();
-          if (!currentError && current?.user) {
-            const u = mapUser(current.user);
+          const { data: viaRefresh, error: viaRefreshError } = await insforge.auth.getCurrentUser();
+          if (!viaRefreshError && viaRefresh?.user) {
+            const u = mapUser(viaRefresh.user);
             applyUser(u);
             persistSession(u);
             return;
@@ -130,15 +155,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           try { await insforge.auth.signOut(); } catch {}
         }
         return;
-      }
-
-      // No persisted token: rely on the SDK session (e.g. OAuth cookie refresh)
-      // and persist it so the next reload does not depend on cookies.
-      const { data, error } = await insforge.auth.getCurrentUser();
-      if (!cancelled && !error && data?.user) {
-        const u = mapUser(data.user);
-        applyUser(u);
-        persistSession(u);
       }
     }
 
@@ -192,16 +208,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applyUser, persistSession]);
 
   const signInWithGoogle = useCallback(async () => {
+    // Drop any previous account stored locally so the OAuth callback can not
+    // restore the old session and keeps using the correct refresh cookie.
+    applyUser(null);
+    clearAuth();
     const { error } = await insforge.auth.signInWithOAuth('google', {
       redirectTo: window.location.origin
     });
     return { error: error?.message ?? null };
-  }, []);
+  }, [applyUser]);
 
   const signOut = useCallback(async () => {
-    await insforge.auth.signOut();
-    clearAuth();
+    // Invalidate in-memory state and remove our stored session first, so the
+    // SDK's onAuthStateChange callback can not re-persist the old account.
     applyUser(null);
+    clearAuth();
+    try {
+      await insforge.auth.signOut();
+    } catch {}
+    clearAuth();
+    // Clear the JS-readable CSRF cookie too; the httpOnly refresh cookie is
+    // removed server-side by the SDK.
+    try {
+      document.cookie = 'insforge_csrf_token=; Max-Age=0; path=/; SameSite=Lax';
+    } catch {}
   }, [applyUser]);
 
   const updateAvatar = useCallback((url: string) => {
