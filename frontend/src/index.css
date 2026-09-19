@@ -1665,8 +1665,8 @@ html.dark .theme-switch input:checked + .theme-switch-track { background: #006c4
 .checkout-field { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.85rem; }
 .checkout-field > label { font-size: 0.8rem; font-weight: 600; color: #45464d; }
 .checkout-field select { padding: 0.6rem 0.6rem; border: 1px solid #c6c6cd; border-radius: 8px; background: #fff; color: #0b1c30; font-size: 0.95rem; min-height: 44px; }
-.checkout-chip-row { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.35rem; -webkit-overflow-scrolling: touch; }
-.checkout-chip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(84px, 100%), 1fr)); gap: 0.5rem; }
+.checkout-chip-row { display: flex; gap: 0.5rem; row-gap: 0.5rem; column-gap: 0.5rem; overflow-x: auto; padding-bottom: 0.35rem; -webkit-overflow-scrolling: touch; }
+.checkout-chip-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(84px, 100%), 1fr)); gap: 0.5rem; }
 .checkout-chip-grid-towers { grid-template-columns: 1fr; }
 .checkout-chip-name { display: block; font-size: 0.72rem; font-weight: 500; color: #76777d; margin-top: 0.15rem; white-space: normal; }
 .checkout-chip.active .checkout-chip-name { color: #c8f0d9; }
@@ -1689,7 +1689,7 @@ html.dark .checkout-chip-count { color: #69db7c; }
 .checkout-hint-inline { font-size: 0.78rem; color: #76777d; }
 .checkout-submit { width: 100%; justify-content: center; padding: 0.7rem !important; font-size: 0.95rem; min-height: 48px; }
 
-.cart-kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.6rem; margin-bottom: 1rem; }
+.cart-kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 0.75rem; row-gap: 0.75rem; column-gap: 0.75rem; margin-bottom: 1rem; }
 .cart-kpi { display: flex; flex-direction: column; gap: 0.2rem; align-items: center; justify-content: center; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 0.7rem; font-size: 0.8rem; color: #45464d; text-align: center; }
 .cart-kpi strong { font-size: 1.3rem; color: #0b1c30; }
 .cart-kpi .material-symbols-outlined { font-size: 22px; color: #006c49; }
@@ -1720,7 +1720,7 @@ html.dark input[type='datetime-local']::-webkit-calendar-picker-indicator {
 
 .cart-gates, .cart-loans-table, .cart-fines { margin-top: 1rem; }
 .cart-gates h4, .cart-loans-table h4, .cart-fines h4 { margin: 0 0 0.7rem; color: #0b1c30; }
-.cart-gate-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 0.7rem; }
+.cart-gate-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 0.75rem; row-gap: 0.75rem; column-gap: 0.75rem; }
 .cart-gate-card { display: flex; flex-direction: column; gap: 0.6rem; background: #f8f9ff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 0.8rem 0.95rem; font-size: 0.85rem; color: #45464d; box-shadow: 0 1px 2px rgba(11, 28, 48, 0.05); transition: border-color 0.2s, box-shadow 0.2s; }
 .cart-gate-card:hover { border-color: #c6c6cd; box-shadow: 0 3px 8px rgba(11, 28, 48, 0.07); }
 .cart-gate-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
@@ -2999,4 +2999,105 @@ html.dark .text-size-value { color: #c8cad1; }
 /* Mobile: taller view so the guide box fills more of the screen */
 @media (max-width: 600px) {
   .plate-scanner-view { aspect-ratio: 3 / 4; max-height: 56vh; }
+}
+
+/* ===== Minimum separation guarantees between cards & stacked elements =====
+   Ensures grouped cards/wrappers always keep a readable minimum gap in both
+   axes, on every breakpoint. Desktop floors keep current spacing; the mobile
+   block only widens the floor so stacked cards never touch. */
+.cart-kpi-row,
+.cart-gate-grid,
+.checkout-chip-grid,
+.checkout-chip-row,
+.parking-status-grid,
+.parking-spots-grid,
+.guard-gate-options,
+.plaza-per-row-grid,
+.plaza-row-grid,
+.plaza-row-spots,
+.modules-grid,
+.modules-grid .module-card + .module-card,
+.condominiums-grid,
+.tower-list,
+.department-grid,
+.users-card-grid,
+.quick-actions {
+  align-content: start;
+}
+
+@media (max-width: 600px) {
+  .cart-kpi-row,
+  .cart-gate-grid,
+  .checkout-chip-grid,
+  .checkout-chip-row,
+  .parking-status-grid,
+  .parking-spots-grid,
+  .guard-gate-options,
+  .plaza-per-row-grid,
+  .plaza-row-grid,
+  .plaza-row-spots {
+    row-gap: 0.75rem;
+    column-gap: 0.75rem;
+  }
+}
+
+/* ===== Cart loan details modal ===== */
+.cart-details-modal { max-width: 560px; }
+.cart-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+.cart-details-cell {
+  background: #f8f9ff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.cart-details-cell span {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  color: #76777d;
+}
+.cart-details-cell strong {
+  font-size: 0.95rem;
+  color: #0b1c30;
+  word-break: break-word;
+}
+.cart-details-fine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: #f8f9ff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.9rem;
+  color: #45464d;
+}
+.cart-details-fine .fines-tag { font-size: 1rem; padding: 0.2rem 0.6rem; }
+.cart-details-modal .form-actions { margin-top: 1.25rem; }
+html.dark .cart-details-cell { background: #27313c; border-color: #333; }
+html.dark .cart-details-cell span { color: #9aa0a6; }
+html.dark .cart-details-cell strong { color: #e5e7eb; }
+html.dark .cart-details-fine { background: #27313c; border-color: #333; color: #c8cad1; }
+
+/* ===== Cart loans mobile list ===== */
+.loan-mobile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.loan-mobile-actions button { white-space: nowrap; }
+.loan-mobile-empty { margin: 0.25rem 0; }
+@media (max-width: 480px) {
+  .loan-mobile-actions button { flex: 1 1 100%; }
 }

@@ -233,6 +233,7 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
             onKeyDown={e => { if (e.key === 'Enter') void consult(); }}
           />
           <button className="btn-primary" onClick={() => void consult()} disabled={loading || ocrLoading}>
+            <span className="material-symbols-outlined">{loading ? 'hourglass_top' : 'search'}</span>
             {loading ? 'Buscando...' : 'Buscar'}
           </button>
           <button

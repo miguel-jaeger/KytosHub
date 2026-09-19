@@ -32,6 +32,8 @@ function fmtDateTime(iso: string): string {
   return `${d.toLocaleDateString('es-PE')}, ${hh}:${mm} ${ap}`;
 }
 
+const CART_TYPE_LABELS: Record<string, string> = { CARGA: 'Carro de carga', COMPRA: 'Coche de compras' };
+
 function computeFine(config: CartLendingConfig, overtimeMinutes: number): number {
   if (!config.fine_enabled || overtimeMinutes <= config.grace_period_minutes) return 0;
   const excess = overtimeMinutes - config.grace_period_minutes;
@@ -79,6 +81,7 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
   const [loansPerPage, setLoansPerPage] = useState<number | 'all'>(10);
 
   const [guardSession, setGuardSession] = useState<GuardGateSession | null>(null);
+  const [detailsLoan, setDetailsLoan] = useState<CartLoan | null>(null);
 
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkinBusyId, setCheckinBusyId] = useState<string | null>(null);
@@ -298,34 +301,35 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
 
         <div className="cart-loans-table">
           <h4>Carritos prestados</h4>
+
           <table className="residents-table residents-desktop cart-scroll-table">
             <thead>
               <tr>
                 <th>Carrito</th>
-                <th>Torre</th>
-                <th>Depto</th>
-                <th>Desde</th>
+                <th>Departamento</th>
                 <th>Tiempo</th>
                 <th>Vence</th>
-                <th>Multa estimada</th>
+                <th>Multa</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {activeLoans.length === 0 ? (
-                <tr><td colSpan={8} className="empty-text">No hay carritos prestados.</td></tr>
+                <tr><td colSpan={6} className="empty-text">No hay carritos prestados.</td></tr>
               ) : loansPageItems.map(l => {
                 const st = loanStatus(now, l, config);
                 return (
                   <tr key={l.id} className={`loan-row loan-${st.severity}`}>
-                    <td>{l.cart_code || '-'}{l.cart_gate?.name ? ` (${l.cart_gate.name})` : ''}</td>
-                    <td>{l.tower_code || '-'}</td>
-                    <td>{l.department_number || '-'}</td>
-                    <td>{fmtDateTime(l.checkout_time)}</td>
+                    <td>
+                      <strong>{l.cart_code || '-'}</strong>
+                      {l.cart_gate?.name && <span className="text-muted"> · {l.cart_gate.name}</span>}
+                    </td>
+                    <td>{l.tower_code ? `T${l.tower_code} · ` : ''}{l.department_number || '-'}</td>
                     <td><span className="loan-timer">{fmtDuration(st.elapsedSec)}</span></td>
-                    <td>{st.remainingSec <= 0
-                      ? <span className="loan-overdue-label">Vencido</span>
-                      : <span className={st.severity === 'ok' ? 'text-muted' : ''}>en {fmtDuration(st.remainingSec)}</span>}
+                    <td>
+                      {st.remainingSec <= 0
+                        ? <span className="loan-overdue-label">Vencido</span>
+                        : <span className={st.severity === 'ok' ? 'text-muted' : ''}>en {fmtDuration(st.remainingSec)}</span>}
                     </td>
                     <td>
                       {st.fine > 0
@@ -333,15 +337,58 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
                         : <span className="text-muted">—</span>}
                     </td>
                     <td>
-                      <button className="btn-primary" onClick={() => handleCheckin(l)} disabled={checkinBusyId === l.id}>
-                        {checkinBusyId === l.id ? '...' : 'Devolución'}
-                      </button>
+                      <div className="resident-row-actions">
+                        <button className="btn-edit" onClick={() => setDetailsLoan(l)} title="Ver detalles">
+                          <span className="material-symbols-outlined">visibility</span> Ver
+                        </button>
+                        <button className="btn-primary" onClick={() => handleCheckin(l)} disabled={checkinBusyId === l.id} title="Registrar devolución">
+                          <span className="material-symbols-outlined">assignment_return</span>
+                          {checkinBusyId === l.id ? '...' : 'Devolución'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+
+          <div className="residents-mobile-grid">
+            {activeLoans.length === 0 ? (
+              <p className="empty-text loan-mobile-empty">No hay carritos prestados.</p>
+            ) : loansPageItems.map(l => {
+              const st = loanStatus(now, l, config);
+              return (
+                <div key={l.id} className={`resident-grid-card loan-row loan-${st.severity}`}>
+                  <div className="resident-grid-main">
+                    <span className="resident-grid-name">{l.cart_code || '-'}{l.cart_gate?.name ? ` · ${l.cart_gate.name}` : ''}</span>
+                    <span className="resident-grid-meta">{l.tower_code ? `T${l.tower_code} ` : ''}{l.department_number ? `Dpto ${l.department_number}` : ''}</span>
+                  </div>
+                  <div className="resident-grid-fields">
+                    <div className="resident-grid-line">
+                      <span className="resident-grid-label">Tiempo</span>
+                      <span><span className="loan-timer">{fmtDuration(st.elapsedSec)}</span></span>
+                    </div>
+                    <div className="resident-grid-line">
+                      <span className="resident-grid-label">Vence</span>
+                      <span>{st.remainingSec <= 0 ? <span className="loan-overdue-label">Vencido</span> : <>en {fmtDuration(st.remainingSec)}</>}</span>
+                    </div>
+                    <div className="resident-grid-line">
+                      <span className="resident-grid-label">Multa</span>
+                      <span>{st.fine > 0 ? <span className="fines-tag">{fmtMoney(st.fine)}</span> : <span className="text-muted">—</span>}</span>
+                    </div>
+                  </div>
+                  <div className="resident-row-actions loan-mobile-actions">
+                    <button className="btn-edit" onClick={() => setDetailsLoan(l)}><span className="material-symbols-outlined">visibility</span> Ver detalles</button>
+                    <button className="btn-primary" onClick={() => handleCheckin(l)} disabled={checkinBusyId === l.id}>
+                      <span className="material-symbols-outlined">assignment_return</span>
+                      {checkinBusyId === l.id ? '...' : 'Devolución'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
 
           <PaginationBar
             total={activeLoans.length}
@@ -362,6 +409,46 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
       {parkingEnabled && activeTab === 'logs' && (
         <ParkingLogsTab schemaName={schemaName} />
       )}
+
+      {detailsLoan && (() => {
+        const st = loanStatus(now, detailsLoan, config);
+        return (
+          <div className="modal-overlay" onClick={() => setDetailsLoan(null)}>
+            <div className="modal-content cart-details-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <div>
+                  <h3>Detalles del préstamo</h3>
+                  <p className="text-muted">{detailsLoan.cart_code || 'Carrito'}{detailsLoan.cart_gate?.name ? ` · ${detailsLoan.cart_gate.name}` : ''}</p>
+                </div>
+                <button className="modal-close" onClick={() => setDetailsLoan(null)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
+              </div>
+              <div className="modal-body">
+                <div className="cart-details-grid">
+                  <div className="cart-details-cell"><span>Código</span><strong>{detailsLoan.cart_code || '-'}</strong></div>
+                  <div className="cart-details-cell"><span>Tipo</span><strong>{CART_TYPE_LABELS[detailsLoan.cart_type || 'CARGA'] || '-'}</strong></div>
+                  <div className="cart-details-cell"><span>Puerta</span><strong>{detailsLoan.cart_gate?.name || '-'}</strong></div>
+                  <div className="cart-details-cell"><span>Departamento</span><strong>{detailsLoan.tower_code ? `T${detailsLoan.tower_code} · ` : ''}{detailsLoan.department_number || '-'}</strong></div>
+                  <div className="cart-details-cell"><span>Inicio</span><strong>{fmtDateTime(detailsLoan.checkout_time)}</strong></div>
+                  <div className="cart-details-cell"><span>Vence</span><strong>{fmtDateTime(detailsLoan.due_time)}</strong></div>
+                  <div className="cart-details-cell"><span>Tiempo transcurrido</span><strong className="loan-timer">{fmtDuration(st.elapsedSec)}</strong></div>
+                  <div className="cart-details-cell"><span>Tiempo restante</span><strong className={st.remainingSec <= 0 ? 'loan-overdue-label' : 'loan-timer'}>{st.remainingSec <= 0 ? 'Vencido' : fmtDuration(st.remainingSec)}</strong></div>
+                </div>
+                <div className="cart-details-fine">
+                  <span>Multa estimada</span>
+                  <strong>{st.fine > 0 ? <span className="fines-tag">{fmtMoney(st.fine)}</span> : <span className="text-muted">Sin multa</span>}</strong>
+                </div>
+                <div className="form-actions">
+                  <button className="btn-cancel" onClick={() => setDetailsLoan(null)}>Cerrar</button>
+                  <button className="btn-primary" onClick={() => void handleCheckin(detailsLoan)} disabled={checkinBusyId === detailsLoan.id}>
+                    <span className="material-symbols-outlined">assignment_return</span>
+                    {checkinBusyId === detailsLoan.id ? 'Devolviendo...' : 'Devolver carrito'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

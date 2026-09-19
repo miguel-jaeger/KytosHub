@@ -268,6 +268,7 @@ export function CartCheckoutForm({ schemaName, carts, towers, gates, busy, defau
 
       <div className="form-actions">
         <button onClick={handleSubmit} disabled={busy || !cartId || !deptId} className="btn-primary checkout-submit">
+          <span className="material-symbols-outlined">{busy ? 'hourglass_top' : 'shopping_cart_checkout'}</span>
           {busy ? 'Prestado...' : 'Prestar'}
         </button>
       </div>
