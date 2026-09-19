@@ -12,6 +12,52 @@ SaaS modular para la administración, control operativo, reservas, estacionamien
 
 ---
 
+## 0. Workflow del Agente — Leer siempre antes de trabajar
+
+> Fuente única de instrucciones de trabajo. El usuario no repetirá estas reglas en cada
+> mensaje: leerlas desde este fichero y mantenerlas actualizadas cuando cambien flujos,
+> comandos o convenciones.
+
+### 0.1. Ramas y Git (reglas obligatorias)
+- **Nunca trabajar sobre `main` directamente** y **nunca commitear/pushear commits de trabajo
+  sobre `main`**.
+- **Siempre crear una rama nueva a partir de `dev`** con nombre descriptivo
+  (`feature/<slug>` o `fix/<slug>`).
+- **`main` y `dev` deben mantenerse sincronizadas** en el mismo estado (mismo commit) al
+  finalizar cualquier entrega.
+
+Ciclo de entrega:
+1. `git fetch origin` y asegurarse de estar en `dev` actualizado.
+2. Crear la rama de trabajo: `git switch -c <feature|fix>/<slug> dev`.
+3. Hacer los cambios, **validar con el build** (ver 0.3) y commitear **solo en la rama**.
+4. Pushear la rama: `git push -u origin <feature|fix>/<slug>`.
+5. Integrar a `dev`: `git switch dev` → `git merge --ff-only <rama>` → `git push origin dev`.
+6. Sincronizar `main`: `git switch main` → `git merge --ff-only <rama>` → `git push origin main`.
+7. Volver a `dev` como rama base de trabajo.
+
+Si hay cambios sin commitear al cambiar de rama, trasladarlos con `git stash push`
+y `git stash pop` (no perder trabajo en el checkout).
+
+### 0.2. Mensajes de commit
+- En **inglés**, estilo convencional: `feat(scope): subject` / `fix(scope): subject`.
+- Un commit por cambio lógico/atómico; stagear únicamente los archivos de ese commit.
+
+### 0.3. Validación obligatoria
+- Todo cambio en `frontend/` debe validarse ejecutando `npm run build` en `frontend/`
+  (ejecuta `tsc` + `vite build`). No finalizar una tarea si el build no pasa.
+
+### 0.4. Convenciones de idioma y estilo (resumen)
+- Código, funciones, APIs, DTOs, ramas, commits y nombres: **inglés**.
+- Interfaz, labels, mensajes y validaciones visibles al usuario: **español**.
+- React + TypeScript estricto (sin `any`), componentes organizados por módulos en
+  `frontend/src/modules/`.
+
+### 0.5. Mantener este fichero al día
+- Actualizar esta sección siempre que cambien las reglas de trabajo, ramas, comandos o
+  convenciones del proyecto.
+
+---
+
 ## 2. Rol del Agente e Integración con InsForge
 
 ### 2.1. Gestión de Conectividad Frontend-Backend
