@@ -213,8 +213,9 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
       {message && <div className="success-message" onClick={() => setMessage(null)}>{message} — clic para cerrar</div>}
       {error && <div className="error-message" onClick={() => setError(null)}>{error} — clic para cerrar</div>}
 
-      <div className="parking-search">
-        <div className="search-bar parking-plate-search">
+      <div className="parking-flow">
+        <div className="parking-search">
+          <div className="search-bar parking-plate-search">
           <span className="material-symbols-outlined search-icon">directions_car</span>
           <input
             type="text"
@@ -376,7 +377,8 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
             </>
           )}
         </div>
-      )}
+        )}
+      </div>
 
       {scanOpen && (
         <PlateScanner
