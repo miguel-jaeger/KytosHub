@@ -161,8 +161,8 @@ export function ParkingLogsTab({ schemaName }: { schemaName?: string }) {
                   <td><strong>{l.license_plate}</strong></td>
                   <td>{l.driver_name || '-'}</td>
                   <td>{VEHICLE_TYPE_LABELS[l.vehicle_type] || l.vehicle_type || '-'}</td>
-                  <td>{fmtDateTime(l.entry_time)}</td>
-                  <td>{fmtDateTime(l.exit_time)}</td>
+                  <td className="log-time-cell">{fmtDateTime(l.entry_time)}</td>
+                  <td className="log-time-cell">{fmtDateTime(l.exit_time)}</td>
                   <td>
                     <button className="detail-link" onClick={() => setSelectedLog(l)}>
                       <span className="material-symbols-outlined">visibility</span> Ver detalles
