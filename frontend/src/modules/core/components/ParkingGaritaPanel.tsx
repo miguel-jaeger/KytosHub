@@ -297,10 +297,8 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
               </span></div>
             )}
           </div>
-        </div>
 
-        <div className="parking-register">
-          <h5>Registro de estacionamiento</h5>
+          <div className="parking-register-fields">
           {status.inside ? (
             <button className="btn-danger" onClick={handleExit} disabled={busy !== null}>
               <span className="material-symbols-outlined">logout</span>
@@ -380,6 +378,7 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
               </button>
             </>
           )}
+          </div>
         </div>
         </>
         )}

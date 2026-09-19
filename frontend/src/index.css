@@ -2717,7 +2717,7 @@ html.dark .guard-gate-change { background: #27313c; border-color: #6a5730; color
   padding: 0;
   margin: 0;
 }
-.parking-flow > .parking-register {
+.parking-flow > .parking-status > .parking-register-fields {
   background: transparent;
   border: none;
   border-top: 1px solid #e5e7eb;
@@ -2728,18 +2728,10 @@ html.dark .guard-gate-change { background: #27313c; border-color: #6a5730; color
   flex-direction: column;
   gap: 0.75rem;
 }
-.parking-register h5 {
-  margin: 0;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 700;
-  color: #45464d;
-}
 /* Registration buttons keep input height, auto width and align right */
-.parking-register .btn-primary,
-.parking-register .btn-edit,
-.parking-register .btn-danger {
+.parking-register-fields .btn-primary,
+.parking-register-fields .btn-edit,
+.parking-register-fields .btn-danger {
   min-height: 44px;
   padding: 0.6rem 1.1rem !important;
   font-size: 0.95rem;
@@ -2750,11 +2742,10 @@ html.dark .guard-gate-change { background: #27313c; border-color: #6a5730; color
   white-space: nowrap;
   width: auto;
 }
-.parking-register > .btn-primary,
-.parking-register > .btn-danger { align-self: flex-end; }
-.parking-register .checkout-field > .btn-edit { align-self: flex-end; margin-top: 0.15rem; }
-html.dark .parking-flow > .parking-register { border-top-color: #333; }
-html.dark .parking-register h5 { color: #9aa0a6; }
+.parking-register-fields > .btn-primary,
+.parking-register-fields > .btn-danger { align-self: flex-end; }
+.parking-register-fields .checkout-field > .btn-edit { align-self: flex-end; margin-top: 0.15rem; }
+html.dark .parking-flow > .parking-status > .parking-register-fields { border-top-color: #333; }
 .parking-search .search-bar { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
 .parking-search .search-bar input { flex: 1; padding: 0.7rem 0.75rem 0.7rem 2.9rem; }
 .parking-search .search-bar .search-icon { position: absolute; left: 0.75rem; color: #76777d; font-size: 20px; pointer-events: none; }
