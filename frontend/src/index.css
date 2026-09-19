@@ -2790,6 +2790,8 @@ html.dark .parking-flow > .parking-status > .parking-register-fields { border-to
 .parking-status-cell span { font-size: 0.88rem; color: #0b1c30; font-weight: 600; }
 .parking-panel .checkout-field { display: flex; flex-direction: column; gap: 0.3rem; }
 .parking-panel .checkout-field select, .parking-panel .checkout-field input { width: 100%; padding: 0.5rem 0.6rem; border: 1px solid #c6c6cd; border-radius: 8px; background: #fff; color: #0b1c30; }
+html.dark .parking-panel .checkout-field select,
+html.dark .parking-panel .checkout-field input { background: #333d48; color: #e5e7eb; border-color: #444; }
 html.dark .parking-panel { border-color: #333; }
 html.dark .parking-status { background: #27313c; border-color: #333; }
 html.dark .parking-status-cell { background: #333d48; border-color: #333; }
