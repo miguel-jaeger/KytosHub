@@ -142,6 +142,7 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
     if (!modulesReady) return;
     if (activeTab === 'carts' && !cartEnabled) setActiveTab(parkingEnabled ? 'parking' : 'carts');
     if (activeTab === 'parking' && !parkingEnabled) setActiveTab(cartEnabled ? 'carts' : 'parking');
+    if (activeTab === 'logs' && !parkingEnabled) setActiveTab(cartEnabled ? 'carts' : 'parking');
   }, [modulesReady, activeTab, cartEnabled, parkingEnabled]);
 
   const refreshAll = async () => {
@@ -217,6 +218,11 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
           {parkingEnabled && (
             <button className={activeTab === 'parking' ? 'active' : ''} onClick={() => setActiveTab('parking')}>
               <span className="material-symbols-outlined">local_parking</span> Estacionamiento
+            </button>
+          )}
+          {parkingEnabled && (
+            <button className={activeTab === 'logs' ? 'active' : ''} onClick={() => setActiveTab('logs')}>
+              <span className="material-symbols-outlined">history</span> Registros
             </button>
           )}
         </div>
@@ -397,10 +403,11 @@ export function GaritaManager({ schemaName }: { schemaName?: string }) {
       )}
 
       {parkingEnabled && activeTab === 'parking' && (
-        <>
-          <ParkingGaritaPanel schemaName={schemaName} guardGate={guardSession} />
-          <ParkingLogsTab schemaName={schemaName} />
-        </>
+        <ParkingGaritaPanel schemaName={schemaName} guardGate={guardSession} />
+      )}
+
+      {parkingEnabled && activeTab === 'logs' && (
+        <ParkingLogsTab schemaName={schemaName} />
       )}
 
       {detailsLoan && (() => {
