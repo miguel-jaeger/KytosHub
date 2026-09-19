@@ -599,7 +599,6 @@ export function CondominioAdminDashboard() {
               placeholder="Seleccionar condominio..."
               onFocus={() => setCondoDropdownOpen(true)}
               onChange={(e) => { setCondoSearch(e.target.value); setCondoDropdownOpen(true); }}
-              style={{ width: '100%', padding: '0.7rem 0.75rem 0.7rem 2.6rem', border: '1px solid #c6c6cd', borderRadius: '8px', background: '#f8f9ff', color: '#0b1c30' }}
             />
             {condoDropdownOpen && (
               <div className="condo-picker-dropdown">
@@ -628,7 +627,7 @@ export function CondominioAdminDashboard() {
         </div>
         <div className="search-bar" style={{ marginTop: '0.75rem' }}>
           <span className="material-symbols-outlined search-icon">filter_list</span>
-          <select value={filterRole} onChange={(e) => { setFilterRole(e.target.value); setPage(1); }} style={{ width: '100%', padding: '0.7rem 0.75rem 0.7rem 2.6rem', border: '1px solid #c6c6cd', borderRadius: '8px', background: '#f8f9ff', color: '#0b1c30' }}>
+          <select value={filterRole} onChange={(e) => { setFilterRole(e.target.value); setPage(1); }}>
             <option value="">Todos los roles</option>
             {Object.entries(ROLE_LABELS).map(([key, label]) => (
               <option key={key} value={key}>{label}</option>
