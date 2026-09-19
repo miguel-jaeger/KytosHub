@@ -2707,6 +2707,8 @@ html.dark .guard-gate-change { background: #27313c; border-color: #6a5730; color
 .parking-flow > .parking-search { margin: 0; }
 .parking-flow .parking-search .search-bar { margin-bottom: 0; }
 .parking-flow .parking-plate-search { background: #fff; }
+html.dark .parking-flow .parking-plate-search { background: #333d48 !important; border-color: #444 !important; }
+html.dark .parking-flow .parking-search .search-bar input { background: transparent !important; color: #e5e7eb; }
 .parking-flow .parking-results { margin: 0; }
 .parking-flow .parking-results h4 { margin: 0 0 0.6rem; }
 .parking-flow > .empty-state { padding: 1.5rem 0; }
