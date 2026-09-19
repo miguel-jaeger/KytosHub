@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { useParking } from '../hooks/useParking';
 import { PlateScanner } from './PlateScanner';
 import { recognizePlate, type ScanBox } from '../../../lib/plateOcr';
@@ -36,7 +36,6 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
   const [savingDriver, setSavingDriver] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const normalizePlate = (v: string) => v.trim().toUpperCase().replace(/\s+/g, '');
 
@@ -125,14 +124,6 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
     } finally {
       setOcrLoading(false);
     }
-  };
-
-  const handleScan = async (file: File | null) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => void runOcr(String(reader.result || ''));
-    reader.onerror = () => { setOcrLoading(false); setError('No se pudo leer la imagen'); };
-    reader.readAsDataURL(file);
   };
 
   const handleSaveDriver = async () => {
@@ -245,21 +236,6 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
             <span className="material-symbols-outlined">{ocrLoading ? 'hourglass_top' : 'document_scanner'}</span>
             {ocrLoading ? 'Leyendo...' : 'Escanear'}
           </button>
-          <button
-            className="btn-cancel"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={ocrLoading}
-            title="Subir una foto de la matrícula"
-          >
-            <span className="material-symbols-outlined">photo_camera</span> Subir foto
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={e => void handleScan(e.target.files?.[0] || null)}
-          />
         </div>
       </div>
 
@@ -322,6 +298,7 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
 
           {status.inside ? (
             <button className="btn-danger" onClick={handleExit} disabled={busy !== null}>
+              <span className="material-symbols-outlined">logout</span>
               {busy === 'exit' ? 'Registrando salida...' : 'Registrar salida'}
             </button>
           ) : (
@@ -393,6 +370,7 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
                 </div>
               )}
               <button className="btn-primary" onClick={handleEnter} disabled={busy !== null}>
+                <span className="material-symbols-outlined">login</span>
                 {busy === 'enter' ? 'Registrando ingreso...' : 'Registrar ingreso'}
               </button>
             </>
