@@ -4,12 +4,24 @@ import { useVisitorAccess } from '../hooks/useVisitorAccess';
 import { useUserRole } from '../../../hooks/useUserRole';
 import type { Department, Floor, Tower, VisitorPackage, VisitorVisit, VehicleType } from '../types';
 
-const STATUS_LABELS: Record<string, string> = {
-  PENDIENTE: 'Pendiente',
-  ACTIVO: 'Activo',
-  EXPIRADO: 'Expirado',
-  CANCELADO: 'Cancelado'
-};
+function visitStatusInfo(v: VisitorVisit): { label: string; cls: string } {
+  const now = Date.now();
+  const effective = v.status === 'PENDIENTE' && v.scheduled_end && new Date(v.scheduled_end).getTime() < now
+    ? 'EXPIRADO'
+    : v.status;
+  if (effective === 'ACTIVO') {
+    if (v.exit_time) return { label: 'Finalizada', cls: 'status-vacant' };
+    return { label: 'Dentro', cls: 'status-occupied' };
+  }
+  if (effective === 'PENDIENTE') return { label: 'Pendiente', cls: 'status-warn' };
+  if (effective === 'CANCELADO') return { label: 'Cancelado', cls: 'status-vacant' };
+  return { label: 'Expirado', cls: 'status-late' };
+}
+
+function VisitStatusBadge({ v }: { v: VisitorVisit }) {
+  const { label, cls } = visitStatusInfo(v);
+  return <span className={`status-badge ${cls}`}>{label}</span>;
+}
 
 const VEHICLE_LABELS: Record<VehicleType, string> = { AUTO: 'Auto', MOTO: 'Moto' };
 
@@ -33,17 +45,6 @@ function toLocal(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function VisitStatusBadge({ v }: { v: VisitorVisit }) {
-  const now = Date.now();
-  const status = v.status === 'PENDIENTE' && v.scheduled_end && new Date(v.scheduled_end).getTime() < now
-    ? 'EXPIRADO'
-    : v.status;
-  const cls = status === 'ACTIVO'
-    ? (v.inside ? 'status-occupied' : 'status-vacant')
-    : status === 'PENDIENTE' ? 'status-warn' : status === 'CANCELADO' ? 'status-vacant' : 'status-late';
-  return <span className={`status-badge ${cls}`}>{STATUS_LABELS[status] || status}</span>;
-}
-
 export function VisitorAccess({ schemaName }: { schemaName?: string }) {
   const role = useUserRole();
   const isOperator = role === 'admin' || role === 'super' || role === 'security';
@@ -58,6 +59,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [detail, setDetail] = useState<VisitorVisit | null>(null);
 
   const [showVisitForm, setShowVisitForm] = useState(false);
   const [visitForm, setVisitForm] = useState({
@@ -334,11 +336,6 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
                   <tr>
                     <th>Visitante</th>
                     <th>Documento</th>
-                    <th>Vehículo</th>
-                    <th>Departamento</th>
-                    <th>Horario</th>
-                    <th>Ingreso</th>
-                    <th>Salida</th>
                     <th>Estado</th>
                     <th></th>
                   </tr>
@@ -350,11 +347,6 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
                       <tr key={v.id}>
                         <td><strong>{v.full_name}</strong></td>
                         <td>{v.document_type} {v.document_number}</td>
-                        <td>{vehicleLabel(v)}</td>
-                        <td>{v.departments ? `${v.departments.department_number} (${v.departments.towers?.code || ''})` : 'General'}</td>
-                        <td>{fmtDT(v.scheduled_start)}{v.scheduled_end ? ` → ${fmtDT(v.scheduled_end)}` : ''}</td>
-                        <td>{fmtDT(v.entry_time)}</td>
-                        <td>{fmtDT(v.exit_time)}</td>
                         <td><VisitStatusBadge v={v} /></td>
                         <td>
                           <div className="resident-row-actions">
@@ -367,6 +359,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
                             {canCancel && (
                               <button className="btn-cancel" onClick={() => void handleVisitOp(v, 'cancel')} title="Cancelar"><span className="material-symbols-outlined">cancel</span></button>
                             )}
+                            <button className="btn-edit" onClick={() => setDetail(v)} title="Ver detalles"><span className="material-symbols-outlined">visibility</span> Ver detalles</button>
                           </div>
                         </td>
                       </tr>
@@ -379,18 +372,18 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
                 {filteredVisits.map(v => (
                   <div key={v.id} className="resident-grid-card">
                     <div className="resident-grid-main">
-                      <span className="resident-grid-name">{v.full_name} · <VisitStatusBadge v={v} /></span>
-                      <span className="resident-grid-meta">{v.departments ? `Dpto ${v.departments.department_number}` : 'General'}</span>
+                      <span className="resident-grid-name">{v.full_name}</span>
+                      <VisitStatusBadge v={v} />
                     </div>
                     <div className="resident-grid-fields">
                       <div className="resident-grid-line"><span className="resident-grid-label">Documento</span><span>{v.document_type} {v.document_number}</span></div>
                       <div className="resident-grid-line"><span className="resident-grid-label">Vehículo</span><span>{vehicleLabel(v)}</span></div>
-                      <div className="resident-grid-line"><span className="resident-grid-label">Horario</span><span>{fmtDT(v.scheduled_start)} → {fmtDT(v.scheduled_end)}</span></div>
                     </div>
                     <div className="resident-row-actions">
                       {isOperator && v.status === 'PENDIENTE' && <button className="btn-primary" onClick={() => void handleVisitOp(v, 'confirm-entry')}>Ingreso</button>}
                       {isOperator && v.status === 'ACTIVO' && v.inside && <button className="btn-danger" onClick={() => void handleVisitOp(v, 'confirm-exit')}>Salida</button>}
                       {(v.status === 'PENDIENTE' || v.status === 'ACTIVO') && <button className="btn-cancel" onClick={() => void handleVisitOp(v, 'cancel')}>Cancelar</button>}
+                      <button className="btn-edit" onClick={() => setDetail(v)}>Ver detalles</button>
                     </div>
                   </div>
                 ))}
@@ -517,6 +510,43 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
             </>
           )}
         </>
+      )}
+
+      {detail && (
+        <div className="modal-overlay" onClick={() => setDetail(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>Detalle de la visita</h3>
+                <p className="text-on-surface-variant">Toda la información del visitante en un solo lugar.</p>
+              </div>
+              <button className="modal-close" onClick={() => setDetail(null)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
+            </div>
+            <div className="modal-body">
+              <div className="resident-grid-fields">
+                <div className="resident-grid-line"><span className="resident-grid-label">Visitante</span><span><strong>{detail.full_name}</strong></span></div>
+                <div className="resident-grid-line"><span className="resident-grid-label">Documento</span><span>{detail.document_type} {detail.document_number}</span></div>
+                <div className="resident-grid-line"><span className="resident-grid-label">Vehículo</span><span>{vehicleLabel(detail)}</span></div>
+                <div className="resident-grid-line"><span className="resident-grid-label">Departamento</span><span>{detail.departments ? `${detail.departments.department_number} (${detail.departments.towers?.code || ''})` : 'General'}</span></div>
+                <div className="resident-grid-line"><span className="resident-grid-label">Horario programado</span><span>{fmtDT(detail.scheduled_start)}{detail.scheduled_end ? ` → ${fmtDT(detail.scheduled_end)}` : ''}</span></div>
+                <div className="resident-grid-line"><span className="resident-grid-label">Ingreso</span><span>{fmtDT(detail.entry_time)}</span></div>
+                <div className="resident-grid-line"><span className="resident-grid-label">Salida</span><span>{fmtDT(detail.exit_time)}</span></div>
+                <div className="resident-grid-line"><span className="resident-grid-label">Estado</span><span><VisitStatusBadge v={detail} /></span></div>
+                <div className="resident-grid-line"><span className="resident-grid-label">Código de acceso</span><span><strong>{detail.access_code}</strong></span></div>
+                <div className="resident-grid-line"><span className="resident-grid-label">Registrado</span><span>{fmtDT(detail.created_at)}</span></div>
+              </div>
+              <div className="form-actions">
+                {isOperator && detail.status === 'PENDIENTE' && (
+                  <button className="btn-primary" onClick={() => { void handleVisitOp(detail, 'confirm-entry'); setDetail(null); }}>Confirmar ingreso</button>
+                )}
+                {isOperator && detail.status === 'ACTIVO' && detail.inside && (
+                  <button className="btn-danger" onClick={() => { void handleVisitOp(detail, 'confirm-exit'); setDetail(null); }}>Confirmar salida</button>
+                )}
+                <button className="btn-cancel" onClick={() => setDetail(null)}>Cerrar</button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {showVisitForm && (
