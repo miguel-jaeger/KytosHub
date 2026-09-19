@@ -1844,11 +1844,9 @@ html.dark .checkbox-row { background: #27313c; border-color: #333; color: #c8cad
 }
 
 /* Entry/exit times keep one line and read larger than the vehicle type */
-.log-time-cell {
-  font-size: 1rem;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
+.residents-table td.log-time-cell { font-size: 1rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.residents-table th.log-type-col, .residents-table td.log-type-col { width: 7%; }
+.residents-table th.log-time-col, .residents-table td.log-time-col { width: 17%; white-space: nowrap; }
 
 .condo-counts { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e5e7eb; }
 .count-link { display: inline-flex; align-items: center; gap: 0.25rem; background: #f1f5f9; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.3rem 0.5rem; cursor: pointer; color: #0b1c30; font-size: 0.75rem; transition: all 0.2s; }
