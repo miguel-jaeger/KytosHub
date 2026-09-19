@@ -2736,8 +2736,20 @@ html.dark .guard-gate-change { background: #27313c; border-color: #6a5730; color
   font-weight: 700;
   color: #45464d;
 }
-html.dark .parking-flow { background: #27313c; border-color: #333; }
-html.dark .parking-flow .parking-plate-search { background: #333d48; }
+/* Registration buttons match the height of the surrounding inputs */
+.parking-register .btn-primary,
+.parking-register .btn-edit,
+.parking-register .btn-danger {
+  min-height: 44px;
+  padding: 0.6rem 1.1rem;
+  font-size: 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+.parking-register .btn-edit { width: fit-content; }
 html.dark .parking-flow > .parking-register { border-top-color: #333; }
 html.dark .parking-register h5 { color: #9aa0a6; }
 .parking-search .search-bar { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
