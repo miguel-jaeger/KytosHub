@@ -26,8 +26,8 @@ const MODULES: Record<string, ModuleDef> = {
     }
   },
   parking_control: {
-    name: 'Estacionamientos y Préstamos de Bahías',
-    description: 'Bahías de estacionamiento, vehículos por departamento, préstamos de bahía entre propietarios y registros de entrada/salida en garita por puerta.',
+    name: 'Estacionamientos y Préstamos',
+    description: 'Estacionamientos, vehículos por departamento, préstamos de estacionamiento entre propietarios y registros de entrada/salida en garita por puerta.',
     default_enabled: true,
     default_config: {}
   },

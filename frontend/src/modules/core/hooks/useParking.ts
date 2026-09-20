@@ -20,7 +20,7 @@ export function useParking() {
       body: { action: 'list-spots', schema_name: schemaName, ...opts }
     });
     if (error) throw error;
-    if (!data?.success) throw new Error(data?.error?.message || 'Error al cargar bahías');
+    if (!data?.success) throw new Error(data?.error?.message || 'Error al cargar estacionamientos');
     return data.data || [];
   }, []);
 
@@ -30,7 +30,7 @@ export function useParking() {
       body: { action: 'create-spot', schema_name: schemaName, ...spot }
     });
     if (error) throw error;
-    if (!data?.success) throw new Error(data?.error?.message || 'Error al crear bahía');
+    if (!data?.success) throw new Error(data?.error?.message || 'Error al crear estacionamiento');
     return data.data;
   }, []);
 
@@ -40,7 +40,7 @@ export function useParking() {
       body: { action: 'update-spot', schema_name: schemaName, id, ...changes }
     });
     if (error) throw error;
-    if (!data?.success) throw new Error(data?.error?.message || 'Error al actualizar bahía');
+    if (!data?.success) throw new Error(data?.error?.message || 'Error al actualizar estacionamiento');
     return data.data;
   }, []);
 
@@ -50,7 +50,7 @@ export function useParking() {
       body: { action: 'delete-spot', schema_name: schemaName, id }
     });
     if (error) throw error;
-    if (!data?.success) throw new Error(data?.error?.message || 'Error al eliminar bahía');
+    if (!data?.success) throw new Error(data?.error?.message || 'Error al eliminar estacionamiento');
   }, []);
 
   const listVehicles = useCallback(async (schemaName: string, opts: { department_id?: string } = {}): Promise<Vehicle[]> => {
@@ -118,7 +118,7 @@ export function useParking() {
       body: { action: 'create-loan', schema_name: schemaName, ...loan }
     });
     if (error) throw error;
-    if (!data?.success) throw new Error(data?.error?.message || 'Error al crear préstamo de bahía');
+    if (!data?.success) throw new Error(data?.error?.message || 'Error al crear préstamo de estacionamiento');
     return data.data;
   }, []);
 

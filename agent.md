@@ -124,7 +124,7 @@ y `git stash pop` (no perder trabajo en el checkout).
 | **Admin Condominio** | Esquema Local | Configuración física, activación de módulos, parametrización de tiempos y multas de carritos en `condo_settings`, gestión de residentes y reportes. |
 | **Agente de Seguridad** | Esquema Local | Operación en garita: validación de vehículos/peatones, entrega/recepción de carritos, cálculo visible de mora y control de áreas comunes. |
 | **Residente** | Esquema Local | Gestión de su departamento, registro de vehículos, solicitud de carritos, consulta de multas acumuladas, reservas y préstamos de su estacionamiento. |
-| **Visitante** | Esquema Local (Restringido) | Validación de accesos temporales y uso de bahías de visitas autorizadas. |
+| **Visitante** | Esquema Local (Restringido) | Validación de accesos temporales y uso de estacionamientos de visitas autorizadas. |
 
 ---
 
@@ -142,7 +142,7 @@ Modela la jerarquía: **Condominio → Torres → Pisos → Departamentos**.
 
 ---
 
-### 6.2. `parking_control` (Control de Estacionamientos y Préstamos - MVP)
+### 6.2. `parking_control` (Control de estacionamientos y Préstamos - MVP)
 - **Entidades:**
   - `parking_spots` (`id`, `spot_number`, `type` [PROPIO, VISITA, ALQUILADO], `department_id` [nullable], `status` [DISPONIBLE, OCUPADO], `spot_row` [fila], `spot_index` [columna])
   - `vehicles` (`id`, `department_id`, `license_plate`, `vehicle_type` [AUTO, MOTO], `brand`, `model`, `color`, `is_active`)
@@ -160,8 +160,8 @@ Modela la jerarquía: **Condominio → Torres → Pisos → Departamentos**.
   - **Vehículos:** cada vehículo tiene `vehicle_type` (`AUTO` o `MOTO`). El dueño de la plaza registra sus vehículos.
   - **Regla de ocupación:** **máximo un auto estacionado a la vez por plaza**; las **motos pueden compartir** (varias motos juntas, o una moto junto a un auto). Dos autos no pueden estar a la vez en la misma plaza (`register-entry` lo valida con `spotCanHostType`).
   - **Ocupante no dueño:** el dueño o el administrador registran los **datos de la persona que ocupará la plaza** (`occupant_name`, documento) y la **duración en horas/días/meses** (`duration_unit`) al crear el préstamo. En plazas `ALQUILADO` solo el administrador puede crear el préstamo y el ocupante es obligatorio.
-  - Los residentes prestan sus bahías `PROPIO` a otros residentes o visitantes autorizados con ventana de tiempo (`parking_loans`). Estado inicial `PENDIENTE`, luego `ACTIVO`/`FINALIZADO`/`CANCELADO`.
-  - En garita, el agente valida la placa contra: (1) el vehículo registrado del propietario con bahía `PROPIO` que cumpla la regla de ocupación, (2) un préstamo `ACTIVO` dentro de la ventana de tiempo del prestatario, (3) disponibilidad de bahías `VISITA`, o (4) asignación explícita por el guardia.
+  - Los residentes prestan sus estacionamientos `PROPIO` a otros residentes o visitantes autorizados con ventana de tiempo (`parking_loans`). Estado inicial `PENDIENTE`, luego `ACTIVO`/`FINALIZADO`/`CANCELADO`.
+  - En garita, el agente valida la placa contra: (1) el vehículo registrado del propietario con estacionamiento `PROPIO` que cumpla la regla de ocupación, (2) un préstamo `ACTIVO` dentro de la ventana de tiempo del prestatario, (3) disponibilidad de estacionamientos `VISITA`, o (4) asignación explícita por el guardia.
   - **OCR de matrículas:** el agente de seguridad registra entradas/salidas **escaneando la matrícula** (función `plate-ocr` con Google Cloud Vision `TEXT_DETECTION`, secreto `GOOGLE_VISION_API_KEY`) o **ingresándola manualmente** en el panel de garita.
   - **Sesión de puerta del guardia:** al autenticarse (o al entrar a la garita), el agente selecciona una vez la puerta en la que trabaja si el condominio tiene más de una; queda guardada en `guard_gate_sessions` (una sesión activa por usuario). Ese gate se usa por defecto en los préstamos de carritos (`cart_loans`) y en los `parking_access_logs`, sin volver a seleccionarlo en cada operación. El agente puede cambiarla con confirmación (cierra la sesión vigente y abre una nueva).
   - **Múltiples entradas/salidas:** un condominio tiene `condo_gates.is_entry_exit`. Un vehículo puede ingresar por una puerta y salir por esa misma o por otra (`entry_gate_id` / `exit_gate_id` independientes).
@@ -247,13 +247,13 @@ Modela la jerarquía: **Condominio → Torres → Pisos → Departamentos**.
 - Panel de aprobación administrativa y agenda de eventos para seguridad.
 
 ### Sprint 4: Estacionamientos, Préstamos y Garita (`parking_control`) (Prioridad: Alta)
-- Asignación de bahías (`parking_spots` con estados DISPONIBLE/OCUPADO) y registro de vehículos por departamento.
+- Asignación de estacionamientos (`parking_spots` con estados DISPONIBLE/OCUPADO) y registro de vehículos por departamento.
 - Flujo de préstamo/cesión de estacionamiento entre residentes con ventana de tiempo (`parking_loans` con estados PENDIENTE/ACTIVO/FINALIZADO/CANCELADO).
 - Interfaz de garita para validación rápida de placas con `register-entry`/`register-exit`, registrando la puerta de ingreso y salida (`parking_access_logs.entry_gate_id` / `exit_gate_id`).
 - **Sesión de puerta por agente (`guard_gate_sessions`):** el guardia selecciona su puerta una vez al autenticarse/entrar a garita; se usa por defecto en préstamos de carritos y registros de estacionamiento. Cambiable con confirmación.
 - **Máquina de estado dentro/fuera:** un vehículo dentro solo puede salir; un vehículo fuera solo puede ingresar. Puede entrar por una puerta y salir por otra.
-- Panel del residente/propietario para registrar sus vehículos, ver sus bahías y prestarlas entre propietarios.
-- Panel admin para gestionar bahías, vehículos y préstamos (`ParkingManager` en pestaña "Estacionamiento" del SetupWizard y ruta `/parking`).
+- Panel del residente/propietario para registrar sus vehículos, ver sus estacionamientos y prestarlas entre propietarios.
+- Panel admin para gestionar estacionamientos, vehículos y préstamos (`ParkingManager` en pestaña "Estacionamiento" del SetupWizard y ruta `/parking`).
 
 ### Sprint 5: Módulos Complementarios Fase 2 (Prioridad: Media)
 - Implementación progresiva de `visitor_access`, `billing_maintenance` (integrando la recaudación de multas de carritos), `incident_tickets`, `announcements_board` y `pet_registry`.

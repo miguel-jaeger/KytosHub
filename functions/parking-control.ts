@@ -117,10 +117,10 @@ export default async function(req: Request): Promise<Response> {
         }
         const { data: existing } = await db.from('parking_spots').select('id').eq('spot_number', spotNumber).single();
         if (existing) {
-          return json({ success: false, data: null, error: { code: 'DUPLICATE', message: 'Ya existe una bahía con ese número' } }, 409);
+          return json({ success: false, data: null, error: { code: 'DUPLICATE', message: 'Ya existe un estacionamiento con ese número' } }, 409);
         }
         if (type === 'PROPIO' && !body.department_id) {
-          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Las bahías propias deben tener un departamento asignado' } }, 400);
+          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Los estacionamientos propios deben tener un departamento asignado' } }, 400);
         }
         const { data, error } = await db.from('parking_spots').insert([{
           spot_number: spotNumber,
@@ -301,12 +301,12 @@ export default async function(req: Request): Promise<Response> {
         }
 
         const { data: spot } = await db.from('parking_spots').select('id, department_id, type, status').eq('id', spotId).single();
-        if (!spot) return json({ success: false, data: null, error: { code: 'NOT_FOUND', message: 'Bahía no encontrada' } }, 404);
+        if (!spot) return json({ success: false, data: null, error: { code: 'NOT_FOUND', message: 'Estacionamiento no encontrado' } }, 404);
         if (spot.type === 'VISITA') {
-          return json({ success: false, data: null, error: { code: 'BAD_STATE', message: 'Las bahías de visita no se prestan entre propietarios ni se alquilan' } }, 409);
+          return json({ success: false, data: null, error: { code: 'BAD_STATE', message: 'Los estacionamientos de visita no se prestan entre propietarios ni se alquilan' } }, 409);
         }
         if (spot.status === 'OCUPADO') {
-          return json({ success: false, data: null, error: { code: 'BAD_STATE', message: 'La bahía está ocupada y no puede prestarse ahora' } }, 409);
+          return json({ success: false, data: null, error: { code: 'BAD_STATE', message: 'El estacionamiento está ocupado y no puede prestarse ahora' } }, 409);
         }
 
         const occupantName = body.occupant_name ? String(body.occupant_name).trim() : null;
@@ -347,11 +347,11 @@ export default async function(req: Request): Promise<Response> {
         // PROPIO spot: owner lends to another resident or visitor within a time window
         const lenderDepartmentId = (body.lender_department_id as string) || (myDepartmentId as string) || null;
         if (!lenderDepartmentId) {
-          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere un departamento que presta la bahía' } }, 400);
+          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Se requiere un departamento que presta el estacionamiento' } }, 400);
         }
         if (!isAdmin && lenderDepartmentId !== myDepartmentId) return forbidden();
         if (spot.department_id !== lenderDepartmentId) {
-          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'La bahía no pertenece al departamento que la presta' } }, 400);
+          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'El estacionamiento no pertenece al departamento que lo presta' } }, 400);
         }
 
         const borrowerDepartmentId = (body.borrower_department_id as string) || null;
@@ -679,7 +679,7 @@ async function resolvePlateEntry(db: { from(t: string): any }, plate: string, ov
       .limit(10);
     for (const s of (ownSpots || []) as Array<{ id: string; spot_number: string; type: string }>) {
       if (await needsHost(s.id)) {
-        return { spot: { id: s.id, spot_number: s.spot_number, type: s.type }, reason: 'PROPIO', message: 'Bahía propia del vehículo' };
+        return { spot: { id: s.id, spot_number: s.spot_number, type: s.type }, reason: 'PROPIO', message: 'Estacionamiento propio del vehículo' };
       }
     }
   }
@@ -712,7 +712,7 @@ async function resolvePlateEntry(db: { from(t: string): any }, plate: string, ov
     if (await needsHost(overrideSpotId)) {
       const { data: explicit } = await db.from('parking_spots').select('id, spot_number, type').eq('id', overrideSpotId).maybeSingle();
       if (explicit) {
-        return { spot: { id: explicit.id, spot_number: explicit.spot_number, type: explicit.type }, reason: 'ASIGNADA', message: 'Bahía asignada por el guardia' };
+        return { spot: { id: explicit.id, spot_number: explicit.spot_number, type: explicit.type }, reason: 'ASIGNADA', message: 'Estacionamiento asignado por el guardia' };
       }
     }
   }
@@ -723,7 +723,7 @@ async function resolvePlateEntry(db: { from(t: string): any }, plate: string, ov
     .eq('type', 'VISITA');
   for (const vs of (availableVisitorSpots || []) as Array<{ id: string; spot_number: string; type: string }>) {
     if (await needsHost(vs.id)) {
-      return { spot: { id: vs.id, spot_number: vs.spot_number, type: vs.type }, reason: 'VISITA', message: 'Bahía de visita disponible' };
+      return { spot: { id: vs.id, spot_number: vs.spot_number, type: vs.type }, reason: 'VISITA', message: 'Estacionamiento de visita disponible' };
     }
   }
 
@@ -733,14 +733,14 @@ async function resolvePlateEntry(db: { from(t: string): any }, plate: string, ov
     .eq('type', 'ALQUILADO');
   for (const rs of (rentedSpots || []) as Array<{ id: string; spot_number: string; type: string }>) {
     if (await needsHost(rs.id)) {
-      return { spot: { id: rs.id, spot_number: rs.spot_number, type: rs.type }, reason: 'ALQUILADO', message: 'Bahía alquilada disponible' };
+      return { spot: { id: rs.id, spot_number: rs.spot_number, type: rs.type }, reason: 'ALQUILADO', message: 'Estacionamiento alquilado disponible' };
     }
   }
 
   return {
     spot: null,
     reason: 'NINGUNO',
-    message: 'No se encontró una bahía autorizada: el vehículo no tiene bahía propia, préstamo vigente ni hay bahías de visita o alquiladas libres que cumplan la regla de ocupación.'
+    message: 'No se encontró un estacionamiento autorizado: el vehículo no tiene estacionamiento propio, préstamo vigente ni hay estacionamientos de visita o alquilados libres que cumplan la regla de ocupación.'
   };
 }
 
@@ -754,7 +754,7 @@ async function spotCanHostType(db: { from(t: string): any }, spotId: string, veh
     .eq('vehicle_type', 'AUTO');
   const carsInside = (count || 0);
   if (vehicleType === 'AUTO' && carsInside >= 1) {
-    return { ok: false, message: 'En esa bahía ya hay un auto estacionado. No pueden coexistir dos autos en la misma plaza.' };
+    return { ok: false, message: 'En ese estacionamiento ya hay un auto estacionado. No pueden coexistir dos autos en la misma plaza.' };
   }
   return { ok: true, message: '' };
 }
