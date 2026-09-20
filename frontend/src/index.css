@@ -1843,10 +1843,21 @@ html.dark .checkbox-row { background: #27313c; border-color: #333; color: #c8cad
   margin-bottom: 0.85rem;
 }
 
-/* Entry/exit times keep one line and read larger than the vehicle type */
-.residents-table td.log-time-cell { font-size: 1rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.residents-table th.log-type-col, .residents-table td.log-type-col { width: 7%; }
-.residents-table th.log-time-col, .residents-table td.log-time-col { width: 17%; white-space: nowrap; }
+/* Access logs table: fixed layout, one-line entry/exit times, standard font */
+.access-log-tab table.residents-table { table-layout: fixed; width: 100%; }
+.access-log-tab table.residents-table th,
+.access-log-tab table.residents-table td { font-size: 0.9rem; }
+.access-log-tab table.residents-table th:nth-child(1),
+.access-log-tab table.residents-table td:nth-child(1) { width: 13%; }
+.access-log-tab table.residents-table th:nth-child(2),
+.access-log-tab table.residents-table td:nth-child(2) { width: 15%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.access-log-tab table.residents-table th:nth-child(3),
+.access-log-tab table.residents-table td:nth-child(3) { width: 7%; }
+.access-log-tab table.residents-table th:nth-child(4),
+.access-log-tab table.residents-table td:nth-child(4),
+.access-log-tab table.residents-table th:nth-child(5),
+.access-log-tab table.residents-table td:nth-child(5) { width: 20%; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.access-log-tab table.residents-table td:nth-child(6) { white-space: nowrap; text-align: right; }
 
 .condo-counts { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e5e7eb; }
 .count-link { display: inline-flex; align-items: center; gap: 0.25rem; background: #f1f5f9; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.3rem 0.5rem; cursor: pointer; color: #0b1c30; font-size: 0.75rem; transition: all 0.2s; }
