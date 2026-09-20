@@ -96,6 +96,8 @@ function Dashboard() {
   const [schemaName, setSchemaName] = useState<string | null>(condominium?.schema_name || null);
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [activeModules, setActiveModules] = useState<ModuleInfo[]>([]);
+  const [modulesLoading, setModulesLoading] = useState(false);
+  const [modulesError, setModulesError] = useState<string | null>(null);
 
   useEffect(() => {
     if (condominium?.schema_name) {
@@ -105,7 +107,8 @@ function Dashboard() {
     }
     if (!user) return;
     let cancelled = false;
-    (async () => {
+    let attempts = 0;
+    (async function tryLoadCondo() {
       try {
         const { data } = await invokeFunction<{ success: boolean; data: { tenant_id: string; role: string; status: string }[] | null }>('list-condominium-users', {
           method: 'POST',
@@ -113,7 +116,10 @@ function Dashboard() {
         });
         const active = (data?.data || []).filter(x => x.status === 'ACTIVE');
         const tenant = active[0]?.tenant_id;
-        if (!tenant) return;
+        if (!tenant) {
+          if (!cancelled && attempts < 1) { attempts++; setTimeout(() => void tryLoadCondo(), 1200); }
+          return;
+        }
         setTenantId(tenant);
         const { data: condo } = await invokeFunction<{ success: boolean; data: { id: string; name: string; slug: string; short_name: string | null; schema_name: string; image_url: string | null } | null }>('list-condominiums', {
           method: 'POST',
@@ -121,20 +127,48 @@ function Dashboard() {
         });
         const c = condo?.data;
         if (!cancelled && c) {
+          setModulesError(null);
           setSchemaName(c.schema_name);
           setCondominium({ tenant_id: c.id, name: c.name, slug: c.slug, short_name: c.short_name || c.slug, schema_name: c.schema_name, image_url: c.image_url });
+        } else if (!cancelled && attempts < 1) {
+          attempts++;
+          setTimeout(() => void tryLoadCondo(), 1200);
         }
-      } catch {}
+      } catch {
+        if (!cancelled && attempts < 2) {
+          attempts++;
+          setTimeout(() => void tryLoadCondo(), 1200 * attempts);
+        } else if (!cancelled) {
+          setModulesError('No se pudieron cargar tus módulos. Recarga la página.');
+        }
+      }
     })();
     return () => { cancelled = true; };
   }, [user, condominium, setCondominium]);
 
   useEffect(() => {
-    if (!schemaName) { setActiveModules([]); return; }
+    if (!schemaName) { setActiveModules([]); setModulesLoading(false); return; }
     let cancelled = false;
-    listModules(schemaName)
-      .then(r => { if (!cancelled) setActiveModules(r.modules.filter(m => m.is_enabled)); })
-      .catch(() => {});
+    let attempts = 0;
+    setModulesLoading(true);
+    setModulesError(null);
+    (async function tryLoadModules() {
+      try {
+        const r = await listModules(schemaName);
+        if (!cancelled) {
+          setActiveModules(r.modules.filter(m => m.is_enabled));
+          setModulesLoading(false);
+        }
+      } catch {
+        if (!cancelled && attempts < 2) {
+          attempts++;
+          setTimeout(() => void tryLoadModules(), 900 * attempts);
+        } else if (!cancelled) {
+          setModulesError('No se pudieron cargar los módulos. Inténtalo de nuevo.');
+          setModulesLoading(false);
+        }
+      }
+    })();
     return () => { cancelled = true; };
   }, [schemaName, listModules]);
 
@@ -224,6 +258,10 @@ function Dashboard() {
 
   if (role === 'loading') return <div className="loading-message">Cargando...</div>;
 
+  const needsModules = role === 'security' || role === 'resident';
+  const homePending = modulesByAccess.length === 0 && needsModules && (modulesLoading || (schemaName === null && !modulesError));
+  const homeFailed = modulesByAccess.length === 0 && needsModules && !!modulesError && !modulesLoading;
+
   return (
     <div className="dashboard">
       <h2>Panel de Control</h2>
@@ -233,7 +271,11 @@ function Dashboard() {
         <small>Según tus permisos y los módulos activos del condominio.</small>
       </div>
 
-      {modulesByAccess.length === 0 ? (
+      {homePending ? (
+        <div className="loading-message">Cargando tus módulos disponibles...</div>
+      ) : homeFailed ? (
+        <p className="error-message">{modulesError}</p>
+      ) : modulesByAccess.length === 0 ? (
         <p className="text-muted">No hay módulos activos disponibles para tu perfil en este momento.</p>
       ) : (
         <div className="condominiums-grid">
