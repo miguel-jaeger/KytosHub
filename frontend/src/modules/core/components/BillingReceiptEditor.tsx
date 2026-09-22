@@ -242,17 +242,42 @@ function buildDefault(invoice: BillingInvoice): MaintenanceReceipt {
   const deptNumber = invoice.departments?.department_number || '';
   const today = new Date().toISOString().slice(0, 10);
   const items: MaintenanceReceipt['items'] = [];
-  for (const fine of (invoice.fines || [])) {
-    items.push({ categoria: 'MULTAS', descripcion: fine.concept, cantidad: null, monto_total_gasto: null, importe_departamento: fine.amount });
+
+  // Prefer the variable concepts captured in the Datos variables grid; when
+  // the admin did not capture items, fall back to cuota + fines.
+  const variable = invoice.variable_data;
+  const variableItems = variable?.items && Array.isArray(variable.items) && variable.items.length > 0
+    ? variable.items.filter(it => it.descripcion || it.importe_departamento)
+    : [];
+
+  if (variableItems.length > 0) {
+    for (const it of variableItems) {
+      items.push({
+        categoria: it.categoria || 'CONCEPTOS',
+        descripcion: it.descripcion || 'Concepto del período',
+        cantidad: it.cantidad ?? null,
+        monto_total_gasto: it.monto_total_gasto ?? null,
+        importe_departamento: Number(it.importe_departamento) || 0
+      });
+    }
+  } else {
+    for (const fine of (invoice.fines || [])) {
+      items.push({ categoria: 'MULTAS', descripcion: fine.concept, cantidad: null, monto_total_gasto: null, importe_departamento: fine.amount });
+    }
+    items.push({
+      categoria: 'CUOTA DE MANTENIMIENTO',
+      descripcion: invoice.cycles?.label || 'Cuota de mantenimiento del período',
+      cantidad: null,
+      monto_total_gasto: null,
+      importe_departamento: invoice.amount
+    });
   }
-  items.push({
-    categoria: 'CUOTA DE MANTENIMIENTO',
-    descripcion: invoice.cycles?.label || 'Cuota de mantenimiento del período',
-    cantidad: null,
-    monto_total_gasto: null,
-    importe_departamento: invoice.amount
-  });
+
   const subtotal = items.reduce((s, it) => s + (Number(it.importe_departamento) || 0), 0);
+  const marcas_agua = variable?.meters && Array.isArray(variable.meters)
+    ? variable.meters.filter(m => m.label || m.value)
+    : [];
+
   return {
     numero_recibo: `RCP-${(invoice.id || '').slice(0, 12).toUpperCase()}`,
     periodo: invoice.cycles?.label || 'Período',
@@ -275,7 +300,7 @@ function buildDefault(invoice: BillingInvoice): MaintenanceReceipt {
     codigo_recaudacion: ['CLM', towerCode, deptNumber.replace(/\D/g, '').padStart(3, '0')].filter(Boolean).join(''),
     plataforma_recaudacion: 'KASHIO (Multibanca)',
     items,
-    marcas_agua: [],
+    marcas_agua,
     entidades_autorizadas: ['BCP', 'SCOTIABANK', 'BBVA', 'INTERBANK', 'KASNET'],
     regla_codigo_pago: 'CLM (código condominio) + E[Torre] + D[Departamento]. Ejemplo: CLME4D503',
     pasos_pago: [

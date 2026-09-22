@@ -16,17 +16,40 @@ function buildReceiptDefault(invoice: BillingInvoice, titular: string): Maintena
   const deptNumber = invoice.departments?.department_number || '';
   const today = new Date().toISOString().slice(0, 10);
   const items: MaintenanceReceipt['items'] = [];
-  for (const fine of (invoice.fines || [])) {
-    items.push({ categoria: 'MULTAS', descripcion: fine.concept, cantidad: null, monto_total_gasto: null, importe_departamento: fine.amount });
+
+  const variable = invoice.variable_data;
+  const variableItems = variable?.items && Array.isArray(variable.items) && variable.items.length > 0
+    ? variable.items.filter(it => it.descripcion || it.importe_departamento)
+    : [];
+
+  if (variableItems.length > 0) {
+    for (const it of variableItems) {
+      items.push({
+        categoria: it.categoria || 'CONCEPTOS',
+        descripcion: it.descripcion || 'Concepto del período',
+        cantidad: it.cantidad ?? null,
+        monto_total_gasto: it.monto_total_gasto ?? null,
+        importe_departamento: Number(it.importe_departamento) || 0
+      });
+    }
+  } else {
+    for (const fine of (invoice.fines || [])) {
+      items.push({ categoria: 'MULTAS', descripcion: fine.concept, cantidad: null, monto_total_gasto: null, importe_departamento: fine.amount });
+    }
+    items.push({
+      categoria: 'CUOTA DE MANTENIMIENTO',
+      descripcion: invoice.cycles?.label || 'Cuota de mantenimiento del período',
+      cantidad: null,
+      monto_total_gasto: null,
+      importe_departamento: invoice.amount
+    });
   }
-  items.push({
-    categoria: 'CUOTA DE MANTENIMIENTO',
-    descripcion: invoice.cycles?.label || 'Cuota de mantenimiento del período',
-    cantidad: null,
-    monto_total_gasto: null,
-    importe_departamento: invoice.amount
-  });
+
   const subtotal = items.reduce((s, it) => s + (Number(it.importe_departamento) || 0), 0);
+  const marcas_agua = variable?.meters && Array.isArray(variable.meters)
+    ? variable.meters.filter(m => m.label || m.value)
+    : [];
+
   return {
     numero_recibo: `RCP-${(invoice.id || '').slice(0, 12).toUpperCase()}`,
     periodo: invoice.cycles?.label || 'Período',
@@ -49,7 +72,7 @@ function buildReceiptDefault(invoice: BillingInvoice, titular: string): Maintena
     codigo_recaudacion: ['CLM', towerCode, deptNumber.replace(/\D/g, '').padStart(3, '0')].filter(Boolean).join(''),
     plataforma_recaudacion: 'KASHIO (Multibanca)',
     items,
-    marcas_agua: [],
+    marcas_agua,
     entidades_autorizadas: ['BCP', 'SCOTIABANK', 'BBVA', 'INTERBANK', 'KASNET'],
     regla_codigo_pago: 'CLM (código condominio) + E[Torre] + D[Departamento]. Ejemplo: CLME4D503',
     pasos_pago: [
@@ -543,8 +566,8 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
                 <table>
                   <thead>
                     <tr>
-                      <th>Departamento</th>
                       <th>Torre</th>
+                      <th>Departamento</th>
                       <th>Cuota</th>
                       <th>Multas</th>
                       <th>Total</th>
@@ -557,8 +580,8 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
                   <tbody>
                     {pagedInvoices.map(inv => (
                       <tr key={inv.id}>
-                        <td>{inv.departments?.department_number || '-'}</td>
                         <td>{inv.departments?.towers?.code || '-'}</td>
+                        <td>{inv.departments?.department_number || '-'}</td>
                         <td>{fmtMoney(inv.amount)}</td>
                         <td>{fmtMoney(inv.fine_total)}</td>
                         <td><strong>{fmtMoney(inv.total)}</strong></td>
@@ -772,7 +795,7 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
               <div>
                 <h3>Recibo de mantenimiento</h3>
                 <p className="text-on-surface-variant">
-                  {receiptEditing.departments?.department_number || ''} · {receiptEditing.departments?.towers?.code || '-'} · {receiptEditing.cycles?.label || ''}
+                  Torre {receiptEditing.departments?.towers?.code || '-'} · Dpto. {receiptEditing.departments?.department_number || ''} · {receiptEditing.cycles?.label || ''}
                   {receiptInitial ? ' — ingresa los datos variables y guarda' : ''}
                 </p>
               </div>

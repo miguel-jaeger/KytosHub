@@ -131,7 +131,7 @@ export function ResidentBillingView({ schemaName, enabled }: { schemaName?: stri
         <div>
           <h3>Mi Facturación y Mantenimiento</h3>
           <p className="text-on-surface-variant">
-            Departamento {state.invoices[0]?.departments?.department_number || ''} · {state.invoices[0]?.departments?.towers?.code || ''}
+            Torre {state.invoices[0]?.departments?.towers?.code || ''} · Dpto. {state.invoices[0]?.departments?.department_number || ''}
             {unpaid.length > 0 && <strong style={{ color: '#b26b00' }}> · Pendiente: {fmtMoney(totalPending)}</strong>}
           </p>
         </div>

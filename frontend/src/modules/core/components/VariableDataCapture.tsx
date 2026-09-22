@@ -195,7 +195,7 @@ export function VariableDataCapture({ schemaName, enabled }: { schemaName?: stri
             <div key={inv.id} className="module-card variable-capture-card">
               <div className="module-card-head">
                 <div>
-                  <h4>{inv.departments?.department_number || '-'} · Torre {inv.departments?.towers?.code || '-'}</h4>
+                  <h4>Torre {inv.departments?.towers?.code || '-'} · Dpto. {inv.departments?.department_number || '-'}</h4>
                   <p>Cuota base {fmtMoney(inv.amount)} · Conceptos variables subtotal {fmtMoney(itemSubtotal(inv))}</p>
                 </div>
                 <div className="module-head-actions">
