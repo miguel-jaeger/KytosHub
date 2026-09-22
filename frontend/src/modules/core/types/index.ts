@@ -355,3 +355,103 @@ export interface VisitorPackage {
     towers?: { name: string; code: string };
   };
 }
+
+export type BoardRole = 'PRESIDENTE' | 'SECRETARIO' | 'TESORERO';
+
+export interface TowerBoard {
+  id: string;
+  tower_id: string;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+  notes: string | null;
+  created_at: string;
+  towers?: { id: string; name: string; code: string } | null;
+  members?: TowerBoardMember[];
+}
+
+export interface TowerBoardMember {
+  id: string;
+  board_id: string;
+  resident_id: string;
+  role: BoardRole;
+  created_at: string;
+  residents?: {
+    id: string;
+    full_name: string;
+    document_type: string;
+    document_number: string;
+    department_id: string;
+    departments?: {
+      department_number: string;
+      towers?: { id: string; name: string; code: string } | null;
+    } | null;
+  } | null;
+}
+
+export interface GeneralBoard {
+  id: string;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+  notes: string | null;
+  created_at: string;
+  members?: GeneralBoardMember[];
+}
+
+export interface GeneralBoardMember {
+  id: string;
+  board_id: string;
+  board_member_id: string;
+  role: BoardRole;
+  created_at: string;
+  board_member?: {
+    id: string;
+    board_id: string;
+    resident_id: string;
+    role: BoardRole;
+    residents?: {
+      id: string;
+      full_name: string;
+      document_type: string;
+      document_number: string;
+      department_id: string;
+      departments?: {
+        department_number: string;
+        towers?: { id: string; name: string; code: string } | null;
+      } | null;
+    } | null;
+    tower_board?: {
+      id: string;
+      tower_id: string;
+      start_date: string;
+      end_date: string;
+      is_active: boolean;
+      towers?: { id: string; name: string; code: string } | null;
+    } | null;
+  } | null;
+}
+
+export interface GeneralBoardCandidate {
+  board_member_id: string;
+  role: BoardRole;
+  residents?: {
+    id: string;
+    full_name: string;
+    document_type: string;
+    document_number: string;
+    department_id: string;
+    departments?: {
+      department_number: string;
+      towers?: { id: string; name: string; code: string } | null;
+    } | null;
+  } | null;
+  tower_board?: {
+    id: string;
+    tower_id: string;
+    start_date: string;
+    end_date: string;
+    is_active: boolean;
+    towers?: { id: string; name: string; code: string } | null;
+  } | null;
+}

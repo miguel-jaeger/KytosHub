@@ -1,8 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { invokeFunction } from '../../../lib/insforge';
 import { useCondominium } from '../../../contexts/CondominiumContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useCondominiums } from '../hooks/useCondominiums';
+import { useCondoModules } from '../hooks/useCondoModules';
+import { TowerBoardsManager } from './TowerBoardsManager';
+import { GeneralBoardsManager } from './GeneralBoardsManager';
 import { PaginationBar, paginate } from '../../../components/Pagination';
 
 interface TenantUser {
@@ -158,6 +162,38 @@ export function CondominioAdminDashboard() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState<number | 'all'>(10);
   const [viewAllCondos, setViewAllCondos] = useState<boolean>(isSuperAdmin);
+  const [section, setSection] = useState<string>('users');
+  const [towerBoardsEnabled, setTowerBoardsEnabled] = useState(false);
+  const [generalBoardEnabled, setGeneralBoardEnabled] = useState(false);
+  const { list: listModules } = useCondoModules();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const s = new URLSearchParams(location.search).get('section') || 'users';
+    setSection(s);
+  }, [location.search]);
+
+  const effectiveSection =
+    section === 'tower-boards' && towerBoardsEnabled ? 'tower-boards'
+    : section === 'general-board' && generalBoardEnabled ? 'general-board'
+    : 'users';
+
+  useEffect(() => {
+    if (!condominium?.schema_name) { setTowerBoardsEnabled(false); setGeneralBoardEnabled(false); return; }
+    let cancelled = false;
+    listModules(condominium.schema_name).then(result => {
+      if (cancelled) return;
+      const tb = result.modules.find(m => m.module_key === 'tower_boards');
+      const gb = result.modules.find(m => m.module_key === 'general_board');
+      setTowerBoardsEnabled(Boolean(tb?.is_enabled));
+      setGeneralBoardEnabled(Boolean(gb?.is_enabled));
+    }).catch(() => {
+      setTowerBoardsEnabled(false);
+      setGeneralBoardEnabled(false);
+    });
+    return () => { cancelled = true; };
+  }, [condominium?.schema_name, listModules]);
 
   const [condoSearch, setCondoSearch] = useState(condominium?.name || '');
   const [condoDropdownOpen, setCondoDropdownOpen] = useState(false);
@@ -582,6 +618,23 @@ export function CondominioAdminDashboard() {
 
   return (
     <div className="dashboard">
+      {condominium && !viewAllCondos && (
+        <div className="setup-tabs" style={{ marginBottom: '1rem' }}>
+          <button className={effectiveSection === 'users' ? 'active' : ''} onClick={() => { setSection('users'); navigate('/admin/users'); }}>Usuarios</button>
+          {towerBoardsEnabled && (
+            <button className={effectiveSection === 'tower-boards' ? 'active' : ''} onClick={() => { setSection('tower-boards'); navigate('/admin/users?section=tower-boards'); }}>Junta Directiva de Torre</button>
+          )}
+          {generalBoardEnabled && (
+            <button className={effectiveSection === 'general-board' ? 'active' : ''} onClick={() => { setSection('general-board'); navigate('/admin/users?section=general-board'); }}>Junta Directiva General</button>
+          )}
+        </div>
+      )}
+      {effectiveSection === 'tower-boards' && condominium ? (
+        <TowerBoardsManager schemaName={condominium.schema_name} enabled />
+      ) : effectiveSection === 'general-board' && condominium ? (
+        <GeneralBoardsManager schemaName={condominium.schema_name} enabled />
+      ) : (
+      <>
       <div className="header">
         <h2>Usuarios {viewAllCondos ? '- Todos los condominios' : condominium ? `- ${condominium.name}` : ''}</h2>
         <div className="header-actions">
@@ -1039,6 +1092,8 @@ export function CondominioAdminDashboard() {
             itemLabel="usuario"
           />
         </div>
+      )}
+      </>
       )}
     </div>
   );

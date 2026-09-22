@@ -254,6 +254,12 @@ function Dashboard() {
         icon: 'badge'
       });
     }
+    if (m.module_key === 'tower_boards' && (role === 'admin' || role === 'super')) {
+      modulesByAccess.push({ to: '/admin/users?section=tower-boards', title: 'Junta Directiva de Torre', desc: 'Elección de Presidente, Secretario y Tesorero por torre', icon: 'groups' });
+    }
+    if (m.module_key === 'general_board' && (role === 'admin' || role === 'super')) {
+      modulesByAccess.push({ to: '/admin/users?section=general-board', title: 'Junta Directiva General', desc: 'Elección de la Junta Directiva General entre los miembros de las juntas de torre', icon: 'account_balance' });
+    }
   }
 
   if (role === 'loading') return <div className="loading-message">Cargando...</div>;

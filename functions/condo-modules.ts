@@ -38,6 +38,22 @@ const MODULES: Record<string, ModuleDef> = {
     default_config: {
       max_simultaneous_per_department: 2
     }
+  },
+  tower_boards: {
+    name: 'Junta Directiva de Torre',
+    description: 'Elección del Presidente, Secretario y Tesorero de cada torre (solo residentes de la torre), con vigencia de un año prorrogable mediante elecciones.',
+    default_enabled: false,
+    default_config: {
+      term_months: 12
+    }
+  },
+  general_board: {
+    name: 'Junta Directiva General',
+    description: 'Elección de la Junta Directiva General (Presidente, Secretario y Tesorero) a partir de los miembros de las juntas directivas de las torres, con vigencia de un año prorrogable mediante elecciones.',
+    default_enabled: false,
+    default_config: {
+      term_months: 12
+    }
   }
 };
 
