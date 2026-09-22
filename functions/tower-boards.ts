@@ -67,8 +67,19 @@ export default async function(req: Request): Promise<Response> {
       if (isNaN(start.getTime())) {
         return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'start_date no es una fecha válida' } }, 400);
       }
-      const end = new Date(start);
-      end.setMonth(end.getMonth() + termMonths);
+      let end: Date;
+      if (body.end_date) {
+        end = new Date(String(body.end_date));
+        if (isNaN(end.getTime())) {
+          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'end_date no es una fecha válida' } }, 400);
+        }
+        if (end.getTime() <= start.getTime()) {
+          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'La fecha de fin debe ser posterior a la fecha de inicio' } }, 400);
+        }
+      } else {
+        end = new Date(start);
+        end.setMonth(end.getMonth() + termMonths);
+      }
 
       // Deactivate any previously active board of the tower, then insert the new one
       await db.from('tower_boards').update({ is_active: false }).eq('tower_id', towerId).eq('is_active', true);

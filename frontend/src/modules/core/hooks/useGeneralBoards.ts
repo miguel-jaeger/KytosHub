@@ -60,6 +60,7 @@ export function useGeneralBoards(schemaName?: string, enabled = true) {
 
   const createBoard = async (payload: {
     start_date: string;
+    end_date?: string;
     notes?: string;
     members: Array<{ board_member_id: string; role: string }>;
   }) => {

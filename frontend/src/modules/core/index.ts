@@ -6,6 +6,7 @@ export * from './components/SuperAdminDashboard';
 export * from './components/CondominioAdminDashboard';
 export * from './components/TowerBoardsManager';
 export * from './components/GeneralBoardsManager';
+export * from './components/MemberSearchPicker';
 export * from './hooks/useTowers';
 export * from './hooks/useDepartments';
 export * from './hooks/useResidents';

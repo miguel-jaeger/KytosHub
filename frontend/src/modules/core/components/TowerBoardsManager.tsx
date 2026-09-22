@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import { useTowerBoards } from '../hooks/useTowerBoards';
+import { MemberSearchPicker, type MemberOption } from './MemberSearchPicker';
 import type { Resident, Tower } from '../types';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -21,9 +22,10 @@ export function TowerBoardsManager({ schemaName, enabled }: { schemaName?: strin
   const [form, setForm] = useState<{
     tower_id: string;
     start_date: string;
+    end_date: string;
     notes: string;
     members: Record<string, string>;
-  }>({ tower_id: '', start_date: new Date().toISOString().slice(0, 10), notes: '', members: {} });
+  }>({ tower_id: '', start_date: new Date().toISOString().slice(0, 10), end_date: '', notes: '', members: {} });
 
   useEffect(() => {
     if (!schemaName) return;
@@ -50,7 +52,7 @@ export function TowerBoardsManager({ schemaName, enabled }: { schemaName?: strin
   }, [schemaName]);
 
   const openForm = () => {
-    setForm({ tower_id: towers[0]?.id || '', start_date: new Date().toISOString().slice(0, 10), notes: '', members: {} });
+    setForm({ tower_id: towers[0]?.id || '', start_date: new Date().toISOString().slice(0, 10), end_date: '', notes: '', members: {} });
     setFormError(null);
     setShowForm(true);
   };
@@ -60,10 +62,17 @@ export function TowerBoardsManager({ schemaName, enabled }: { schemaName?: strin
     ? residents.filter(r => r.departments?.towers?.code === selectedTower.code)
     : [];
 
+  const residentOptions: MemberOption[] = selectedTowerResidents.map(r => ({
+    id: r.id,
+    label: r.full_name,
+    sublabel: r.departments?.department_number ? `${r.departments.department_number}` : undefined
+  }));
+
   const handleCreate = async () => {
     setFormError(null);
     if (!form.tower_id) { setFormError('Selecciona la torre.'); return; }
-    if (!form.start_date) { setFormError('Indica la fecha de inicio del período.'); return; }
+    if (!form.start_date || !form.end_date) { setFormError('Indica las fechas de inicio y fin del período.'); return; }
+    if (new Date(form.end_date) <= new Date(form.start_date)) { setFormError('La fecha de fin debe ser posterior a la fecha de inicio.'); return; }
     const missing = ROLE_ORDER.filter(r => !form.members[r]);
     if (missing.length) { setFormError('Debes asignar los tres cargos de la junta directiva.'); return; }
     const chosen = Object.values(form.members);
@@ -73,6 +82,7 @@ export function TowerBoardsManager({ schemaName, enabled }: { schemaName?: strin
       await createBoard({
         tower_id: form.tower_id,
         start_date: form.start_date,
+        end_date: form.end_date,
         notes: form.notes || undefined,
         members: ROLE_ORDER.map(role => ({ resident_id: form.members[role], role }))
       });
@@ -192,28 +202,29 @@ export function TowerBoardsManager({ schemaName, enabled }: { schemaName?: strin
                   {towers.map(t => <option key={t.id} value={t.id}>{t.name} ({t.code})</option>)}
                 </select>
               </div>
-              <div className="form-group">
-                <label>Fecha de inicio (vigencia de 1 año)</label>
-                <input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} />
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Fecha de inicio del período</label>
+                  <input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label>Fecha de fin del período</label>
+                  <input type="date" value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })} />
+                </div>
               </div>
               <div className="module-example">
                 <span className="material-symbols-outlined">info</span>
-                <span>Solo se pueden elegir residentes de la torre seleccionada. La vigencia es de un año, prorrogable mediante nuevas elecciones.</span>
+                <span>Solo se pueden elegir residentes de la torre seleccionada. Usa el buscador para encontrar al residente por nombre o departamento.</span>
               </div>
               {ROLE_ORDER.map(role => (
                 <div className="form-group" key={role}>
                   <label>{ROLE_LABELS[role]}</label>
-                  <select
+                  <MemberSearchPicker
                     value={form.members[role] || ''}
-                    onChange={e => setForm({ ...form, members: { ...form.members, [role]: e.target.value } })}
-                  >
-                    <option value="">Seleccionar residente...</option>
-                    {selectedTowerResidents.map(r => (
-                      <option key={r.id} value={r.id}>
-                        {r.full_name}{r.departments?.department_number ? ` · ${r.departments.department_number}` : ''}
-                      </option>
-                    ))}
-                  </select>
+                    options={residentOptions}
+                    onChange={id => setForm({ ...form, members: { ...form.members, [role]: id } })}
+                    placeholder={`Buscar ${ROLE_LABELS[role]} por nombre o departamento...`}
+                  />
                 </div>
               ))}
               <div className="form-group">

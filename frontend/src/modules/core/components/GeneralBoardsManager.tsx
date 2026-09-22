@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useGeneralBoards } from '../hooks/useGeneralBoards';
+import { MemberSearchPicker, type MemberOption } from './MemberSearchPicker';
 import type { BoardRole } from '../types';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -17,27 +18,32 @@ export function GeneralBoardsManager({ schemaName, enabled }: { schemaName?: str
   const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState<{
     start_date: string;
+    end_date: string;
     notes: string;
     members: Record<string, string>;
-  }>({ start_date: new Date().toISOString().slice(0, 10), notes: '', members: {} });
+  }>({ start_date: new Date().toISOString().slice(0, 10), end_date: '', notes: '', members: {} });
 
   const openForm = () => {
-    setForm({ start_date: new Date().toISOString().slice(0, 10), notes: '', members: {} });
+    setForm({ start_date: new Date().toISOString().slice(0, 10), end_date: '', notes: '', members: {} });
     setFormError(null);
     setShowForm(true);
   };
 
-  const candidateLabel = (boardMemberId: string) => {
-    const c = candidates.find(x => x.board_member_id === boardMemberId);
-    if (!c) return '—';
+  const candidateOptions: MemberOption[] = candidates.map(c => {
     const resident = c.residents;
-    const tower = c.tower_board?.towers;
-    return `${resident?.full_name || '—'}${tower?.code ? ` (T${tower.code})` : ''}`;
-  };
+    const tower = c.tower_board?.towers?.code;
+    const dept = resident?.departments?.department_number;
+    return {
+      id: c.board_member_id,
+      label: resident?.full_name || '—',
+      sublabel: [dept, tower ? `T${tower}` : ''].filter(Boolean).join(' · ') || undefined
+    };
+  });
 
   const handleCreate = async () => {
     setFormError(null);
-    if (!form.start_date) { setFormError('Indica la fecha de inicio del período.'); return; }
+    if (!form.start_date || !form.end_date) { setFormError('Indica las fechas de inicio y fin del período.'); return; }
+    if (new Date(form.end_date) <= new Date(form.start_date)) { setFormError('La fecha de fin debe ser posterior a la fecha de inicio.'); return; }
     const missing = ROLE_ORDER.filter(r => !form.members[r]);
     if (missing.length) { setFormError('Debes asignar los tres cargos de la junta directiva general.'); return; }
     const chosen = Object.values(form.members);
@@ -46,6 +52,7 @@ export function GeneralBoardsManager({ schemaName, enabled }: { schemaName?: str
     try {
       await createBoard({
         start_date: form.start_date,
+        end_date: form.end_date,
         notes: form.notes || undefined,
         members: ROLE_ORDER.map(role => ({ board_member_id: form.members[role], role }))
       });
@@ -151,26 +158,29 @@ export function GeneralBoardsManager({ schemaName, enabled }: { schemaName?: str
               <button className="modal-close" onClick={() => setShowForm(false)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
             </div>
             <div className="modal-body">
-              <div className="form-group">
-                <label>Fecha de inicio (vigencia de 1 año)</label>
-                <input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} />
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Fecha de inicio del período</label>
+                  <input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label>Fecha de fin del período</label>
+                  <input type="date" value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })} />
+                </div>
               </div>
               <div className="module-example">
                 <span className="material-symbols-outlined">info</span>
-                <span>Solo pueden ser elegidos los miembros de las diferentes juntas directivas de las torres. La vigencia es de un año, prorrogable mediante nuevas elecciones.</span>
+                <span>Solo pueden ser elegidos los miembros de las diferentes juntas directivas de las torres. Usa el buscador para encontrar al miembro por nombre, torre o departamento.</span>
               </div>
               {ROLE_ORDER.map(role => (
                 <div className="form-group" key={role}>
                   <label>{ROLE_LABELS[role]}</label>
-                  <select
+                  <MemberSearchPicker
                     value={form.members[role] || ''}
-                    onChange={e => setForm({ ...form, members: { ...form.members, [role]: e.target.value } })}
-                  >
-                    <option value="">Seleccionar miembro...</option>
-                    {candidates.map(c => (
-                      <option key={c.board_member_id} value={c.board_member_id}>{candidateLabel(c.board_member_id)}</option>
-                    ))}
-                  </select>
+                    options={candidateOptions}
+                    onChange={id => setForm({ ...form, members: { ...form.members, [role]: id } })}
+                    placeholder={`Buscar ${ROLE_LABELS[role]} por nombre, torre o departamento...`}
+                  />
                 </div>
               ))}
               <div className="form-group">

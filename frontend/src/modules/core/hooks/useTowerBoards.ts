@@ -45,6 +45,7 @@ export function useTowerBoards(schemaName?: string, enabled = true) {
   const createBoard = async (payload: {
     tower_id: string;
     start_date: string;
+    end_date?: string;
     notes?: string;
     members: Array<{ resident_id: string; role: string }>;
   }) => {

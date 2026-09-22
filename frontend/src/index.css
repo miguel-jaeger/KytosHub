@@ -2097,6 +2097,63 @@ html.dark .condo-picker-item { color: #e5e7eb; }
 html.dark .condo-picker-item:hover { background: #333d48; color: #90caf9; }
 html.dark .condo-picker-item.selected { background: #333d48; color: #90caf9; }
 
+.member-search {
+  position: relative;
+  width: 100%;
+}
+
+.member-search .search-bar {
+  padding-left: 0.75rem;
+}
+
+.member-search .search-bar input {
+  padding: 0.6rem 0.75rem 0.6rem 2.25rem;
+  width: 100%;
+}
+
+.member-search-dropdown {
+  width: 100%;
+}
+
+.member-search-sublabel {
+  color: #76777d;
+  font-weight: 400;
+}
+
+.member-search-selected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: #e8f5ec;
+  border: 1px solid #bfe3cd;
+  border-radius: 10px;
+  padding: 0.55rem 0.65rem;
+  color: #0b1c30;
+}
+
+.member-search-selected-label {
+  font-size: 0.9rem;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-search-selected .icon-btn {
+  padding: 0.25rem;
+  flex-shrink: 0;
+}
+
+html.dark .member-search-selected {
+  background: #333d48;
+  border-color: #444;
+  color: #e5e7eb;
+}
+
+html.dark .member-search-sublabel { color: #9aa0a6; }
+
 .pagination-bar {
   display: flex;
   align-items: center;
