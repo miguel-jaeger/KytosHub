@@ -264,7 +264,8 @@ export function CondominioAdminDashboard() {
   }, [condominium?.tenant_id, viewAllCondos]);
 
   useEffect(() => {
-    if (isSuperAdmin || !user) return;
+    if (!user) return;
+    if (!viewAllCondos) return;
     invokeFunction<{ success: boolean; data: { tenant_id: string }[] | null }>('list-condominium-users', {
       method: 'POST',
       body: { action: 'list-by-user', user_id: user.id }
@@ -273,20 +274,18 @@ export function CondominioAdminDashboard() {
       if (!first) return;
       const c = condominiums.find(x => x.id === first);
       if (!c) return;
-      const isOnOwnCondo = condominium?.tenant_id === first;
-      if (!condominium || !isOnOwnCondo) {
-        setCondominium({
-          tenant_id: c.id,
-          name: c.name,
-          slug: c.slug,
-          short_name: c.short_name || c.slug,
-          schema_name: c.schema_name,
-          image_url: c.image_url
-        });
-        setCondoSearch(c.name);
-      }
+      setViewAllCondos(false);
+      setCondominium({
+        tenant_id: c.id,
+        name: c.name,
+        slug: c.slug,
+        short_name: c.short_name || c.slug,
+        schema_name: c.schema_name,
+        image_url: c.image_url
+      });
+      setCondoSearch(c.name);
     }).catch(() => {});
-  }, [isSuperAdmin, user, condominium, condominiums]);
+  }, [user, viewAllCondos, condominiums]);
 
   const filteredUsers = users.filter(u => {
     const q = searchTerm.trim().toLowerCase();
