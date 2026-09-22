@@ -96,8 +96,13 @@ export default async function(req: Request): Promise<Response> {
       const id = body.period_id as string;
       if (!id) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'period_id es requerido' } }, 400);
       const cfg = await loadConfig(db);
-      await generateInvoicesForCycle(db, id, cfg);
-      return json({ success: true, data: { period_id: id }, error: null }, 200);
+      if (body.regenerate === true) {
+        // Delete existing invoices (cascades to fines and payments) so the
+        // period can be rebuilt from scratch after an error.
+        await db.from('invoices').delete().eq('cycle_id', id);
+      }
+      const created = await generateInvoicesForCycle(db, id, cfg);
+      return json({ success: true, data: { period_id: id, created }, error: null }, 200);
     }
 
     if (action === 'list-department-fees') {
@@ -149,6 +154,16 @@ export default async function(req: Request): Promise<Response> {
       if (!isAdmin) return forbidden('No tienes permisos para ver recibos');
       const invoices = await listInvoices(db, body);
       return json({ success: true, data: invoices, error: null }, 200);
+    }
+
+    if (action === 'save-receipt') {
+      if (!isAdmin) return forbidden('No tienes permisos para guardar recibos');
+      const id = body.invoice_id as string;
+      const receiptData = body.receipt_data as Record<string, unknown> | null;
+      if (!id) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'invoice_id es requerido' } }, 400);
+      const { data, error } = await db.from('invoices').update({ receipt_data: receiptData || null }).eq('id', id).select().single();
+      if (error) throw error;
+      return json({ success: true, data, error: null }, 200);
     }
 
     if (action === 'register-payment') {

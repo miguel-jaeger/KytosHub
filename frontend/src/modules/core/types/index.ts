@@ -523,6 +523,7 @@ export interface BillingInvoice {
   created_at: string;
   fine_total: number;
   total: number;
+  receipt_data: MaintenanceReceipt | null;
   departments?: {
     department_number: string;
     towers?: { name: string; code: string } | null;

@@ -9,6 +9,7 @@ export * from './components/GeneralBoardsManager';
 export * from './components/MemberSearchPicker';
 export * from './components/BillingManager';
 export * from './components/BillingReceipt';
+export * from './components/BillingReceiptEditor';
 export * from './components/ResidentBillingView';
 export * from './components/MorososView';
 export * from './hooks/useTowers';

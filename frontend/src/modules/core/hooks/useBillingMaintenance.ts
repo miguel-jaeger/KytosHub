@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { invokeFunction } from '../../../lib/insforge';
-import type { BillingConfig, BillingCycle, DepartmentFee, BillingInvoice, BillingFine, BillingPayment, MorososReport } from '../types';
+import type { BillingConfig, BillingCycle, DepartmentFee, BillingInvoice, BillingFine, BillingPayment, MaintenanceReceipt, MorososReport } from '../types';
 
 interface BillingApiResponse<D> {
   success: boolean;
@@ -64,16 +64,18 @@ export function useBillingMaintenance(schemaName?: string, enabled = true) {
     throw new Error(data?.error?.message || 'Error al crear el período');
   };
 
-  const generateInvoices = async (period_id: string) => {
+  const generateInvoices = async (period_id: string, regenerate = false) => {
     if (!schemaName) throw new Error('No hay un condominio activo');
-    const { data, error: fnError } = await invokeFunction<BillingApiResponse<{ period_id: string }>>('billing-maintenance', {
+    const { data, error: fnError } = await invokeFunction<BillingApiResponse<{ period_id: string; created: number }>>('billing-maintenance', {
       method: 'POST',
-      body: { action: 'generate-invoices', schema_name: schemaName, period_id }
+      body: { action: 'generate-invoices', schema_name: schemaName, period_id, regenerate }
     });
     if (fnError) throw fnError;
-    if (data?.success) return true;
+    if (data?.success) return data.data?.created || 0;
     throw new Error(data?.error?.message || 'Error al generar recibos');
   };
+
+  const regenerateInvoices = async (period_id: string) => generateInvoices(period_id, true);
 
   const setDepartmentFee = async (payload: { department_id: string; amount: number; is_exempt: boolean; notes?: string }) => {
     if (!schemaName) throw new Error('No hay un condominio activo');
@@ -185,10 +187,21 @@ export function useBillingMaintenance(schemaName?: string, enabled = true) {
     throw new Error(data?.error?.message || 'Error al cargar morosos');
   };
 
+  const saveReceipt = async (invoice_id: string, receipt_data: MaintenanceReceipt) => {
+    if (!schemaName) throw new Error('No hay un condominio activo');
+    const { data, error: fnError } = await invokeFunction<BillingApiResponse<unknown>>('billing-maintenance', {
+      method: 'POST',
+      body: { action: 'save-receipt', schema_name: schemaName, invoice_id, receipt_data }
+    });
+    if (fnError) throw fnError;
+    if (data?.success) return true;
+    throw new Error(data?.error?.message || 'Error al guardar el recibo');
+  };
+
   return {
     config, periods, departmentFees, invoices, fines, loading, error,
-    fetchAll, updateConfig, createPeriod, generateInvoices, setDepartmentFee,
-    fetchInvoices, fetchFines, fetchPayments, fetchMyState, fetchMorosos,
+    fetchAll, updateConfig, createPeriod, generateInvoices, regenerateInvoices, setDepartmentFee,
+    fetchInvoices, fetchFines, fetchPayments, fetchMyState, fetchMorosos, saveReceipt,
     registerPayment, addFine, payFine, syncCartFines
   };
 }

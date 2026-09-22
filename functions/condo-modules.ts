@@ -238,6 +238,15 @@ function sanitizeConfig(key: string, config: Record<string, unknown>): Record<st
       cfg.layout = { rows, spots_per_row: per };
     }
   }
+  if (key === 'billing_maintenance') {
+    const num = (v: unknown, d: number) => {
+      const n = Number(v);
+      return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : d;
+    };
+    cfg.default_fee = num(cfg.default_fee, 150);
+    cfg.due_days = Math.round(num(cfg.due_days, 5));
+    cfg.autolink_cart_fines = cfg.autolink_cart_fines !== false;
+  }
   return cfg;
 }
 

@@ -1,14 +1,72 @@
 import { useState, useEffect } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
-import { useCondominium } from '../../../contexts/CondominiumContext';
 import { useBillingMaintenance } from '../hooks/useBillingMaintenance';
-import { BillingReceipt } from './BillingReceipt';
+import { BillingReceiptEditor } from './BillingReceiptEditor';
 import { MorososView } from './MorososView';
 import { PaginationBar, paginate } from '../../../components/Pagination';
 import type { Tower, BillingInvoice, BillingFine, MaintenanceReceipt, Resident } from '../types';
 
 function fmtMoney(n: number): string {
   return `S/ ${(Number(n) || 0).toFixed(2)}`;
+}
+
+function buildReceiptDefault(invoice: BillingInvoice, titular: string): MaintenanceReceipt {
+  const towerCode = invoice.departments?.towers?.code || '';
+  const deptNumber = invoice.departments?.department_number || '';
+  const today = new Date().toISOString().slice(0, 10);
+  const items: MaintenanceReceipt['items'] = [];
+  for (const fine of (invoice.fines || [])) {
+    items.push({ categoria: 'MULTAS', descripcion: fine.concept, cantidad: null, monto_total_gasto: null, importe_departamento: fine.amount });
+  }
+  items.push({
+    categoria: 'CUOTA DE MANTENIMIENTO',
+    descripcion: invoice.cycles?.label || 'Cuota de mantenimiento del período',
+    cantidad: null,
+    monto_total_gasto: null,
+    importe_departamento: invoice.amount
+  });
+  const subtotal = items.reduce((s, it) => s + (Number(it.importe_departamento) || 0), 0);
+  return {
+    numero_recibo: `RCP-${(invoice.id || '').slice(0, 12).toUpperCase()}`,
+    periodo: invoice.cycles?.label || 'Período',
+    fecha_emision: invoice.created_at ? invoice.created_at.slice(0, 10) : today,
+    fecha_vencimiento: invoice.due_date,
+    moneda: 'Soles (PEN)',
+    simbolo_moneda: 'S/',
+    subtotal,
+    ajustes: 0,
+    total_mes: subtotal,
+    deuda_total_acumulada: Math.max(0, invoice.total - invoice.paid_amount),
+    estado_morosidad: invoice.status === 'PAGADA'
+      ? 'FELICITACIONES, sus pagos están al día'
+      : 'Su cuota se encuentra dentro del plazo de pago',
+    condominio: '',
+    titular,
+    edificio: towerCode,
+    departamento: deptNumber.replace(/\D/g, ''),
+    identificador_vivienda: `${towerCode}${deptNumber.replace(/\D/g, '').padStart(3, '0')}`,
+    codigo_recaudacion: ['CLM', towerCode, deptNumber.replace(/\D/g, '').padStart(3, '0')].filter(Boolean).join(''),
+    plataforma_recaudacion: 'KASHIO (Multibanca)',
+    items,
+    marcas_agua: [],
+    entidades_autorizadas: ['BCP', 'SCOTIABANK', 'BBVA', 'INTERBANK', 'KASNET'],
+    regla_codigo_pago: 'CLM (código condominio) + E[Torre] + D[Departamento]. Ejemplo: CLME4D503',
+    pasos_pago: [
+      'Ingresar a la banca por internet o aplicación móvil de su banco.',
+      'Seleccionar la opción Pago de servicios.',
+      'Buscar la empresa recaudadora: KASHIO.',
+      'Ingresar el código único de su departamento.',
+      'Confirmar el monto y realizar el pago.',
+      'El sistema registrará automáticamente el pago a nombre de su departamento.'
+    ],
+    notas_pago: [
+      'Los pagos deben realizarse únicamente a través del sistema KASHIO para no figurar en morosidad.',
+      'Toda deuda anterior a la gestión fue cargada en KASHIO.'
+    ],
+    acciones_del_mes: [],
+    contacto_soporte: 'Administración vía WhatsApp',
+    plataforma_software: 'edificia.pe'
+  };
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -31,7 +89,7 @@ const FINE_STATUS_LABELS: Record<string, string> = {
   ANULADA: 'Anulada'
 };
 
-type BillingTab = 'config' | 'periods' | 'invoices' | 'fines' | 'morosos';
+type BillingTab = 'periods' | 'invoices' | 'fines' | 'morosos';
 
 export function BillingManager({ schemaName, enabled }: { schemaName?: string; enabled?: boolean }) {
   const billing = useBillingMaintenance(schemaName, enabled);
@@ -40,7 +98,6 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
   const [error, setError] = useState<string | null>(null);
 
   const [configForm, setConfigForm] = useState({ default_fee: 150, due_days: 5, autolink_cart_fines: true });
-  const [savingConfig, setSavingConfig] = useState(false);
 
   const [showPeriodModal, setShowPeriodModal] = useState(false);
   const [periodForm, setPeriodForm] = useState({ label: '', start_date: '', end_date: '', due_date: '', amount: '' });
@@ -63,8 +120,8 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
   const [finesPerPage, setFinesPerPage] = useState<number | 'all'>(10);
   const [payingFineId, setPayingFineId] = useState<string | null>(null);
   const [syncingCart, setSyncingCart] = useState(false);
-  const { condominium } = useCondominium();
-  const [receiptData, setReceiptData] = useState<MaintenanceReceipt | null>(null);
+  const [receiptEditing, setReceiptEditing] = useState<BillingInvoice | null>(null);
+  const [receiptInitial, setReceiptInitial] = useState<MaintenanceReceipt | null>(null);
 
   useEffect(() => {
     if (!schemaName) return;
@@ -146,24 +203,6 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
     return true;
   });
 
-  const handleSaveConfig = async () => {
-    setSavingConfig(true);
-    setError(null);
-    try {
-      await billing.updateConfig({
-        default_fee: Number(configForm.default_fee),
-        due_days: Number(configForm.due_days),
-        autolink_cart_fines: configForm.autolink_cart_fines
-      });
-      setMessage('Configuración guardada');
-      setTimeout(() => setMessage(null), 2500);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar');
-    } finally {
-      setSavingConfig(false);
-    }
-  };
-
   const openPeriodModal = () => {
     const next = new Date();
     const monthLabel = next.toLocaleDateString('es-PE', { month: 'long', year: 'numeric' });
@@ -205,12 +244,17 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
     }
   };
 
-  const handleGenerateInvoices = async (periodId: string) => {
+  const handleGenerateInvoices = async (periodId: string, regenerate = false) => {
+    if (regenerate && !confirm('¿Regenerar todos los recibos del período? Se eliminarán los recibos, multas y pagos existentes de este período para volver a generarlos desde cero. Esta acción no se puede deshacer.')) return;
     setGeneratingId(periodId);
     setError(null);
     try {
-      await billing.generateInvoices(periodId);
-      setMessage('Recibos generados para el período');
+      const created = regenerate
+        ? await billing.regenerateInvoices(periodId)
+        : await billing.generateInvoices(periodId);
+      await billing.fetchAll();
+      await loadInvoices();
+      setMessage(regenerate ? `Recibos regenerados (${created} recibos)` : `Recibos generados (${created} recibos)`);
       setTimeout(() => setMessage(null), 2500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al generar recibos');
@@ -322,15 +366,10 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
     }
   };
 
-  const buildReceipt = async (inv: BillingInvoice) => {
-    const cycle = inv.cycles || billing.periods.find(p => p.id === inv.cycle_id) || null;
-    const deptNumber = inv.departments?.department_number || '';
-    const towerCode = inv.departments?.towers?.code || '';
-    const label = cycle?.label || 'Período';
-    const periodoText = cycle ? `${label}` : label;
-
-    // Resolve the resident/titular for the department
-    let titular = '—';
+  const openReceipt = async (inv: BillingInvoice) => {
+    document.body.classList.add('printing-receipt');
+    // Prefill the titular from the department's primary resident if available
+    let titular = '';
     if (schemaName) {
       try {
         const { data } = await invokeFunction<{ success: boolean; data: Resident[] | null }>('residents', {
@@ -339,88 +378,23 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
         });
         const residents = data?.data || [];
         const primary = residents.find(r => r.is_primary_contact) || residents[0];
-        if (primary?.full_name) titular = primary.full_name;
-      } catch { /* keep placeholder */ }
+        titular = primary?.full_name || '';
+      } catch { /* keep empty */ }
     }
-
-    const items: MaintenanceReceipt['items'] = [{
-      categoria: 'CUOTA DE MANTENIMIENTO',
-      descripcion: `${inv.cycles?.label || 'Cuota de mantenimiento'} (edificio ${towerCode || ''})`,
-      cantidad: null,
-      monto_total_gasto: null,
-      importe_departamento: inv.amount
-    }];
-    for (const fine of (inv.fines || [])) {
-      items.push({
-        categoria: 'MULTAS',
-        descripcion: fine.concept,
-        cantidad: null,
-        monto_total_gasto: null,
-        importe_departamento: fine.amount
-      });
-    }
-
-    const today = new Date().toISOString().slice(0, 10);
-    const overdue = inv.status !== 'PAGADA' && inv.due_date < today;
-    const hasFines = (inv.fines || []).length > 0;
-    const estadoMorosidad = inv.status === 'PAGADA'
-      ? 'FELICITACIONES, sus pagos están al día'
-      : overdue
-        ? 'ATENCIÓN: tiene pagos vencidos pendientes'
-        : 'Su cuota se encuentra dentro del plazo de pago';
-
-    const numeroRecibo = inv.id ? inv.id.slice(0, 12).toUpperCase() : '';
-    const codigoRecaudacion = ['CLM', towerCode, deptNumber.replace(/\D/g, '').padStart(3, '0')].filter(Boolean).join('');
-
-    setReceiptData({
-      numero_recibo: `RCP-${numeroRecibo}`,
-      periodo: periodoText,
-      fecha_emision: inv.created_at ? inv.created_at.slice(0, 10) : today,
-      fecha_vencimiento: inv.due_date,
-      moneda: 'Soles (PEN)',
-      simbolo_moneda: 'S/',
-      subtotal: inv.amount,
-      ajustes: hasFines ? (inv.fine_total || 0) : 0,
-      total_mes: inv.total,
-      deuda_total_acumulada: Math.max(0, inv.total - inv.paid_amount),
-      estado_morosidad: estadoMorosidad,
-      condominio: condominium?.name || 'Condominio',
-      titular,
-      edificio: towerCode || inv.departments?.towers?.code || '',
-      departamento: deptNumber.replace(/\D/g, ''),
-      identificador_vivienda: `${towerCode || ''}${deptNumber.replace(/\D/g, '').padStart(3, '0')}`,
-      codigo_recaudacion: codigoRecaudacion,
-      plataforma_recaudacion: 'KASHIO (Multibanca)',
-      items,
-      marcas_agua: [],
-      entidades_autorizadas: ['BCP', 'SCOTIABANK', 'BBVA', 'INTERBANK', 'KASNET'],
-      regla_codigo_pago: 'CLM (código condominio) + E[Torre] + D[Departamento]. Ejemplo: CLME4D503',
-      pasos_pago: [
-        'Ingresar a la banca por internet o aplicación móvil de su banco.',
-        'Seleccionar la opción Pago de servicios.',
-        'Buscar la empresa recaudadora: KASHIO.',
-        'Ingresar el código único de su departamento.',
-        'Confirmar el monto y realizar el pago.',
-        'El sistema registrará automáticamente el pago a nombre de su departamento.'
-      ],
-      notas_pago: [
-        'Los pagos deben realizarse únicamente a través del sistema KASHIO para no figurar en morosidad.',
-        'Toda deuda anterior a la gestión fue cargada en KASHIO.'
-      ],
-      acciones_del_mes: [],
-      contacto_soporte: 'Administración vía WhatsApp',
-      plataforma_software: 'edificia.pe'
-    });
-  };
-
-  const openReceipt = (inv: BillingInvoice) => {
-    document.body.classList.add('printing-receipt');
-    void buildReceipt(inv);
+    const base = inv.receipt_data || buildReceiptDefault(inv, titular);
+    setReceiptInitial(base);
+    setReceiptEditing(inv);
   };
 
   const closeReceipt = () => {
     document.body.classList.remove('printing-receipt');
-    setReceiptData(null);
+    setReceiptEditing(null);
+    setReceiptInitial(null);
+  };
+
+  const handleSaveReceipt = async (data: MaintenanceReceipt) => {
+    if (!receiptEditing) return;
+    await billing.saveReceipt(receiptEditing.id, data);
   };
 
   if (!enabled) return null;
@@ -445,9 +419,16 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
             <span className="material-symbols-outlined">sync</span> {syncingCart ? 'Sincronizando...' : 'Sincronizar multas de carritos'}
           </button>
           {tab === 'periods' && <button onClick={openPeriodModal}><span className="material-symbols-outlined">add</span> Crear período</button>}
-          {tab === 'invoices' && <button onClick={() => selectedPeriodId && handleGenerateInvoices(selectedPeriodId)} disabled={!selectedPeriodId || generatingId !== null}>
-            <span className="material-symbols-outlined">receipt_long</span> {generatingId ? 'Generando...' : 'Generar recibos'}
-          </button>}
+          {tab === 'invoices' && (
+            <>
+              <button onClick={() => selectedPeriodId && handleGenerateInvoices(selectedPeriodId)} disabled={!selectedPeriodId || generatingId !== null}>
+                <span className="material-symbols-outlined">receipt_long</span> {generatingId ? 'Generando...' : 'Generar recibos'}
+              </button>
+              <button className="btn-cancel" onClick={() => selectedPeriodId && handleGenerateInvoices(selectedPeriodId, true)} disabled={!selectedPeriodId || generatingId !== null} title="Elimina y vuelve a generar todos los recibos del período (para corregir errores)">
+                <span className="material-symbols-outlined">refresh</span> {generatingId ? 'Regenerando...' : 'Regenerar recibos'}
+              </button>
+            </>
+          )}
           {tab === 'fines' && <button onClick={openFineModal}><span className="material-symbols-outlined">add</span> Registrar multa</button>}
           <button onClick={openFeeModal}><span className="material-symbols-outlined">tune</span> Cuota por departamento</button>
         </div>
@@ -461,33 +442,10 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
         <button className={tab === 'invoices' ? 'active' : ''} onClick={() => setTab('invoices')}>Recibos</button>
         <button className={tab === 'fines' ? 'active' : ''} onClick={() => setTab('fines')}>Multas</button>
         <button className={tab === 'morosos' ? 'active' : ''} onClick={() => setTab('morosos')}>Morosos</button>
-        <button className={tab === 'config' ? 'active' : ''} onClick={() => setTab('config')}>Configuración</button>
       </div>
 
       {tab === 'morosos' && (
         <MorososView schemaName={schemaName} enabled />
-      )}
-
-      {tab === 'config' && (
-        <div className="cart-config-form" style={{ maxWidth: 420 }}>
-          <label>Cuota por defecto (S/)
-            <input type="number" min={0} value={String(configForm.default_fee)} onChange={e => setConfigForm({ ...configForm, default_fee: Number(e.target.value) })} />
-          </label>
-          <label>Días de gracia para el vencimiento
-            <input type="number" min={0} value={String(configForm.due_days)} onChange={e => setConfigForm({ ...configForm, due_days: Number(e.target.value) })} />
-          </label>
-          <label>
-            <input type="checkbox" checked={configForm.autolink_cart_fines} onChange={e => setConfigForm({ ...configForm, autolink_cart_fines: e.target.checked })} />
-            Vincular automáticamente las multas de carritos al estado de cuenta
-          </label>
-          <div className="module-example">
-            <span className="material-symbols-outlined">info</span>
-            <span>La cuota por defecto se aplica a los departamentos sin cuota personalizada. Puedes asignar o exonerar cuotas individuales desde «Cuota por departamento».</span>
-          </div>
-          <div className="form-actions">
-            <button onClick={handleSaveConfig} disabled={savingConfig}>{savingConfig ? 'Guardando...' : 'Guardar configuración'}</button>
-          </div>
-        </div>
       )}
 
       {tab === 'periods' && (
@@ -582,8 +540,8 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
                         <td>{formatDate(inv.due_date)}</td>
                         <td>
                           <div className="condo-card-actions" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none', justifyContent: 'flex-start' }}>
-                            <button className="icon-btn" title="Ver e imprimir recibo" onClick={() => openReceipt(inv)}>
-                              <span className="material-symbols-outlined">print</span>
+                            <button className="icon-btn" title="Crear o editar el recibo de mantenimiento" onClick={() => openReceipt(inv)}>
+                              <span className="material-symbols-outlined">receipt_long</span>
                             </button>
                             {inv.status !== 'PAGADA' && (
                               <button className="icon-btn" title="Registrar pago" onClick={() => handlePayInvoice(inv)}>
@@ -780,22 +738,26 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
         </div>
       )}
 
-      {receiptData && (
-        <div className="modal-overlay receipt-modal-overlay">
-          <div className="modal-content receipt-modal" onClick={e => e.stopPropagation()}>
+      {receiptEditing && (
+        <div className="modal-overlay receipt-editor-overlay">
+          <div className="modal-content receipt-editor-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div>
                 <h3>Recibo de mantenimiento</h3>
-                <p className="text-on-surface-variant">Vista previa lista para imprimir o exportar a PDF.</p>
+                <p className="text-on-surface-variant">
+                  {receiptEditing.departments?.department_number || ''} · {receiptEditing.departments?.towers?.code || '-'} · {receiptEditing.cycles?.label || ''}
+                  {receiptInitial ? ' — ingresa los datos variables y guarda' : ''}
+                </p>
               </div>
               <button className="modal-close" onClick={closeReceipt} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
             </div>
             <div className="modal-body">
-              <BillingReceipt data={receiptData} />
-              <div className="form-actions">
-                <button className="btn-cancel" onClick={closeReceipt}><span className="material-symbols-outlined">close</span> Cerrar</button>
-                <button onClick={() => window.print()}><span className="material-symbols-outlined">print</span> Imprimir / Guardar PDF</button>
-              </div>
+              <BillingReceiptEditor
+                invoice={receiptEditing}
+                initial={receiptInitial}
+                onSave={handleSaveReceipt}
+                onClose={closeReceipt}
+              />
             </div>
           </div>
         </div>
