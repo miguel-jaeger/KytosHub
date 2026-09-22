@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { invokeFunction } from '../../../lib/insforge';
-import type { BillingConfig, BillingCycle, DepartmentFee, BillingInvoice, BillingFine, BillingPayment, MaintenanceReceipt, MorososReport } from '../types';
+import type { BillingConfig, BillingCycle, DepartmentFee, BillingInvoice, BillingFine, BillingPayment, BillingVariableData, MaintenanceReceipt, MorososReport } from '../types';
 
 interface BillingApiResponse<D> {
   success: boolean;
@@ -209,10 +209,21 @@ export function useBillingMaintenance(schemaName?: string, enabled = true) {
     throw new Error(data?.error?.message || 'Error al guardar el recibo');
   };
 
+  const saveVariableData = async (invoice_id: string, variable_data: BillingVariableData | null) => {
+    if (!schemaName) throw new Error('No hay un condominio activo');
+    const { data, error: fnError } = await invokeFunction<BillingApiResponse<unknown>>('billing-maintenance', {
+      method: 'POST',
+      body: { action: 'save-variable-data', schema_name: schemaName, invoice_id, variable_data }
+    });
+    if (fnError) throw fnError;
+    if (data?.success) return true;
+    throw new Error(data?.error?.message || 'Error al guardar los datos variables');
+  };
+
   return {
     config, periods, departmentFees, invoices, fines, loading, error,
     fetchAll, updateConfig, createPeriod, generateInvoices, regenerateInvoices, deletePeriod, setDepartmentFee,
-    fetchInvoices, fetchFines, fetchPayments, fetchMyState, fetchMorosos, saveReceipt,
+    fetchInvoices, fetchFines, fetchPayments, fetchMyState, fetchMorosos, saveReceipt, saveVariableData,
     registerPayment, addFine, payFine, syncCartFines
   };
 }

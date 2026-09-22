@@ -176,6 +176,16 @@ export default async function(req: Request): Promise<Response> {
       return json({ success: true, data, error: null }, 200);
     }
 
+    if (action === 'save-variable-data') {
+      if (!isAdmin) return forbidden('No tienes permisos para registrar datos variables');
+      const id = body.invoice_id as string;
+      const variableData = body.variable_data as Record<string, unknown> | null;
+      if (!id) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'invoice_id es requerido' } }, 400);
+      const { data, error } = await db.from('invoices').update({ variable_data: variableData || null }).eq('id', id).select().single();
+      if (error) throw error;
+      return json({ success: true, data, error: null }, 200);
+    }
+
     if (action === 'register-payment') {
       if (!isAdmin) return forbidden('No tienes permisos para registrar pagos');
       const id = body.invoice_id as string;

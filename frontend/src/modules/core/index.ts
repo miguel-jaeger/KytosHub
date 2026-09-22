@@ -12,6 +12,7 @@ export * from './components/BillingReceipt';
 export * from './components/BillingReceiptEditor';
 export * from './components/ResidentBillingView';
 export * from './components/MorososView';
+export * from './components/VariableDataCapture';
 export * from './hooks/useTowers';
 export * from './hooks/useDepartments';
 export * from './hooks/useResidents';

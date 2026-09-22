@@ -3,6 +3,7 @@ import { invokeFunction } from '../../../lib/insforge';
 import { useBillingMaintenance } from '../hooks/useBillingMaintenance';
 import { BillingReceiptEditor } from './BillingReceiptEditor';
 import { MorososView } from './MorososView';
+import { VariableDataCapture } from './VariableDataCapture';
 import { PaginationBar, paginate } from '../../../components/Pagination';
 import type { Tower, BillingInvoice, BillingFine, MaintenanceReceipt, Resident } from '../types';
 
@@ -89,7 +90,7 @@ const FINE_STATUS_LABELS: Record<string, string> = {
   ANULADA: 'Anulada'
 };
 
-type BillingTab = 'periods' | 'invoices' | 'fines' | 'morosos';
+type BillingTab = 'periods' | 'invoices' | 'fines' | 'morosos' | 'variables';
 
 export function BillingManager({ schemaName, enabled }: { schemaName?: string; enabled?: boolean }) {
   const billing = useBillingMaintenance(schemaName, enabled);
@@ -460,10 +461,15 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
         <button className={tab === 'invoices' ? 'active' : ''} onClick={() => setTab('invoices')}>Recibos</button>
         <button className={tab === 'fines' ? 'active' : ''} onClick={() => setTab('fines')}>Multas</button>
         <button className={tab === 'morosos' ? 'active' : ''} onClick={() => setTab('morosos')}>Morosos</button>
+        <button className={tab === 'variables' ? 'active' : ''} onClick={() => setTab('variables')}>Datos variables</button>
       </div>
 
       {tab === 'morosos' && (
         <MorososView schemaName={schemaName} enabled />
+      )}
+
+      {tab === 'variables' && (
+        <VariableDataCapture schemaName={schemaName} enabled />
       )}
 
       {tab === 'periods' && (

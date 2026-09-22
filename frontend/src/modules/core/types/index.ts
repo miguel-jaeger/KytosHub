@@ -510,6 +510,11 @@ export interface BillingFine {
   } | null;
 }
 
+export interface BillingVariableData {
+  meters: Array<{ label: string; value: string }>;
+  items: MaintenanceReceiptItem[];
+}
+
 export interface BillingInvoice {
   id: string;
   cycle_id: string;
@@ -524,6 +529,7 @@ export interface BillingInvoice {
   fine_total: number;
   total: number;
   receipt_data: MaintenanceReceipt | null;
+  variable_data: BillingVariableData | null;
   departments?: {
     department_number: string;
     towers?: { name: string; code: string } | null;
