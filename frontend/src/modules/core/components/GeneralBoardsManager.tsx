@@ -40,6 +40,13 @@ export function GeneralBoardsManager({ schemaName, enabled }: { schemaName?: str
     };
   });
 
+  const optionsForRole = (role: BoardRole): MemberOption[] => {
+    const usedElsewhere = new Set(
+      ROLE_ORDER.filter(r => r !== role).map(r => form.members[r]).filter(Boolean)
+    );
+    return candidateOptions.filter(o => !usedElsewhere.has(o.id));
+  };
+
   const handleCreate = async () => {
     setFormError(null);
     if (!form.start_date || !form.end_date) { setFormError('Indica las fechas de inicio y fin del período.'); return; }
@@ -170,14 +177,14 @@ export function GeneralBoardsManager({ schemaName, enabled }: { schemaName?: str
               </div>
               <div className="module-example">
                 <span className="material-symbols-outlined">info</span>
-                <span>Solo pueden ser elegidos los miembros de las diferentes juntas directivas de las torres. Usa el buscador para encontrar al miembro por nombre, torre o departamento.</span>
+                <span>Solo pueden ser elegidos los miembros de las diferentes juntas directivas de las torres. Usa el buscador para encontrar al miembro por nombre, torre o departamento. Una misma persona no puede ocupar dos cargos.</span>
               </div>
               {ROLE_ORDER.map(role => (
                 <div className="form-group" key={role}>
                   <label>{ROLE_LABELS[role]}</label>
                   <MemberSearchPicker
                     value={form.members[role] || ''}
-                    options={candidateOptions}
+                    options={optionsForRole(role)}
                     onChange={id => setForm({ ...form, members: { ...form.members, [role]: id } })}
                     placeholder={`Buscar ${ROLE_LABELS[role]} por nombre, torre o departamento...`}
                   />

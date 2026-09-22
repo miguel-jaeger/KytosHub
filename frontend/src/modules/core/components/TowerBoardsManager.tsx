@@ -68,6 +68,13 @@ export function TowerBoardsManager({ schemaName, enabled }: { schemaName?: strin
     sublabel: r.departments?.department_number ? `${r.departments.department_number}` : undefined
   }));
 
+  const optionsForRole = (role: string): MemberOption[] => {
+    const usedElsewhere = new Set(
+      ROLE_ORDER.filter(r => r !== role).map(r => form.members[r]).filter(Boolean)
+    );
+    return residentOptions.filter(o => !usedElsewhere.has(o.id));
+  };
+
   const handleCreate = async () => {
     setFormError(null);
     if (!form.tower_id) { setFormError('Selecciona la torre.'); return; }
@@ -214,14 +221,14 @@ export function TowerBoardsManager({ schemaName, enabled }: { schemaName?: strin
               </div>
               <div className="module-example">
                 <span className="material-symbols-outlined">info</span>
-                <span>Solo se pueden elegir residentes de la torre seleccionada. Usa el buscador para encontrar al residente por nombre o departamento.</span>
+                <span>Solo se pueden elegir residentes de la torre seleccionada. Usa el buscador para encontrar al residente por nombre o departamento. Una misma persona no puede ocupar dos cargos.</span>
               </div>
               {ROLE_ORDER.map(role => (
                 <div className="form-group" key={role}>
                   <label>{ROLE_LABELS[role]}</label>
                   <MemberSearchPicker
                     value={form.members[role] || ''}
-                    options={residentOptions}
+                    options={optionsForRole(role)}
                     onChange={id => setForm({ ...form, members: { ...form.members, [role]: id } })}
                     placeholder={`Buscar ${ROLE_LABELS[role]} por nombre o departamento...`}
                   />
