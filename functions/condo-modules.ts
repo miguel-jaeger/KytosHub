@@ -54,6 +54,16 @@ const MODULES: Record<string, ModuleDef> = {
     default_config: {
       term_months: 12
     }
+  },
+  billing_maintenance: {
+    name: 'Facturación y Mantenimiento',
+    description: 'Emisión de recibos de cuotas de mantenimiento por departamento, cobro de multas operativas (incluidas las de carritos) y control de morosidad.',
+    default_enabled: false,
+    default_config: {
+      default_fee: 150,
+      due_days: 5,
+      autolink_cart_fines: true
+    }
   }
 };
 

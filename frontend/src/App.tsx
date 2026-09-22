@@ -15,6 +15,7 @@ import { VisitorPage } from './pages/VisitorPage';
 import { SetupWizard } from './modules/core/components/SetupWizard';
 import { SuperAdminDashboard } from './modules/core/components/SuperAdminDashboard';
 import { CondominioAdminDashboard } from './modules/core/components/CondominioAdminDashboard';
+import { ResidentBillingView } from './modules/core/components/ResidentBillingView';
 import { invokeFunction } from './lib/insforge';
 import { TEXT_SCALES, getTextScale, setTextScale, applyTextScale, initTextScale } from './lib/text-size';
 
@@ -76,6 +77,7 @@ function AppShell() {
           <Route path="/garita" element={<GaritaPage />} />
           <Route path="/parking" element={<ParkingPage />} />
           <Route path="/visitor" element={<VisitorPage />} />
+          <Route path="/billing" element={<BillingRoute />} />
           <Route path="/admin/condominiums" element={<SuperAdminDashboard />} />
           <Route path="/admin/users" element={<AdminUsersRoute><CondominioAdminDashboard /></AdminUsersRoute>} />
           <Route path="/setup" element={<SetupWizard />} />
@@ -260,6 +262,12 @@ function Dashboard() {
     if (m.module_key === 'general_board' && activeModules.some(x => x.module_key === 'tower_boards' && x.is_enabled) && (role === 'admin' || role === 'super')) {
       modulesByAccess.push({ to: '/admin/users?section=general-board', title: 'Junta Directiva General', desc: 'Elección de la Junta Directiva General entre los miembros de las juntas de torre', icon: 'account_balance' });
     }
+    if (m.module_key === 'billing_maintenance' && (role === 'admin' || role === 'super')) {
+      modulesByAccess.push({ onClick: () => void openCondoSection('billing'), title: 'Facturación y Mantenimiento', desc: 'Genera recibos de cuotas, gestiona multas y controla la morosidad', icon: 'receipt_long' });
+    }
+    if (m.module_key === 'billing_maintenance' && role === 'resident') {
+      modulesByAccess.push({ to: '/billing', title: 'Mi Facturación', desc: 'Tus recibos de mantenimiento e historial de pagos', icon: 'receipt_long' });
+    }
   }
 
   if (role === 'loading') return <div className="loading-message">Cargando...</div>;
@@ -309,6 +317,11 @@ function AdminUsersRoute({ children }: { children: React.ReactNode }) {
   if (role === 'loading') return <div className="loading-message">Cargando...</div>;
   if (role !== 'super' && role !== 'admin') return <Navigate to="/" replace />;
   return <>{children}</>;
+}
+
+function BillingRoute() {
+  const { condominium } = useCondominium();
+  return <ResidentBillingView schemaName={condominium?.schema_name} enabled={Boolean(condominium)} />;
 }
 
 function RedirectIfAuthed() {

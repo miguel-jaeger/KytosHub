@@ -455,3 +455,172 @@ export interface GeneralBoardCandidate {
     towers?: { id: string; name: string; code: string } | null;
   } | null;
 }
+
+export interface BillingConfig {
+  default_fee: number;
+  due_days: number;
+  autolink_cart_fines: boolean;
+}
+
+export type InvoiceStatus = 'PENDIENTE' | 'PARCIAL' | 'PAGADA' | 'ANULADA';
+
+export interface BillingCycle {
+  id: string;
+  cycle_key: string;
+  label: string;
+  start_date: string;
+  end_date: string;
+  due_date: string;
+  is_closed: boolean;
+  created_at: string;
+  stats?: {
+    total_invoices: number;
+    paid_invoices: number;
+    pending_invoices: number;
+    collected: number;
+    morosos: number;
+  };
+}
+
+export interface DepartmentFee {
+  department_id: string;
+  department_number: string;
+  tower: { id: string; name: string; code: string } | null;
+  amount: number;
+  is_exempt: boolean;
+  notes: string | null;
+}
+
+export type FineSource = 'CART_LOAN' | 'OPERATIVE';
+export type FineStatus = 'PENDIENTE' | 'PAGADA' | 'ANULADA';
+
+export interface BillingFine {
+  id: string;
+  invoice_id: string | null;
+  department_id: string;
+  source: FineSource;
+  cart_loan_id: string | null;
+  concept: string;
+  amount: number;
+  status: FineStatus;
+  created_at: string;
+  departments?: {
+    department_number: string;
+    towers?: { name: string; code: string } | null;
+  } | null;
+}
+
+export interface BillingInvoice {
+  id: string;
+  cycle_id: string;
+  department_id: string;
+  amount: number;
+  paid_amount: number;
+  status: InvoiceStatus;
+  due_date: string;
+  paid_at: string | null;
+  notes: string | null;
+  created_at: string;
+  fine_total: number;
+  total: number;
+  departments?: {
+    department_number: string;
+    towers?: { name: string; code: string } | null;
+  } | null;
+  cycles?: {
+    id: string;
+    cycle_key: string;
+    label: string;
+    start_date: string;
+    end_date: string;
+    due_date: string;
+  } | null;
+  fines?: BillingFine[];
+}
+
+export interface MaintenanceReceiptItem {
+  categoria: string;
+  descripcion: string;
+  cantidad: string | null;
+  monto_total_gasto: number | null;
+  importe_departamento: number;
+}
+
+export interface MaintenanceReceipt {
+  numero_recibo: string;
+  periodo: string;
+  fecha_emision: string;
+  fecha_vencimiento: string;
+  moneda: string;
+  simbolo_moneda: string;
+  subtotal: number;
+  ajustes: number;
+  total_mes: number;
+  deuda_total_acumulada: number;
+  estado_morosidad: string;
+  condominio: string;
+  titular: string;
+  edificio: string;
+  departamento: string;
+  identificador_vivienda: string;
+  codigo_recaudacion: string;
+  plataforma_recaudacion: string;
+  items: MaintenanceReceiptItem[];
+  marcas_agua: Array<{ label: string; value: string }>;
+  entidades_autorizadas: string[];
+  regla_codigo_pago: string;
+  pasos_pago: string[];
+  notas_pago: string[];
+  acciones_del_mes: string[];
+  contacto_soporte: string;
+  plataforma_software: string;
+}
+
+export interface BillingPayment {
+  id: string;
+  invoice_id: string;
+  department_id: string;
+  amount: number;
+  payment_date: string;
+  notes: string | null;
+  registered_by_user_id: string | null;
+  created_at: string;
+  departments?: {
+    department_number: string;
+    towers?: { name: string; code: string } | null;
+  } | null;
+  invoices?: {
+    id: string;
+    cycle_id: string;
+    amount: number;
+    status: InvoiceStatus;
+    due_date: string;
+  } | null;
+}
+
+export interface MorosoRow {
+  department_id: string;
+  department_number: string;
+  tower_id: string;
+  tower: { id: string; name: string; code: string } | null;
+  pending_count: number;
+  pending_amount: number;
+  overdue: boolean;
+  overdue_amount: number;
+  invoices: Array<{
+    id: string;
+    amount: number;
+    paid_amount: number;
+    remaining: number;
+    due_date: string;
+    cycles: { id: string; label: string; end_date: string } | null;
+  }>;
+  fines: Array<{ id: string; amount: number; concept: string }>;
+}
+
+export interface MorososReport {
+  towers: Array<{ tower_id: string; name: string; code: string; pending_amount: number; departments_morosos: number }>;
+  departments: MorosoRow[];
+  total_pending: number;
+  total_departments_morosos: number;
+}

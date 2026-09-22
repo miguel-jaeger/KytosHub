@@ -8,9 +8,10 @@ import { ModulesManager } from './ModulesManager';
 import { GatesManager } from './GatesManager';
 import { CartLendingManager } from './CartLendingManager';
 import { ParkingManager } from './ParkingManager';
+import { BillingManager } from './BillingManager';
 import type { WizardStep } from '../types';
 
-type SetupTab = 'structure' | 'gates' | 'modules' | 'carts' | 'parking';
+type SetupTab = 'structure' | 'gates' | 'modules' | 'carts' | 'parking' | 'billing';
 
 export function SetupWizard() {
   const { condominium, setCondominium } = useCondominium();
@@ -22,6 +23,7 @@ export function SetupWizard() {
   const [tab, setTab] = useState<SetupTab>('structure');
   const [cartEnabled, setCartEnabled] = useState(false);
   const [parkingEnabled, setParkingEnabled] = useState(false);
+  const [billingEnabled, setBillingEnabled] = useState(false);
 
   const [condoData, setCondoData] = useState({
     name: condominium?.name || '',
@@ -39,8 +41,10 @@ export function SetupWizard() {
       const result = await listModules(condominium.schema_name);
       const cart = result.modules.find(m => m.module_key === 'cart_lending');
       const parking = result.modules.find(m => m.module_key === 'parking_control');
+      const billing = result.modules.find(m => m.module_key === 'billing_maintenance');
       setCartEnabled(Boolean(cart?.is_enabled));
       setParkingEnabled(Boolean(parking?.is_enabled));
+      setBillingEnabled(Boolean(billing?.is_enabled));
     } catch { /* keep current state */ }
   }, [condominium?.schema_name, listModules]);
 
@@ -57,9 +61,11 @@ export function SetupWizard() {
       setTab(cartEnabled ? 'carts' : 'modules');
     } else if (s === 'parking') {
       setTab(parkingEnabled ? 'parking' : 'modules');
+    } else if (s === 'billing') {
+      setTab(billingEnabled ? 'billing' : 'modules');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.search, cartEnabled]);
+  }, [location.search, cartEnabled, parkingEnabled, billingEnabled]);
 
   const handleCondoSubmit = async () => {
     if (!condoData.name.trim()) return;
@@ -148,6 +154,7 @@ export function SetupWizard() {
         <button className={tab === 'modules' ? 'active' : ''} onClick={() => setTab('modules')}>Módulos</button>
         {cartEnabled && <button className={tab === 'carts' ? 'active' : ''} onClick={() => setTab('carts')}>Carritos</button>}
         {parkingEnabled && <button className={tab === 'parking' ? 'active' : ''} onClick={() => setTab('parking')}>Estacionamiento</button>}
+        {billingEnabled && <button className={tab === 'billing' ? 'active' : ''} onClick={() => setTab('billing')}>Facturación</button>}
       </div>
 
       {tab === 'structure' && <StructureManager />}
@@ -155,6 +162,7 @@ export function SetupWizard() {
       {tab === 'modules' && <ModulesManager schemaName={condominium?.schema_name} onModulesUpdated={refreshCartFlag} />}
       {tab === 'carts' && cartEnabled && <CartLendingManager schemaName={condominium?.schema_name} />}
       {tab === 'parking' && parkingEnabled && <ParkingManager schemaName={condominium?.schema_name} />}
+      {tab === 'billing' && billingEnabled && <BillingManager schemaName={condominium?.schema_name} enabled />}
     </div>
   );
 }

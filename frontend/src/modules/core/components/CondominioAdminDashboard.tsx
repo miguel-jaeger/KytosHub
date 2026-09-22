@@ -7,6 +7,7 @@ import { useCondominiums } from '../hooks/useCondominiums';
 import { useCondoModules } from '../hooks/useCondoModules';
 import { TowerBoardsManager } from './TowerBoardsManager';
 import { GeneralBoardsManager } from './GeneralBoardsManager';
+import { MorososView } from './MorososView';
 import { PaginationBar, paginate } from '../../../components/Pagination';
 
 interface TenantUser {
@@ -165,6 +166,7 @@ export function CondominioAdminDashboard() {
   const [section, setSection] = useState<string>('users');
   const [towerBoardsEnabled, setTowerBoardsEnabled] = useState(false);
   const [generalBoardEnabled, setGeneralBoardEnabled] = useState(false);
+  const [billingEnabled, setBillingEnabled] = useState(false);
   const { list: listModules } = useCondoModules();
   const location = useLocation();
   const navigate = useNavigate();
@@ -177,20 +179,24 @@ export function CondominioAdminDashboard() {
   const effectiveSection =
     section === 'tower-boards' && towerBoardsEnabled ? 'tower-boards'
     : section === 'general-board' && generalBoardEnabled && towerBoardsEnabled ? 'general-board'
+    : section === 'morosos' && billingEnabled ? 'morosos'
     : 'users';
 
   useEffect(() => {
-    if (!condominium?.schema_name) { setTowerBoardsEnabled(false); setGeneralBoardEnabled(false); return; }
+    if (!condominium?.schema_name) { setTowerBoardsEnabled(false); setGeneralBoardEnabled(false); setBillingEnabled(false); return; }
     let cancelled = false;
     listModules(condominium.schema_name).then(result => {
       if (cancelled) return;
       const tb = result.modules.find(m => m.module_key === 'tower_boards');
       const gb = result.modules.find(m => m.module_key === 'general_board');
+      const bm = result.modules.find(m => m.module_key === 'billing_maintenance');
       setTowerBoardsEnabled(Boolean(tb?.is_enabled));
       setGeneralBoardEnabled(Boolean(gb?.is_enabled));
+      setBillingEnabled(Boolean(bm?.is_enabled));
     }).catch(() => {
       setTowerBoardsEnabled(false);
       setGeneralBoardEnabled(false);
+      setBillingEnabled(false);
     });
     return () => { cancelled = true; };
   }, [condominium?.schema_name, listModules]);
@@ -626,12 +632,17 @@ export function CondominioAdminDashboard() {
           {generalBoardEnabled && towerBoardsEnabled && (
             <button className={effectiveSection === 'general-board' ? 'active' : ''} onClick={() => { setSection('general-board'); navigate('/admin/users?section=general-board'); }}>Junta Directiva General</button>
           )}
+          {billingEnabled && (
+            <button className={effectiveSection === 'morosos' ? 'active' : ''} onClick={() => { setSection('morosos'); navigate('/admin/users?section=morosos'); }}>Morosos</button>
+          )}
         </div>
       )}
       {effectiveSection === 'tower-boards' && condominium ? (
         <TowerBoardsManager schemaName={condominium.schema_name} enabled />
       ) : effectiveSection === 'general-board' && condominium ? (
         <GeneralBoardsManager schemaName={condominium.schema_name} enabled />
+      ) : effectiveSection === 'morosos' && condominium ? (
+        <MorososView schemaName={condominium.schema_name} enabled />
       ) : (
       <>
       <div className="header">

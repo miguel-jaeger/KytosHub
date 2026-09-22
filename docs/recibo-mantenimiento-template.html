@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Recibo de Mantenimiento - E4D503</title>
+<style>
+  :root {
+    --color-primario: #0b5e42;
+    --color-primario-oscuro: #07432f;
+    --color-texto: #1c2733;
+    --color-muted: #5f6b76;
+    --color-borde: #d5dbe1;
+    --color-fondo-cabecera: #eef4f1;
+    --color-fondo-categoria: #f4f7f6;
+    --color-acento: #b8860b;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+    color: var(--color-texto);
+    background: #f0f2f4;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .hoja {
+    max-width: 210mm;
+    margin: 0 auto;
+    background: #fff;
+    padding: 14mm 12mm;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+  }
+
+  /* ---------- Encabezado ---------- */
+  .cabecera {
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch;
+    gap: 12px;
+    border-bottom: 3px solid var(--color-primario);
+    padding-bottom: 10px;
+  }
+  .cabecera-marca h1 {
+    color: var(--color-primario);
+    font-size: 15px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+  .cabecera-marca .condominio { font-size: 13px; font-weight: 600; }
+  .cabecera-marca .direccion { color: var(--color-muted); font-size: 11px; margin-top: 2px; }
+  .cabecera-marca .contacto { color: var(--color-muted); font-size: 10.5px; margin-top: 2px; }
+  .recibo-titulo {
+    text-align: center;
+    flex: 0 0 auto;
+    padding: 0 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .recibo-titulo .numero {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-primario);
+  }
+  .recibo-titulo .periodo {
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .recibo-titulo .selo {
+    margin-top: 4px;
+    border: 2px solid var(--color-acento);
+    color: var(--color-acento);
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+  }
+
+  /* ---------- Datos del recibo y destinatario ---------- */
+  .datos-bloque {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .panel {
+    border: 1px solid var(--color-borde);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+  .panel h3 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-primario);
+    border-bottom: 1px solid var(--color-borde);
+    padding-bottom: 4px;
+    margin-bottom: 6px;
+  }
+  .fila-dato { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+  .fila-dato .clave { color: var(--color-muted); }
+  .fila-dato .valor { font-weight: 600; text-align: right; }
+  .morosidad {
+    margin-top: 6px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+  }
+  .morosidad.al-dia { background: #e5f5ec; color: #0b5e42; border: 1px solid #b6dfca; }
+
+  /* ---------- Tabla de conceptos ---------- */
+  .seccion-titulo {
+    margin: 14px 0 8px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-primario-oscuro);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .seccion-titulo::after { content: ""; flex: 1; border-bottom: 1px solid var(--color-borde); }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 5px 8px; border: 1px solid var(--color-borde); vertical-align: top; }
+  thead th {
+    background: var(--color-fondo-cabecera);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  td.desc { width: 44%; }
+  td.cant { width: 16%; text-align: center; color: var(--color-muted); }
+  td.num { width: 14%; text-align: right; }
+  td.num-imp { width: 16%; text-align: right; }
+  tr.total-categoria td {
+    background: var(--color-fondo-categoria);
+    font-weight: 700;
+    border-top: 1.5px solid var(--color-primario);
+  }
+  tr.total-categoria td:first-child { font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
+  tr.fila-categoria-primer th {
+    background: var(--color-fondo-categoria);
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--color-primario-oscuro);
+  }
+
+  /* ---------- Totales ---------- */
+  .totales { margin-top: 12px; display: flex; justify-content: flex-end; }
+  .tabla-totales { width: 300px; }
+  .tabla-totales td { border: none; border-bottom: 1px dotted var(--color-borde); padding: 5px 8px; text-align: right; }
+  .tabla-totales tr.total-final td {
+    border: none;
+    background: var(--color-primario);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  /* ---------- Lectura medidor ---------- */
+  .medidor-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .medidor-item {
+    border: 1px solid var(--color-borde);
+    border-radius: 6px;
+    padding: 6px 8px;
+  }
+  .medidor-item .k { color: var(--color-muted); font-size: 10px; text-transform: uppercase; }
+  .medidor-item .v { font-size: 12px; font-weight: 700; margin-top: 2px; }
+
+  /* ---------- Instrucciones de pago ---------- */
+  .pago {
+    margin-top: 12px;
+    border: 1.5px solid var(--color-primario);
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: var(--color-fondo-cabecera);
+  }
+  .pago h3 {
+    color: var(--color-primario);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .codigo-pago {
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-primario-oscuro);
+    background: #fff;
+    border: 1px solid var(--color-borde);
+    border-radius: 6px;
+    padding: 4px 10px;
+    display: inline-block;
+    margin: 4px 0;
+  }
+  .pago ol, .pago ul { margin: 6px 0 0 18px; }
+  .pago li { margin: 2px 0; }
+  .entidades { margin: 6px 0 0; }
+  .entidades span {
+    display: inline-block;
+    background: #fff;
+    border: 1px solid var(--color-borde);
+    border-radius: 4px;
+    padding: 2px 8px;
+    margin: 2px 4px 2px 0;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* ---------- Informe operativo ---------- */
+  .informe { margin-top: 12px; }
+  .informe ul { margin: 6px 0 0 18px; }
+  .informe li { margin: 2px 0; }
+
+  /* ---------- Pie ---------- */
+  .pie {
+    margin-top: 14px;
+    border-top: 2px solid var(--color-primario);
+    padding-top: 6px;
+    text-align: center;
+    color: var(--color-muted);
+    font-size: 10px;
+  }
+  .pie a { color: var(--color-primario); }
+
+  .salto-pagina { page-break-before: always; }
+
+  /* ---------- Impresión ---------- */
+  @media print {
+    body { background: #fff; }
+    .hoja { box-shadow: none; padding: 6mm 8mm; max-width: none; width: 100%; }
+    .salto-pagina { break-before: page; }
+  }
+
+  @page { size: A4; margin: 10mm; }
+</style>
+</head>
+<body>
+<div class="hoja">
+
+  <!-- ===================== ENCABEZADO ===================== -->
+  <header class="cabecera">
+    <div class="cabecera-marca">
+      <h1>{{EMPRESA_ADMINISTRADORA}}</h1>
+      <div class="condominio">{{CONDOMINIO}}</div>
+      <div class="direccion">{{DIRECCION}}</div>
+      <div class="contacto">{{CONTACTO_EMAIL}} · {{CONTACTO_ADICIONAL}}</div>
+    </div>
+    <div class="recibo-titulo">
+      <div class="numero">RECIBO N.º {{NUMERO_RECIBO}}</div>
+      <div class="periodo">{{PERIODO}}</div>
+      <div class="selo">CUOTA DE MANTENIMIENTO</div>
+    </div>
+  </header>
+
+  <!-- ===================== DATOS ===================== -->
+  <section class="datos-bloque">
+    <div class="panel">
+      <h3>Datos del recibo</h3>
+      <div class="fila-dato"><span class="clave">Periodo</span><span class="valor">{{PERIODO}}</span></div>
+      <div class="fila-dato"><span class="clave">Emitido</span><span class="valor">{{FECHA_EMISION}}</span></div>
+      <div class="fila-dato"><span class="clave">Vencimiento</span><span class="valor">{{FECHA_VENCIMIENTO}}</span></div>
+      <div class="fila-dato"><span class="clave">N.º de recibo</span><span class="valor">{{NUMERO_RECIBO}}</span></div>
+      <div class="morosidad al-dia">{{ESTADO_MOROSIDAD}}</div>
+    </div>
+    <div class="panel">
+      <h3>Destinatario y recaudación</h3>
+      <div class="fila-dato"><span class="clave">Titular</span><span class="valor">{{TITULAR}}</span></div>
+      <div class="fila-dato"><span class="clave">Vivienda</span><span class="valor">{{IDENTIFICADOR_VIVIENDA}}</span></div>
+      <div class="fila-dato"><span class="clave">Código de recaudación</span><span class="valor">{{CODIGO_RECAUDACION}}</span></div>
+      <div class="fila-dato"><span class="clave">Plataforma</span><span class="valor">{{PLATAFORMA_RECAUDACION}}</span></div>
+    </div>
+  </section>
+
+  <!-- ===================== CONCEPTOS ===================== -->
+  <div class="seccion-titulo">Detalle de conceptos del mes</div>
+  <table>
+    <thead>
+      <tr>
+        <th class="desc">Descripción</th>
+        <th class="cant">Cantidad / Lectura</th>
+        <th class="num">Total gasto (S/)</th>
+        <th class="num-imp">Importe del departamento (S/)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{FILAS_CATEGORIAS}}
+    </tbody>
+  </table>
+
+  <!-- ===================== TOTALES ===================== -->
+  <div class="totales">
+    <table class="tabla-totales">
+      <tr><td>Subtotal del mes</td><td>{{SUBTOTAL}}</td></tr>
+      <tr><td>Multas / ajustes del mes</td><td>{{AJUSTES}}</td></tr>
+      <tr class="total-final"><td>TOTAL MES</td><td>{{TOTAL_MES}}</td></tr>
+      <tr><td>Deuda total acumulada</td><td>{{DEUDA_ACUMULADA}}</td></tr>
+    </table>
+  </div>
+
+  <!-- ===================== LECTURA MEDIDOR ===================== -->
+  <div class="salto-pagina"></div>
+  <div class="seccion-titulo">Evidencia de lectura del medidor de agua</div>
+  <div class="medidor-grid">
+    <div class="medidor-item"><div class="k">Marca del medidor</div><div class="v">{{MARCA_MEDIDOR}}</div></div>
+    <div class="medidor-item"><div class="k">N.º de serie</div><div class="v">{{SERIE_MEDIDOR}}</div></div>
+    <div class="medidor-item"><div class="k">Etiqueta / foto</div><div class="v">{{ETIQUETA_FOTO}}</div></div>
+    <div class="medidor-item"><div class="k">Lectura registrada</div><div class="v">{{LECTURA_REGISTRADA}}</div></div>
+    <div class="medidor-item"><div class="k">Lectura actual (m³)</div><div class="v">{{LECTURA_ACTUAL}}</div></div>
+    <div class="medidor-item"><div class="k">Lectura anterior (m³)</div><div class="v">{{LECTURA_ANTERIOR}}</div></div>
+    <div class="medidor-item"><div class="k">Consumo calculado (m³)</div><div class="v">{{LECTURA_CONSUMO}}</div></div>
+    <div class="medidor-item"><div class="k">Precio unitario (S/ m³)</div><div class="v">{{PRECIO_UNITARIO}}</div></div>
+    <div class="medidor-item"><div class="k">Fecha / hora de la foto</div><div class="v">{{FECHA_HORA_FOTO}}</div></div>
+    <div class="medidor-item"><div class="k">Supervisor de lectura</div><div class="v">{{SUPERVISOR}}</div></div>
+  </div>
+
+  <!-- ===================== INSTRUCCIONES DE PAGO ===================== -->
+  <section class="pago">
+    <h3>Instrucciones de pago</h3>
+    <p>
+      Realice el pago a través de la plataforma <strong>{{PLATAFORMA_PAGO}}</strong> en cualquiera de las siguientes
+      entidades: <span class="entidades">{{ENTIDADES}}</span>
+    </p>
+    <p>
+      Regla del código de pago: {{REGLA_CODIGO_PAGO}}<br />
+      Código de su departamento: <span class="codigo-pago">{{CODIGO_PAGO}}</span>
+    </p>
+    <ol>
+      <li>Ingresar a la banca por internet o aplicación móvil de su banco.</li>
+      <li>Seleccionar la opción Pago de servicios.</li>
+      <li>Buscar la empresa recaudadora: KASHIO.</li>
+      <li>Ingresar el código único de su departamento (ej. CLME4D503).</li>
+      <li>Confirmar el monto y realizar el pago.</li>
+      <li>El sistema registrará automáticamente el pago a nombre de su departamento.</li>
+    </ol>
+    <ul>{{NOTAS_PAGO}}</ul>
+  </section>
+
+  <!-- ===================== INFORME OPERATIVO ===================== -->
+  <section class="informe">
+    <div class="seccion-titulo">Informe operativo - Acciones destacadas del mes</div>
+    <ul>{{ACCIONES_MES}}</ul>
+  </section>
+
+  <!-- ===================== PIE ===================== -->
+  <footer class="pie">
+    Generado por {{PLATAFORMA_SOFTWARE}} · Ante cualquier consulta escriba a {{CONTACTO_EMAIL}} · {{CONTACTO_ADICIONAL}}
+  </footer>
+
+</div>
+</body>
+</html>
