@@ -28,10 +28,13 @@ export default async function(req: Request): Promise<Response> {
     const db = client.database.schema(schemaName);
     const isAdmin = await isAdminForSchema(req, client, schemaName);
 
-    // Module guard: general_board must be enabled for this condominium
+    // Module guard: general_board must be enabled for this condominium, and it
+    // depends on the tower boards module: members of the general board are
+    // elected only from members of the tower boards.
     const moduleOn = await isModuleEnabled(db, 'general_board');
     const towerModuleOn = await isModuleEnabled(db, 'tower_boards');
     if (!moduleOn) return forbidden('Módulo inactivo para este condominio');
+    if (!towerModuleOn) return forbidden('La Junta Directiva General requiere que el módulo Junta Directiva de Torre esté activo');
 
     if (action === 'list') {
       const boards = await listBoards(db);

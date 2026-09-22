@@ -176,7 +176,7 @@ export function CondominioAdminDashboard() {
 
   const effectiveSection =
     section === 'tower-boards' && towerBoardsEnabled ? 'tower-boards'
-    : section === 'general-board' && generalBoardEnabled ? 'general-board'
+    : section === 'general-board' && generalBoardEnabled && towerBoardsEnabled ? 'general-board'
     : 'users';
 
   useEffect(() => {
@@ -624,7 +624,7 @@ export function CondominioAdminDashboard() {
           {towerBoardsEnabled && (
             <button className={effectiveSection === 'tower-boards' ? 'active' : ''} onClick={() => { setSection('tower-boards'); navigate('/admin/users?section=tower-boards'); }}>Junta Directiva de Torre</button>
           )}
-          {generalBoardEnabled && (
+          {generalBoardEnabled && towerBoardsEnabled && (
             <button className={effectiveSection === 'general-board' ? 'active' : ''} onClick={() => { setSection('general-board'); navigate('/admin/users?section=general-board'); }}>Junta Directiva General</button>
           )}
         </div>

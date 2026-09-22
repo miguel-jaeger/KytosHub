@@ -117,6 +117,23 @@ export default async function(req: Request): Promise<Response> {
         return json({ success: false, data: null, error: { code: 'FORBIDDEN', message: 'No tienes permisos para editar la configuración' } }, 403);
       }
 
+      // Dependency rule: the general board module requires the tower boards
+      // module to be enabled for this condominium.
+      if (moduleKey === 'general_board' && wantsToggle && body.is_enabled === true) {
+        const towerOn = await moduleEnabled(db, 'tower_boards');
+        if (!towerOn) {
+          return json({ success: false, data: null, error: { code: 'DEPENDENCY_REQUIRED', message: 'Para activar la Junta Directiva General primero debes activar el módulo Junta Directiva de Torre.' } }, 409);
+        }
+      }
+      // Symmetric guard: tower boards cannot be deactivated while the general
+      // board module depends on it and is still active.
+      if (moduleKey === 'tower_boards' && wantsToggle && body.is_enabled === false) {
+        const generalOn = await moduleEnabled(db, 'general_board');
+        if (generalOn) {
+          return json({ success: false, data: null, error: { code: 'DEPENDENCY_BLOCKED', message: 'No puedes desactivar Junta Directiva de Torre mientras la Junta Directiva General esté activa. Desactiva primero la Junta Directiva General.' } }, 409);
+        }
+      }
+
       // Preserve the field that is not being updated: toggling the module must
       // keep the current config (e.g. the parking layout), and editing the
       // config must keep the current enabled state.
@@ -150,6 +167,15 @@ export default async function(req: Request): Promise<Response> {
   } catch (error) {
     console.error('Error in condo-modules:', error);
     return json({ success: false, data: null, error: { code: 'INTERNAL_ERROR', message: 'Error interno' } }, 500);
+  }
+}
+
+async function moduleEnabled(db: { from(t: string): any }, key: string): Promise<boolean> {
+  try {
+    const { data } = await db.from('condo_settings').select('is_enabled').eq('module_key', key).single();
+    return Boolean(data && (data as { is_enabled: boolean }).is_enabled);
+  } catch {
+    return false;
   }
 }
 
