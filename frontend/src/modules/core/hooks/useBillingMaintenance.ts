@@ -77,6 +77,17 @@ export function useBillingMaintenance(schemaName?: string, enabled = true) {
 
   const regenerateInvoices = async (period_id: string) => generateInvoices(period_id, true);
 
+  const deletePeriod = async (period_id: string) => {
+    if (!schemaName) throw new Error('No hay un condominio activo');
+    const { data, error: fnError } = await invokeFunction<BillingApiResponse<{ id: string }>>('billing-maintenance', {
+      method: 'POST',
+      body: { action: 'delete-period', schema_name: schemaName, period_id }
+    });
+    if (fnError) throw fnError;
+    if (data?.success) { await fetchAll(); return true; }
+    throw new Error(data?.error?.message || 'Error al eliminar el período');
+  };
+
   const setDepartmentFee = async (payload: { department_id: string; amount: number; is_exempt: boolean; notes?: string }) => {
     if (!schemaName) throw new Error('No hay un condominio activo');
     const { data, error: fnError } = await invokeFunction<BillingApiResponse<unknown>>('billing-maintenance', {
@@ -200,7 +211,7 @@ export function useBillingMaintenance(schemaName?: string, enabled = true) {
 
   return {
     config, periods, departmentFees, invoices, fines, loading, error,
-    fetchAll, updateConfig, createPeriod, generateInvoices, regenerateInvoices, setDepartmentFee,
+    fetchAll, updateConfig, createPeriod, generateInvoices, regenerateInvoices, deletePeriod, setDepartmentFee,
     fetchInvoices, fetchFines, fetchPayments, fetchMyState, fetchMorosos, saveReceipt,
     registerPayment, addFine, payFine, syncCartFines
   };

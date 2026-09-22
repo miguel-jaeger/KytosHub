@@ -263,6 +263,24 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
     }
   };
 
+  const handleDeletePeriod = async (p: { id: string; label: string; stats?: { total_invoices: number; paid_invoices: number } }) => {
+    const count = p.stats ? p.stats.total_invoices : 0;
+    const paid = p.stats ? p.stats.paid_invoices : 0;
+    const extra = paid > 0
+      ? ` Este período tiene ${paid} recibo(s) pagado(s) que también se eliminarán.`
+      : '';
+    if (!confirm(`¿Eliminar el período "${p.label}" y sus ${count} recibo(s)?${extra} Esta acción no se puede deshacer.`)) return;
+    setError(null);
+    try {
+      await billing.deletePeriod(p.id);
+      setFilters({ ...filters, period_id: billing.periods[0]?.id || '' });
+      setMessage(`Período "${p.label}" eliminado`);
+      setTimeout(() => setMessage(null), 2500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al eliminar el período');
+    }
+  };
+
   const openFeeModal = () => {
     setFeeForm({ department_id: '', amount: String(configForm.default_fee || 150), is_exempt: false, notes: '' });
     setShowFeeModal(true);
@@ -472,6 +490,9 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
                 </div>
                 <div className="condo-card-actions" style={{ marginTop: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border,#e5e7eb)', justifyContent: 'flex-start' }}>
                   <button onClick={() => { setFilters({ ...filters, period_id: p.id }); setTab('invoices'); }}><span className="material-symbols-outlined">receipt_long</span> Ver recibos</button>
+                  <button className="btn-cancel" title="Elimina el período con todos sus recibos, multas y pagos" onClick={() => handleDeletePeriod(p)}>
+                    <span className="material-symbols-outlined">delete</span> Eliminar
+                  </button>
                 </div>
               </div>
             ))}

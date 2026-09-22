@@ -105,6 +105,16 @@ export default async function(req: Request): Promise<Response> {
       return json({ success: true, data: { period_id: id, created }, error: null }, 200);
     }
 
+    if (action === 'delete-period') {
+      if (!isAdmin) return forbidden('No tienes permisos para eliminar períodos');
+      const id = body.period_id as string;
+      if (!id) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'period_id es requerido' } }, 400);
+      // Deleting the cycle cascades to its invoices, fines and payments
+      const { data, error } = await db.from('billing_cycles').delete().eq('id', id).select().single();
+      if (error) throw error;
+      return json({ success: true, data, error: null }, 200);
+    }
+
     if (action === 'list-department-fees') {
       if (!isAdmin) return forbidden('No tienes permisos para ver la configuración');
       const { data: depts } = await db.from('departments').select('id, department_number, tower_id');
