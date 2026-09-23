@@ -495,7 +495,7 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
     <div className="billing-manager">
       <div className="header">
         <h3>Facturación y Mantenimiento</h3>
-        <div className="header-actions" style={{ gap: '0.6rem' }}>
+        <div className="header-actions">
           <button onClick={handleSyncCart} disabled={syncingCart} title="Vincular al estado de cuenta las multas de carritos pendientes">
             <span className="material-symbols-outlined">sync</span> {syncingCart ? 'Sincronizando...' : 'Sincronizar multas de carritos'}
           </button>
