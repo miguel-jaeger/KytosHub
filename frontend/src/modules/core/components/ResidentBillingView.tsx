@@ -97,11 +97,12 @@ export function ResidentBillingView({ schemaName, enabled }: { schemaName?: stri
             importe_departamento: importe,
             ...(section.sedapal
               ? {
-                  lectura_anterior: it.lectura_anterior === null || it.lectura_anterior === undefined ? null : Number(it.lectura_anterior),
-                  lectura_actual: it.lectura_actual === null || it.lectura_actual === undefined ? null : Number(it.lectura_actual),
-                  precio_unidad: it.precio_unidad === null || it.precio_unidad === undefined ? null : Number(it.precio_unidad)
+                  lectura_anterior: it.lectura_anterior === null || it.lectura_anterior === undefined ? 0 : Number(it.lectura_anterior),
+                  lectura_actual: it.lectura_actual === null || it.lectura_actual === undefined ? 0 : Number(it.lectura_actual),
+                  precio_unidad: it.precio_unidad === null || it.precio_unidad === undefined ? 0 : Number(it.precio_unidad)
                 }
-              : {})
+              : {}),
+            ...(typeof it.foto_lectura === 'string' && it.foto_lectura ? { foto_lectura: it.foto_lectura } : {})
           });
         }
       }

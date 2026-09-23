@@ -101,7 +101,13 @@ const MODULES: Record<string, ModuleDef> = {
           id: 'sedapal',
           name: 'SEDAPAL',
           sedapal: true,
-          items: [{ descripcion: 'Servicio de agua', monto_total: 0, cantidad: 0, precio_unidad: 0, lectura_anterior: 0, lectura_actual: 0, importe: 0 }]
+          items: [{ descripcion: 'Servicio de agua', monto_total: 0, cantidad: 0, precio_unidad: 0, lectura_anterior: 0, lectura_actual: 0, importe: 0, foto_lectura: null }]
+        },
+        {
+          id: 'servicios-basicos-luz',
+          name: 'Servicios básicos de luz',
+          sedapal: true,
+          items: [{ descripcion: 'Servicio de electricidad (luz)', monto_total: 0, cantidad: 0, precio_unidad: 0, lectura_anterior: 0, lectura_actual: 0, importe: 0, foto_lectura: null }]
         }
       ],
       ajustes: [
@@ -285,7 +291,7 @@ function sanitizeConfig(key: string, config: Record<string, unknown>): Record<st
   if (key === 'billing_maintenance') {
     const num = (v: unknown, d: number) => {
       const n = Number(v);
-      return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : d;
+      return Number.isFinite(n) && n >= 0 ? Math.round(n * 10000) / 10000 : d;
     };
     cfg.default_fee = num(cfg.default_fee, 150);
     cfg.due_days = Math.round(num(cfg.due_days, 5));
@@ -297,7 +303,8 @@ function sanitizeConfig(key: string, config: Record<string, unknown>): Record<st
       precio_unidad: it.precio_unidad === null || it.precio_unidad === undefined ? null : num(it.precio_unidad, 0),
       lectura_anterior: it.lectura_anterior === null || it.lectura_anterior === undefined ? null : num(it.lectura_anterior, 0),
       lectura_actual: it.lectura_actual === null || it.lectura_actual === undefined ? null : num(it.lectura_actual, 0),
-      importe: num(it.importe, 0)
+      importe: num(it.importe, 0),
+      foto_lectura: typeof it.foto_lectura === 'string' && it.foto_lectura ? it.foto_lectura : null
     });
     if (Array.isArray(cfg.sections)) {
       cfg.sections = (cfg.sections as Record<string, unknown>[]).map(s => ({

@@ -1,5 +1,6 @@
 import type { ChangeEvent } from 'react';
 import type { BillingConfig, BillingConfigItem, BillingConfigSection } from '../types';
+import { MeterPhotoUpload } from './MeterPhotoUpload';
 
 function uid(): string {
   return `s_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -7,7 +8,7 @@ function uid(): string {
 
 const num = (v: unknown, fallback = 0): number => {
   const n = Number(v);
-  return Number.isFinite(n) ? Math.round(n * 100) / 100 : fallback;
+  return Number.isFinite(n) ? Math.round(n * 10000) / 10000 : fallback;
 };
 
 function emptyItem(descripcion = ''): BillingConfigItem {
@@ -64,6 +65,14 @@ export function defaultBillingSections(): BillingConfigSection[] {
       items: [
         { ...emptyItem('Servicio de agua'), lectura_anterior: 0, lectura_actual: 0, precio_unidad: 0, cantidad: 0, monto_total: 0 }
       ]
+    },
+    {
+      id: 'servicios-basicos-luz',
+      name: 'Servicios básicos de luz',
+      sedapal: true,
+      items: [
+        { ...emptyItem('Servicio de electricidad (luz)'), lectura_anterior: 0, lectura_actual: 0, precio_unidad: 0, cantidad: 0, monto_total: 0 }
+      ]
     }
   ];
 }
@@ -98,11 +107,18 @@ export function normalizeBillingConfig(cfg: Partial<BillingConfig> | Record<stri
               precio_unidad: it.precio_unidad === null || it.precio_unidad === undefined ? null : num(it.precio_unidad),
               lectura_anterior: it.lectura_anterior === null || it.lectura_anterior === undefined ? null : num(it.lectura_anterior),
               lectura_actual: it.lectura_actual === null || it.lectura_actual === undefined ? null : num(it.lectura_actual),
-              importe: num(it.importe)
+              importe: num(it.importe),
+              foto_lectura: typeof it.foto_lectura === 'string' && it.foto_lectura ? it.foto_lectura : null
             }))
           : []
       }))
     : base.sections;
+  const known = new Set(sections.map(s => s.id));
+  base.sections.forEach(def => {
+    if (!known.has(def.id)) {
+      sections.push({ ...def, items: def.items.map(i => ({ ...i })) });
+    }
+  });
   const ajustes = Array.isArray(src.ajustes)
     ? (src.ajustes as Record<string, unknown>[]).map(it => ({
         descripcion: String(it.descripcion || ''),
@@ -111,7 +127,8 @@ export function normalizeBillingConfig(cfg: Partial<BillingConfig> | Record<stri
         precio_unidad: null,
         lectura_anterior: null,
         lectura_actual: null,
-        importe: num(it.importe)
+        importe: num(it.importe),
+        foto_lectura: null
       }))
     : base.ajustes;
   return {
@@ -130,12 +147,15 @@ function moneyDisplay(v: number | null | undefined): string {
 export function BillingConfigForm({
   value,
   onChange,
-  disabled
+  disabled,
+  uploadFolder
 }: {
   value: BillingConfig;
   onChange: (next: BillingConfig) => void;
   disabled?: boolean;
+  uploadFolder?: string;
 }) {
+  const folder = uploadFolder || 'recibos';
   const patchSections = (sections: BillingConfigSection[]) => onChange({ ...value, sections });
   const patchAjustes = (ajustes: BillingConfigItem[]) => onChange({ ...value, ajustes });
 
@@ -154,7 +174,7 @@ export function BillingConfigForm({
         const actual = raw.lectura_actual ?? 0;
         const precio = raw.precio_unidad ?? 0;
         const cantidad = Math.max(0, actual - anterior);
-        const monto = Math.round(cantidad * precio * 100) / 100;
+        const monto = Math.round(cantidad * precio * 10000) / 10000;
         updated[ii] = { ...raw, cantidad, monto_total: monto, importe: monto };
       }
       return { ...s, items: updated };
@@ -197,7 +217,7 @@ export function BillingConfigForm({
   const numberInputProps = (v: number | null | undefined, onChangeVal: (n: number | null) => void) => ({
     type: 'number' as const,
     min: 0,
-    step: '0.01',
+    step: 'any' as const,
     disabled,
     value: moneyDisplay(v),
     onChange: (e: ChangeEvent<HTMLInputElement>) => onChangeVal(e.target.value === '' ? null : Number(e.target.value))
@@ -228,7 +248,7 @@ export function BillingConfigForm({
               <div className="billing-section-tools">
                 <label className="billing-check">
                   <input type="checkbox" disabled={disabled} checked={section.sedapal} onChange={e => updateSection(si, { sedapal: e.target.checked })} />
-                  SEDAPAL (medidor de agua)
+                  Lectura de medidor (consumo variable)
                 </label>
                 {!disabled && (
                   <button type="button" className="icon-btn danger" title="Eliminar sección" onClick={() => removeSection(si)}>
@@ -251,19 +271,24 @@ export function BillingConfigForm({
                   <span />
                 </div>
                 {section.items.map((it, ii) => (
-                  <div key={ii} className="billing-item-row billing-item-row-sedapal">
-                    <div className="form-group"><input type="text" disabled={disabled} value={it.descripcion} onChange={e => updateItem(si, ii, { descripcion: e.target.value })} /></div>
-                    <div className="form-group"><input {...numberInputProps(it.lectura_anterior, n => updateItem(si, ii, { lectura_anterior: n }, true))} /></div>
-                    <div className="form-group"><input {...numberInputProps(it.lectura_actual, n => updateItem(si, ii, { lectura_actual: n }, true))} /></div>
-                    <div className="form-group"><input {...numberInputProps(it.precio_unidad, n => updateItem(si, ii, { precio_unidad: n }, true))} /></div>
-                    <div className="form-group"><input disabled readOnly value={moneyDisplay(it.cantidad)} /></div>
-                    <div className="form-group"><input disabled readOnly value={moneyDisplay(it.monto_total)} /></div>
-                    <div className="form-group"><input {...numberInputProps(it.importe, n => updateItem(si, ii, { importe: n ?? 0 }))} /></div>
-                    {!disabled && (
-                      <button type="button" className="icon-btn danger" title="Eliminar ítem" onClick={() => removeItem(si, ii)}>
-                        <span className="material-symbols-outlined">close</span>
-                      </button>
-                    )}
+                  <div key={ii} className="billing-sedapal-item">
+                    <div className="billing-item-row billing-item-row-sedapal">
+                      <div className="form-group"><input type="text" disabled={disabled} value={it.descripcion} onChange={e => updateItem(si, ii, { descripcion: e.target.value })} /></div>
+                      <div className="form-group"><input {...numberInputProps(it.lectura_anterior, n => updateItem(si, ii, { lectura_anterior: n }, true))} /></div>
+                      <div className="form-group"><input {...numberInputProps(it.lectura_actual, n => updateItem(si, ii, { lectura_actual: n }, true))} /></div>
+                      <div className="form-group"><input {...numberInputProps(it.precio_unidad, n => updateItem(si, ii, { precio_unidad: n }, true))} /></div>
+                      <div className="form-group"><input disabled readOnly value={moneyDisplay(it.cantidad)} /></div>
+                      <div className="form-group"><input disabled readOnly value={moneyDisplay(it.monto_total)} /></div>
+                      <div className="form-group"><input {...numberInputProps(it.importe, n => updateItem(si, ii, { importe: n ?? 0 }))} /></div>
+                      {!disabled && (
+                        <button type="button" className="icon-btn danger" title="Eliminar ítem" onClick={() => removeItem(si, ii)}>
+                          <span className="material-symbols-outlined">close</span>
+                        </button>
+                      )}
+                    </div>
+                    <div className="billing-sedapal-photo">
+                      <MeterPhotoUpload value={it.foto_lectura} onChange={url => updateItem(si, ii, { foto_lectura: url })} folder={folder} disabled={disabled} />
+                    </div>
                   </div>
                 ))}
               </div>

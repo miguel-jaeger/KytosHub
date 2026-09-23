@@ -230,8 +230,8 @@ export function VariableDataCapture({ schemaName, enabled }: { schemaName?: stri
                   <div className="form-group" style={{ flex: 1.1 }}><input type="text" placeholder="Categoría" value={it.categoria} onChange={e => setItem(inv.id, idx, { categoria: e.target.value })} /></div>
                   <div className="form-group" style={{ flex: 2 }}><input type="text" placeholder="Descripción" value={it.descripcion} onChange={e => setItem(inv.id, idx, { descripcion: e.target.value })} /></div>
                   <div className="form-group" style={{ flex: 0.6 }}><input type="text" placeholder="Lectura/Unidad" value={it.cantidad || ''} onChange={e => setItem(inv.id, idx, { cantidad: e.target.value || null })} /></div>
-                  <div className="form-group" style={{ flex: 0.6 }}><input type="number" placeholder="Total gasto" value={it.monto_total_gasto === null ? '' : String(it.monto_total_gasto)} onChange={e => setItem(inv.id, idx, { monto_total_gasto: e.target.value === '' ? null : Number(e.target.value) })} /></div>
-                  <div className="form-group" style={{ flex: 0.6 }}><input type="number" placeholder="Importe dpto" value={String(it.importe_departamento)} onChange={e => setItem(inv.id, idx, { importe_departamento: Number(e.target.value) || 0 })} /></div>
+                  <div className="form-group" style={{ flex: 0.6 }}><input type="number" step="any" placeholder="Total gasto" value={it.monto_total_gasto === null ? '' : String(it.monto_total_gasto)} onChange={e => setItem(inv.id, idx, { monto_total_gasto: e.target.value === '' ? null : Number(e.target.value) })} /></div>
+                  <div className="form-group" style={{ flex: 0.6 }}><input type="number" step="any" placeholder="Importe dpto" value={String(it.importe_departamento)} onChange={e => setItem(inv.id, idx, { importe_departamento: Number(e.target.value) || 0 })} /></div>
                   <button type="button" className="icon-btn danger" onClick={() => removeItem(inv.id, idx)}><span className="material-symbols-outlined">close</span></button>
                 </div>
               ))}

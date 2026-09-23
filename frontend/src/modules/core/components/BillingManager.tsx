@@ -37,11 +37,12 @@ function buildReceiptDefault(invoice: BillingInvoice, titular: string, condomini
           importe_departamento: importe,
           ...(section.sedapal
             ? {
-                lectura_anterior: it.lectura_anterior === null || it.lectura_anterior === undefined ? null : Number(it.lectura_anterior),
-                lectura_actual: it.lectura_actual === null || it.lectura_actual === undefined ? null : Number(it.lectura_actual),
-                precio_unidad: it.precio_unidad === null || it.precio_unidad === undefined ? null : Number(it.precio_unidad)
+                lectura_anterior: it.lectura_anterior === null || it.lectura_anterior === undefined ? 0 : Number(it.lectura_anterior),
+                lectura_actual: it.lectura_actual === null || it.lectura_actual === undefined ? 0 : Number(it.lectura_actual),
+                precio_unidad: it.precio_unidad === null || it.precio_unidad === undefined ? 0 : Number(it.precio_unidad)
               }
-            : {})
+            : {}),
+          ...(typeof it.foto_lectura === 'string' && it.foto_lectura ? { foto_lectura: it.foto_lectura } : {})
         });
       }
     }
@@ -71,7 +72,8 @@ function buildReceiptDefault(invoice: BillingInvoice, titular: string, condomini
         descripcion: it.descripcion || 'Concepto del período',
         cantidad: it.cantidad ?? null,
         monto_total_gasto: it.monto_total_gasto ?? null,
-        importe_departamento: Number(it.importe_departamento) || 0
+        importe_departamento: Number(it.importe_departamento) || 0,
+        ...(typeof it.foto_lectura === 'string' && it.foto_lectura ? { foto_lectura: it.foto_lectura } : {})
       });
     }
   }
@@ -792,7 +794,7 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
               </div>
               <div className="form-row">
                 <div className="form-group"><label>Vencimiento (opcional)</label><input type="date" value={periodForm.due_date} onChange={e => setPeriodForm({ ...periodForm, due_date: e.target.value })} /></div>
-                <div className="form-group"><label>Cuota aplicada (opcional)</label><input type="number" min={0} value={periodForm.amount} onChange={e => setPeriodForm({ ...periodForm, amount: e.target.value })} /></div>
+                <div className="form-group"><label>Cuota aplicada (opcional)</label><input type="number" min={0} step="any" value={periodForm.amount} onChange={e => setPeriodForm({ ...periodForm, amount: e.target.value })} /></div>
               </div>
               {error && <div className="error-message">{error}</div>}
               <div className="form-actions">
@@ -825,7 +827,7 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
                 </select>
               </div>
               <div className="form-group"><label>Concepto</label><input type="text" value={fineForm.concept} onChange={e => setFineForm({ ...fineForm, concept: e.target.value })} placeholder="Ej: Multa por incumplimiento de reglas" /></div>
-              <div className="form-group"><label>Monto (S/)</label><input type="number" min={0.01} step="0.01" value={fineForm.amount} onChange={e => setFineForm({ ...fineForm, amount: e.target.value })} /></div>
+              <div className="form-group"><label>Monto (S/)</label><input type="number" min={0.01} step="any" value={fineForm.amount} onChange={e => setFineForm({ ...fineForm, amount: e.target.value })} /></div>
               {error && <div className="error-message">{error}</div>}
               <div className="form-actions">
                 <button className="btn-cancel" onClick={() => setShowFineModal(false)}><span className="material-symbols-outlined">close</span> Cancelar</button>
@@ -854,6 +856,7 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
                 invoice={receiptEditing}
                 initial={receiptInitial}
                 config={billing.config}
+                uploadFolder={schemaName ? `condominios/${schemaName}/recibos` : 'recibos'}
                 onSave={handleSaveReceipt}
                 onClose={closeReceipt}
               />
