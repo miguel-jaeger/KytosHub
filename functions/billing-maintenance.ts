@@ -117,19 +117,25 @@ export default async function(req: Request): Promise<Response> {
 
     if (action === 'list-department-fees') {
       if (!isAdmin) return forbidden('No tienes permisos para ver la configuración');
-      const { data: depts } = await db.from('departments').select('id, department_number, tower_id');
+      const { data: depts } = await db.from('departments').select('id, department_number, tower_id, floor_id');
       const deptIds = (depts || []).map((d: { id: string }) => d.id);
       const towerIds = [...new Set((depts || []).map((d: { tower_id: string }) => d.tower_id))];
+      const floorIds = [...new Set((depts || []).map((d: { floor_id?: string }) => d.floor_id).filter(Boolean))];
       const { data: towers } = towerIds.length ? await db.from('towers').select('id, name, code').in('id', towerIds) : { data: [] } as { data: Array<{ id: string; name: string; code: string }> };
       const towerMap = new Map((towers || []).map(t => [t.id, t]));
+      const { data: floors } = floorIds.length ? await db.from('floors').select('id, floor_number').in('id', floorIds) : { data: [] } as { data: Array<{ id: string; floor_number: number }> };
+      const floorMap = new Map((floors || []).map(f => [f.id, f]));
       const { data: fees } = deptIds.length ? await db.from('department_fees').select('*').in('department_id', deptIds) : { data: [] } as { data: Array<Record<string, unknown>> };
       const feeMap = new Map((fees || []).map(f => [f.department_id, f]));
       const cfg = await loadConfig(db);
-      const rows = (depts || []).map((d: { id: string; department_number: string; tower_id: string }) => {
+      const rows = (depts || []).map((d: { id: string; department_number: string; tower_id: string; floor_id?: string }) => {
         const fee = feeMap.get(d.id) as Record<string, unknown> | undefined;
+        const floor = d.floor_id ? floorMap.get(d.floor_id) : undefined;
         return {
           department_id: d.id,
           department_number: d.department_number,
+          floor_id: d.floor_id || null,
+          floor_number: floor ? Number(floor.floor_number) : null,
           tower: towerMap.get(d.tower_id) ? { id: d.tower_id, name: towerMap.get(d.tower_id)!.name, code: towerMap.get(d.tower_id)!.code } : null,
           amount: fee ? Number(fee.amount) : Number(cfg.default_fee),
           is_exempt: fee ? Boolean(fee.is_exempt) : false,

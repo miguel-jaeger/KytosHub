@@ -485,6 +485,8 @@ export interface BillingCycle {
 export interface DepartmentFee {
   department_id: string;
   department_number: string;
+  floor_id?: string | null;
+  floor_number?: number | null;
   tower: { id: string; name: string; code: string } | null;
   amount: number;
   is_exempt: boolean;

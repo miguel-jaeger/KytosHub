@@ -130,7 +130,7 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
   const [generatingId, setGeneratingId] = useState<string | null>(null);
 
   const [towers, setTowers] = useState<Tower[]>([]);
-  const [filters, setFilters] = useState({ period_id: '', status: '', department_id: '', tower_id: '', search: '' });
+  const [filters, setFilters] = useState({ period_id: '', status: '', department_id: '', tower_id: '', floor_id: '', search: '' });
   const [invoicesPage, setInvoicesPage] = useState(1);
   const [invoicesPerPage, setInvoicesPerPage] = useState<number | 'all'>(10);
 
@@ -495,7 +495,7 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
     <div className="billing-manager">
       <div className="header">
         <h3>Facturación y Mantenimiento</h3>
-        <div className="header-actions">
+        <div className="header-actions" style={{ gap: '0.6rem' }}>
           <button onClick={handleSyncCart} disabled={syncingCart} title="Vincular al estado de cuenta las multas de carritos pendientes">
             <span className="material-symbols-outlined">sync</span> {syncingCart ? 'Sincronizando...' : 'Sincronizar multas de carritos'}
           </button>
@@ -590,9 +590,30 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
             </div>
             <div className="search-bar" style={{ marginTop: '0.75rem' }}>
               <span className="material-symbols-outlined search-icon">apartment</span>
-              <select value={filters.tower_id} onChange={e => setFilters({ ...filters, tower_id: e.target.value, department_id: '' })}>
+              <select value={filters.tower_id} onChange={e => setFilters({ ...filters, tower_id: e.target.value, floor_id: '', department_id: '' })}>
                 <option value="">Todas las torres</option>
                 {towers.map(t => <option key={t.id} value={t.id}>{t.name} ({t.code})</option>)}
+              </select>
+            </div>
+            <div className="search-bar" style={{ marginTop: '0.75rem' }}>
+              <span className="material-symbols-outlined search-icon">stairs</span>
+              <select
+                value={filters.floor_id}
+                onChange={e => setFilters({ ...filters, floor_id: e.target.value, department_id: '' })}
+                disabled={!filters.tower_id}
+              >
+                <option value="">{filters.tower_id ? 'Todos los pisos' : 'Primero selecciona una torre'}</option>
+                {(() => {
+                  const floorsMap = new Map<string, number>();
+                  for (const f of billing.departmentFees) {
+                    if (f.tower?.id === filters.tower_id && f.floor_id && f.floor_number != null) {
+                      floorsMap.set(f.floor_id, Number(f.floor_number));
+                    }
+                  }
+                  return Array.from(floorsMap.entries()).sort((a, b) => a[1] - b[1]);
+                })().map(([floorId, floorNumber]) => (
+                  <option key={floorId} value={floorId}>Piso {floorNumber}</option>
+                ))}
               </select>
             </div>
             <div className="search-bar" style={{ marginTop: '0.75rem' }}>
@@ -604,7 +625,7 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
               >
                 <option value="">{filters.tower_id ? 'Todos los departamentos de la torre' : 'Primero selecciona una torre'}</option>
                 {billing.departmentFees
-                  .filter(f => !filters.tower_id || f.tower?.id === filters.tower_id)
+                  .filter(f => (!filters.tower_id || f.tower?.id === filters.tower_id) && (!filters.floor_id || f.floor_id === filters.floor_id))
                   .sort((a, b) => a.department_number.localeCompare(b.department_number, undefined, { numeric: true }))
                   .map(f => (
                     <option key={f.department_id} value={f.department_id}>Dpto. {f.department_number}</option>
