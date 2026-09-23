@@ -530,6 +530,11 @@ export interface BillingInvoice {
   total: number;
   receipt_data: MaintenanceReceipt | null;
   variable_data: BillingVariableData | null;
+  department_number?: string;
+  tower_code?: string;
+  edificio?: string;
+  departamento?: string;
+  titular?: string;
   departments?: {
     department_number: string;
     towers?: { name: string; code: string } | null;

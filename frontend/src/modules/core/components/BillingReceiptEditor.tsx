@@ -266,8 +266,9 @@ export function BillingReceiptEditor({
 }
 
 function buildDefault(invoice: BillingInvoice): MaintenanceReceipt {
-  const towerCode = invoice.departments?.towers?.code || '';
-  const deptNumber = invoice.departments?.department_number || '';
+  const towerCode = invoice.tower_code || invoice.edificio || invoice.departments?.towers?.code || '';
+  const deptNumber = invoice.department_number || invoice.departments?.department_number || '';
+  const titular = invoice.titular || '';
   const today = new Date().toISOString().slice(0, 10);
   const items: MaintenanceReceipt['items'] = [];
 
@@ -321,7 +322,7 @@ function buildDefault(invoice: BillingInvoice): MaintenanceReceipt {
       ? 'FELICITACIONES, sus pagos están al día'
       : 'Su cuota se encuentra dentro del plazo de pago',
     condominio: '',
-    titular: '',
+    titular,
     edificio: towerCode,
     departamento: deptNumber.replace(/\D/g, ''),
     identificador_vivienda: `${towerCode}${deptNumber.replace(/\D/g, '').padStart(3, '0')}`,

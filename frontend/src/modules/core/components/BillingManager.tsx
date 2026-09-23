@@ -6,15 +6,16 @@ import { BillingReceiptEditor } from './BillingReceiptEditor';
 import { MorososView } from './MorososView';
 import { VariableDataCapture } from './VariableDataCapture';
 import { PaginationBar, paginate } from '../../../components/Pagination';
-import type { Tower, BillingInvoice, BillingFine, MaintenanceReceipt, Resident } from '../types';
+import type { Tower, BillingInvoice, BillingFine, MaintenanceReceipt } from '../types';
 
 function fmtMoney(n: number): string {
   return `S/ ${(Number(n) || 0).toFixed(2)}`;
 }
 
 function buildReceiptDefault(invoice: BillingInvoice, titular: string, condominioName: string): MaintenanceReceipt {
-  const towerCode = invoice.departments?.towers?.code || '';
-  const deptNumber = invoice.departments?.department_number || '';
+  const towerCode = invoice.tower_code || invoice.edificio || invoice.departments?.towers?.code || '';
+  const deptNumber = invoice.department_number || invoice.departments?.department_number || '';
+  const titularOrFallback = titular || invoice.titular || '';
   const today = new Date().toISOString().slice(0, 10);
   const items: MaintenanceReceipt['items'] = [];
 
@@ -66,7 +67,7 @@ function buildReceiptDefault(invoice: BillingInvoice, titular: string, condomini
       ? 'FELICITACIONES, sus pagos están al día'
       : 'Su cuota se encuentra dentro del plazo de pago',
     condominio: condominioName,
-    titular,
+    titular: titularOrFallback,
     edificio: towerCode,
     departamento: deptNumber.replace(/\D/g, ''),
     identificador_vivienda: `${towerCode}${deptNumber.replace(/\D/g, '').padStart(3, '0')}`,
@@ -410,25 +411,14 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
     }
   };
 
-  const openReceipt = async (inv: BillingInvoice) => {
+  const openReceipt = (inv: BillingInvoice) => {
     document.body.classList.add('printing-receipt');
-    // Resolve registered data that must always reflect the department: titular
-    // from the primary resident, condominium from the tenant context, and the
-    // tower/department from the invoice's registered department.
-    let titular = '';
-    if (schemaName) {
-      try {
-        const { data } = await invokeFunction<{ success: boolean; data: Resident[] | null }>('residents', {
-          method: 'POST',
-          body: { action: 'list', schema_name: schemaName, department_id: inv.department_id }
-        });
-        const residents = data?.data || [];
-        const primary = residents.find(r => r.is_primary_contact) || residents[0];
-        titular = primary?.full_name || '';
-      } catch { /* keep empty */ }
-    }
-    const towerCode = inv.departments?.towers?.code || '';
-    const deptNumber = inv.departments?.department_number || '';
+    // Registered data already resolved by the backend: titular (primary
+    // resident), tower_code and department_number. Fall back to the nested
+    // departments object if present.
+    const titular = inv.titular || '';
+    const towerCode = inv.tower_code || inv.departments?.towers?.code || '';
+    const deptNumber = inv.department_number || inv.departments?.department_number || '';
     const registered = {
       condominio: condominium?.name || '',
       titular,
@@ -595,8 +585,8 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
                   <tbody>
                     {pagedInvoices.map(inv => (
                       <tr key={inv.id}>
-                        <td>{inv.departments?.towers?.code || '-'}</td>
-                        <td>{inv.departments?.department_number || '-'}</td>
+                        <td>{inv.tower_code || inv.departments?.towers?.code || '-'}</td>
+                        <td>{inv.department_number || inv.departments?.department_number || '-'}</td>
                         <td>{fmtMoney(inv.amount)}</td>
                         <td>{fmtMoney(inv.fine_total)}</td>
                         <td><strong>{fmtMoney(inv.total)}</strong></td>
