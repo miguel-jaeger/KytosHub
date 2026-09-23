@@ -100,7 +100,9 @@ export function BillingReceiptEditor({
       )}
 
       <div className="receipt-editor-form">
-        <div className="form-row">
+        <div className="receipt-editor-panel">
+          <div className="receipt-editor-section-title">Datos del recibo</div>
+          <div className="form-row">
             <div className="form-group">
               <label>N.º de recibo</label>
               <input type="text" value={data.numero_recibo} onChange={e => set({ numero_recibo: e.target.value })} />
@@ -108,6 +110,10 @@ export function BillingReceiptEditor({
             <div className="form-group">
               <label>Período</label>
               <input type="text" value={data.periodo} onChange={e => set({ periodo: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label>Condominio (emisor)</label>
+              <input type="text" value={data.condominio} onChange={e => set({ condominio: e.target.value })} />
             </div>
           </div>
           <div className="form-row">
@@ -123,10 +129,6 @@ export function BillingReceiptEditor({
               <label>Deuda acumulada (S/)</label>
               <input type="number" min={0} value={String(data.deuda_total_acumulada)} onChange={e => set({ deuda_total_acumulada: Number(e.target.value) || 0 })} />
             </div>
-          </div>
-          <div className="form-group">
-            <label>Condominio (emisor)</label>
-            <input type="text" value={data.condominio} onChange={e => set({ condominio: e.target.value })} />
           </div>
           <div className="form-row">
             <div className="form-group">
@@ -152,67 +154,92 @@ export function BillingReceiptEditor({
               <input type="text" value={data.plataforma_recaudacion} onChange={e => set({ plataforma_recaudacion: e.target.value })} />
             </div>
           </div>
-
           <div className="module-example">
             <span className="material-symbols-outlined">info</span>
             <span>
               Código generado por la estructura torre+departamento: <strong>{codigoManual}</strong>. Puedes ajustarlo manualmente si la torre o el departamento difieren.
             </span>
           </div>
-
-          <div className="receipt-editor-section-title">Conceptos del mes (por categoría)</div>
-          {data.items.map((it, idx) => (
-            <div key={idx} className="receipt-item-row">
-              <div className="form-group" style={{ flex: 1.2 }}>
-                <input type="text" placeholder="Categoría (ej: SEDAPAL)" value={it.categoria} onChange={e => updateItem(idx, { categoria: e.target.value })} />
-              </div>
-              <div className="form-group" style={{ flex: 2.2 }}>
-                <input type="text" placeholder="Descripción" value={it.descripcion} onChange={e => updateItem(idx, { descripcion: e.target.value })} />
-              </div>
-              <div className="form-group" style={{ flex: 0.7 }}>
-                <input type="text" placeholder="Cantidad" value={it.cantidad || ''} onChange={e => updateItem(idx, { cantidad: e.target.value || null })} />
-              </div>
-              <div className="form-group" style={{ flex: 0.7 }}>
-                <input type="number" placeholder="Total gasto" value={it.monto_total_gasto === null ? '' : String(it.monto_total_gasto)} onChange={e => updateItem(idx, { monto_total_gasto: e.target.value === '' ? null : Number(e.target.value) })} />
-              </div>
-              <div className="form-group" style={{ flex: 0.7 }}>
-                <input type="number" placeholder="Importe dpto" value={String(it.importe_departamento)} onChange={e => updateItem(idx, { importe_departamento: Number(e.target.value) || 0 })} />
-              </div>
-              <button type="button" className="icon-btn" title="Subir" onClick={() => moveItem(idx, -1)} disabled={idx === 0}><span className="material-symbols-outlined">arrow_upward</span></button>
-              <button type="button" className="icon-btn" title="Bajar" onClick={() => moveItem(idx, 1)} disabled={idx === data.items.length - 1}><span className="material-symbols-outlined">arrow_downward</span></button>
-              <button type="button" className="icon-btn danger" title="Eliminar" onClick={() => removeItem(idx)}><span className="material-symbols-outlined">close</span></button>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Estado de morosidad</label>
+              <input type="text" value={data.estado_morosidad} onChange={e => set({ estado_morosidad: e.target.value })} />
             </div>
-          ))}
+          </div>
+        </div>
+
+        <div className="receipt-editor-panel">
+          <div className="receipt-editor-section-title">Conceptos del mes (por categoría)</div>
+          <div className="receipt-items-list">
+            <div className="receipt-items-head">
+              <span className="receipt-items-head-label">Categoría</span>
+              <span className="receipt-items-head-label">Descripción</span>
+              <span className="receipt-items-head-label">Cantidad</span>
+              <span className="receipt-items-head-label">Total gasto</span>
+              <span className="receipt-items-head-label">Importe dpto</span>
+              <span />
+              <span />
+              <span />
+            </div>
+            {data.items.map((it, idx) => (
+              <div key={idx} className="receipt-item-row">
+                <div className="form-group">
+                  <input type="text" placeholder="SEDAPAL, Administración..." value={it.categoria} onChange={e => updateItem(idx, { categoria: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <input type="text" placeholder="Descripción del concepto" value={it.descripcion} onChange={e => updateItem(idx, { descripcion: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <input type="text" placeholder="17.229 m³" value={it.cantidad || ''} onChange={e => updateItem(idx, { cantidad: e.target.value || null })} />
+                </div>
+                <div className="form-group">
+                  <input type="number" placeholder="Total gasto" value={it.monto_total_gasto === null ? '' : String(it.monto_total_gasto)} onChange={e => updateItem(idx, { monto_total_gasto: e.target.value === '' ? null : Number(e.target.value) })} />
+                </div>
+                <div className="form-group">
+                  <input type="number" placeholder="Importe dpto" value={String(it.importe_departamento)} onChange={e => updateItem(idx, { importe_departamento: Number(e.target.value) || 0 })} />
+                </div>
+                <button type="button" className="icon-btn" title="Subir" onClick={() => moveItem(idx, -1)} disabled={idx === 0}><span className="material-symbols-outlined">arrow_upward</span></button>
+                <button type="button" className="icon-btn" title="Bajar" onClick={() => moveItem(idx, 1)} disabled={idx === data.items.length - 1}><span className="material-symbols-outlined">arrow_downward</span></button>
+                <button type="button" className="icon-btn danger" title="Eliminar" onClick={() => removeItem(idx)}><span className="material-symbols-outlined">close</span></button>
+              </div>
+            ))}
+          </div>
           <div className="form-actions">
             <button type="button" className="btn-cancel" onClick={addItem}><span className="material-symbols-outlined">add</span> Agregar concepto</button>
             <button type="button" className="btn-cancel" onClick={resetSubtotals}><span className="material-symbols-outlined">calculate</span> Recalcular subtotales</button>
           </div>
+        </div>
 
+        <div className="receipt-editor-panel">
           <div className="receipt-editor-section-title">Lectura del medidor de agua (opcional)</div>
-          {data.marcas_agua.map((m, idx) => (
-            <div key={idx} className="form-row">
-              <div className="form-group">
-                <input type="text" placeholder="Campo (ej: Marca del medidor)" value={m.label} onChange={e => {
-                  const marcas_agua = data.marcas_agua.map((x, i) => (i === idx ? { ...x, label: e.target.value } : x));
-                  set({ marcas_agua });
-                }} />
+          <div className="receipt-meter-list">
+            {data.marcas_agua.map((m, idx) => (
+              <div key={idx} className="receipt-meter-row">
+                <div className="form-group">
+                  <input type="text" placeholder="Campo (ej: Marca del medidor)" value={m.label} onChange={e => {
+                    const marcas_agua = data.marcas_agua.map((x, i) => (i === idx ? { ...x, label: e.target.value } : x));
+                    set({ marcas_agua });
+                  }} />
+                </div>
+                <div className="form-group">
+                  <input type="text" placeholder="Valor (ej: ZENNER)" value={m.value} onChange={e => {
+                    const marcas_agua = data.marcas_agua.map((x, i) => (i === idx ? { ...x, value: e.target.value } : x));
+                    set({ marcas_agua });
+                  }} />
+                </div>
+                <button type="button" className="icon-btn danger" onClick={() => set({ marcas_agua: data.marcas_agua.filter((_, i) => i !== idx) })}><span className="material-symbols-outlined">close</span></button>
               </div>
-              <div className="form-group">
-                <input type="text" placeholder="Valor (ej: ZENNER)" value={m.value} onChange={e => {
-                  const marcas_agua = data.marcas_agua.map((x, i) => (i === idx ? { ...x, value: e.target.value } : x));
-                  set({ marcas_agua });
-                }} />
-              </div>
-              <button type="button" className="icon-btn danger" onClick={() => set({ marcas_agua: data.marcas_agua.filter((_, i) => i !== idx) })}><span className="material-symbols-outlined">close</span></button>
-            </div>
-          ))}
+            ))}
+          </div>
           <div className="form-actions">
             <button type="button" className="btn-cancel" onClick={() => set({ marcas_agua: [...data.marcas_agua, { label: '', value: '' }] })}><span className="material-symbols-outlined">add</span> Agregar lectura</button>
           </div>
+        </div>
 
+        <div className="receipt-editor-panel">
           <div className="receipt-editor-section-title">Acciones destacadas del mes</div>
           {data.acciones_del_mes.map((a, idx) => (
-            <div key={idx} className="form-row">
+            <div key={idx} className="receipt-action-row">
               <div className="form-group">
                 <input type="text" value={a} onChange={e => set({ acciones_del_mes: data.acciones_del_mes.map((x, i) => (i === idx ? e.target.value : x)) })} />
               </div>
@@ -222,13 +249,9 @@ export function BillingReceiptEditor({
           <div className="form-actions">
             <button type="button" className="btn-cancel" onClick={() => set({ acciones_del_mes: [...data.acciones_del_mes, ''] })}><span className="material-symbols-outlined">add</span> Agregar acción</button>
           </div>
+        </div>
 
-          <div className="form-group">
-            <label>Estado de morosidad</label>
-            <input type="text" value={data.estado_morosidad} onChange={e => set({ estado_morosidad: e.target.value })} />
-          </div>
-
-          {error && <div className="error-message">{error}</div>}
+        {error && <div className="error-message">{error}</div>}
       </div>
 
       <div className="form-actions">
