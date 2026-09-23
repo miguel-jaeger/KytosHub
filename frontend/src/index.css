@@ -221,6 +221,22 @@ header h1 {
   gap: 0.75rem;
 }
 
+/* Billing: buttons separated on all sides and clear of the tabs below */
+.billing-manager .header {
+  margin-bottom: 1rem;
+  padding: 0.6rem 0.4rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  flex-wrap: wrap;
+}
+.billing-manager .header-actions {
+  margin: 0.5rem 0;
+}
+.billing-manager .header-actions button,
+.billing-manager .header-actions .btn-cancel {
+  margin: 0.35rem;
+}
+html.dark .billing-manager .header { border-bottom-color: #333; }
+
 .dashboard .header h2 {
   margin: 0;
 }
