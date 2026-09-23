@@ -228,15 +228,24 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
   useEffect(() => {
     if (tab === 'invoices' && selectedPeriodId) loadInvoices();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, filters.status, filters.tower_id, filters.search]);
+  }, [tab, filters.status, filters.tower_id, filters.floor_id, filters.department_id, filters.search]);
 
   const selectedTowerCode = towers.find(t => t.id === filters.tower_id)?.code || '';
+
+  // Map department -> floor from the fees catalog so the floor filter can
+  // narrow the receipts even when the invoice itself has no floor info.
+  const feeByDept = new Map(billing.departmentFees.map(f => [f.department_id, f]));
 
   const filteredInvoices = invoices.filter(i => {
     if (filters.status && i.status !== filters.status) return false;
     if (filters.department_id && i.department_id !== filters.department_id) return false;
     const invTower = i.tower_code || i.departments?.towers?.code || '';
     if (filters.tower_id && invTower !== selectedTowerCode) return false;
+    if (filters.floor_id) {
+      const feeFloor = feeByDept.get(i.department_id)?.floor_id;
+      if (feeFloor && feeFloor !== filters.floor_id) return false;
+      if (!feeFloor) return false;
+    }
     if (filters.search) {
       const dept = i.department_number || i.departments?.department_number || '';
       const tower = i.tower_code || i.departments?.towers?.code || '';
