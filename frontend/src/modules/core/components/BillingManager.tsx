@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
+import { useCondominium } from '../../../contexts/CondominiumContext';
 import { useBillingMaintenance } from '../hooks/useBillingMaintenance';
 import { BillingReceiptEditor } from './BillingReceiptEditor';
 import { MorososView } from './MorososView';
@@ -11,7 +12,7 @@ function fmtMoney(n: number): string {
   return `S/ ${(Number(n) || 0).toFixed(2)}`;
 }
 
-function buildReceiptDefault(invoice: BillingInvoice, titular: string): MaintenanceReceipt {
+function buildReceiptDefault(invoice: BillingInvoice, titular: string, condominioName: string): MaintenanceReceipt {
   const towerCode = invoice.departments?.towers?.code || '';
   const deptNumber = invoice.departments?.department_number || '';
   const today = new Date().toISOString().slice(0, 10);
@@ -64,7 +65,7 @@ function buildReceiptDefault(invoice: BillingInvoice, titular: string): Maintena
     estado_morosidad: invoice.status === 'PAGADA'
       ? 'FELICITACIONES, sus pagos están al día'
       : 'Su cuota se encuentra dentro del plazo de pago',
-    condominio: '',
+    condominio: condominioName,
     titular,
     edificio: towerCode,
     departamento: deptNumber.replace(/\D/g, ''),
@@ -144,6 +145,7 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
   const [finesPerPage, setFinesPerPage] = useState<number | 'all'>(10);
   const [payingFineId, setPayingFineId] = useState<string | null>(null);
   const [syncingCart, setSyncingCart] = useState(false);
+  const { condominium } = useCondominium();
   const [receiptEditing, setReceiptEditing] = useState<BillingInvoice | null>(null);
   const [receiptInitial, setReceiptInitial] = useState<MaintenanceReceipt | null>(null);
 
@@ -410,7 +412,9 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
 
   const openReceipt = async (inv: BillingInvoice) => {
     document.body.classList.add('printing-receipt');
-    // Prefill the titular from the department's primary resident if available
+    // Resolve registered data that must always reflect the department: titular
+    // from the primary resident, condominium from the tenant context, and the
+    // tower/department from the invoice's registered department.
     let titular = '';
     if (schemaName) {
       try {
@@ -423,7 +427,18 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
         titular = primary?.full_name || '';
       } catch { /* keep empty */ }
     }
-    const base = inv.receipt_data || buildReceiptDefault(inv, titular);
+    const towerCode = inv.departments?.towers?.code || '';
+    const deptNumber = inv.departments?.department_number || '';
+    const registered = {
+      condominio: condominium?.name || '',
+      titular,
+      edificio: towerCode,
+      departamento: deptNumber.replace(/\D/g, ''),
+      identificador_vivienda: `${towerCode}${deptNumber.replace(/\D/g, '').padStart(3, '0')}`
+    };
+    const base = inv.receipt_data
+      ? { ...inv.receipt_data, ...registered }
+      : buildReceiptDefault(inv, titular, condominium?.name || '');
     setReceiptInitial(base);
     setReceiptEditing(inv);
   };

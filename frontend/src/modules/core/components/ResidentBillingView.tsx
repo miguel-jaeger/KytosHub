@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { invokeFunction } from '../../../lib/insforge';
+import { useCondominium } from '../../../contexts/CondominiumContext';
 import { useBillingMaintenance } from '../hooks/useBillingMaintenance';
 import { BillingReceipt } from './BillingReceipt';
-import type { BillingFine, BillingInvoice, BillingPayment, MaintenanceReceipt } from '../types';
+import type { BillingFine, BillingInvoice, BillingPayment, MaintenanceReceipt, Resident } from '../types';
 
 function fmtMoney(n: number): string {
   return `S/ ${(Number(n) || 0).toFixed(2)}`;
@@ -23,6 +25,7 @@ const STATUS_CLASS: Record<string, string> = {
 
 export function ResidentBillingView({ schemaName, enabled }: { schemaName?: string; enabled?: boolean }) {
   const billing = useBillingMaintenance(schemaName, enabled);
+  const { condominium } = useCondominium();
   const [state, setState] = useState<{ department_id: string; invoices: BillingInvoice[]; fines: BillingFine[] } | null>(null);
   const [payments, setPayments] = useState<BillingPayment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -61,10 +64,23 @@ export function ResidentBillingView({ schemaName, enabled }: { schemaName?: stri
   const totalPending = unpaid.reduce((s, i) => s + (i.total - i.paid_amount), 0);
   const totalPaid = payments.reduce((s, p) => s + p.amount, 0);
 
-  const buildReceipt = (inv: BillingInvoice) => {
+  const buildReceipt = async (inv: BillingInvoice) => {
     const cycle = inv.cycles;
     const towerCode = inv.departments?.towers?.code || '';
     const deptNumber = inv.departments?.department_number || '';
+    // Registered titular: primary resident of the department
+    let titular = '';
+    if (schemaName) {
+      try {
+        const { data } = await invokeFunction<{ success: boolean; data: Resident[] | null }>('residents', {
+          method: 'POST',
+          body: { action: 'list', schema_name: schemaName, department_id: inv.department_id }
+        });
+        const residents = data?.data || [];
+        const primary = residents.find(r => r.is_primary_contact) || residents[0];
+        titular = primary?.full_name || '';
+      } catch { /* keep empty */ }
+    }
     const items: MaintenanceReceipt['items'] = [{
       categoria: 'CUOTA DE MANTENIMIENTO',
       descripcion: cycle?.label || 'Cuota de mantenimiento',
@@ -93,8 +109,8 @@ export function ResidentBillingView({ schemaName, enabled }: { schemaName?: stri
       total_mes: inv.total,
       deuda_total_acumulada: Math.max(0, inv.total - inv.paid_amount),
       estado_morosidad: estado,
-      condominio: '',
-      titular: '—',
+      condominio: condominium?.name || '',
+      titular,
       edificio: towerCode,
       departamento: deptNumber.replace(/\D/g, ''),
       identificador_vivienda: `${towerCode}${deptNumber.replace(/\D/g, '').padStart(3, '0')}`,
@@ -171,7 +187,7 @@ export function ResidentBillingView({ schemaName, enabled }: { schemaName?: stri
                   <td>{formatDate(inv.due_date)}</td>
                   <td>
                     <div className="condo-card-actions" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none', justifyContent: 'flex-start' }}>
-                      <button className="icon-btn" title="Ver e imprimir recibo" onClick={() => buildReceipt(inv)}>
+                      <button className="icon-btn" title="Ver e imprimir recibo" onClick={() => void buildReceipt(inv)}>
                         <span className="material-symbols-outlined">print</span>
                       </button>
                     </div>
