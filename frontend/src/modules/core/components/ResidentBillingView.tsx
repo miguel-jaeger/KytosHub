@@ -81,15 +81,53 @@ export function ResidentBillingView({ schemaName, enabled }: { schemaName?: stri
         titular = primary?.full_name || '';
       } catch { /* keep empty */ }
     }
-    const items: MaintenanceReceipt['items'] = [{
-      categoria: 'CUOTA DE MANTENIMIENTO',
-      descripcion: cycle?.label || 'Cuota de mantenimiento',
-      cantidad: null,
-      monto_total_gasto: null,
-      importe_departamento: inv.amount
-    }];
-    for (const fine of (inv.fines || [])) {
-      items.push({ categoria: 'MULTAS', descripcion: fine.concept, cantidad: null, monto_total_gasto: null, importe_departamento: fine.amount });
+    const items: MaintenanceReceipt['items'] = [];
+    const cfg = billing.config;
+    const sections = cfg?.sections && cfg.sections.length > 0 ? cfg.sections : [];
+    if (sections.length > 0) {
+      for (const section of sections) {
+        for (const it of (section.items || [])) {
+          const importe = Number(it.importe) || 0;
+          if (!it.descripcion) continue;
+          items.push({
+            categoria: section.name || 'CONCEPTOS',
+            descripcion: String(it.descripcion),
+            cantidad: section.sedapal ? String(Number(it.cantidad) || 0) : null,
+            monto_total_gasto: it.monto_total === null || it.monto_total === undefined ? null : Number(it.monto_total),
+            importe_departamento: importe,
+            ...(section.sedapal
+              ? {
+                  lectura_anterior: it.lectura_anterior === null || it.lectura_anterior === undefined ? null : Number(it.lectura_anterior),
+                  lectura_actual: it.lectura_actual === null || it.lectura_actual === undefined ? null : Number(it.lectura_actual),
+                  precio_unidad: it.precio_unidad === null || it.precio_unidad === undefined ? null : Number(it.precio_unidad)
+                }
+              : {})
+          });
+        }
+      }
+    } else {
+      items.push({ categoria: 'CUOTA DE MANTENIMIENTO', descripcion: cycle?.label || 'Cuota de mantenimiento', cantidad: null, monto_total_gasto: null, importe_departamento: inv.amount });
+      for (const fine of (inv.fines || [])) {
+        items.push({ categoria: 'MULTAS', descripcion: fine.concept, cantidad: null, monto_total_gasto: null, importe_departamento: fine.amount });
+      }
+    }
+    const subtotal = items.reduce((s, it) => s + (Number(it.importe_departamento) || 0), 0);
+    const ajustesItems: MaintenanceReceipt['items'] = [];
+    let ajustes = 0;
+    const alDia = inv.al_dia ?? inv.status === 'PAGADA';
+    if (alDia && cfg?.ajustes && cfg.ajustes.length > 0) {
+      for (const it of cfg.ajustes) {
+        const importe = Number(it.importe) || 0;
+        if (!it.descripcion) continue;
+        ajustesItems.push({
+          categoria: 'AJUSTES',
+          descripcion: it.descripcion,
+          cantidad: null,
+          monto_total_gasto: it.monto_total === null || it.monto_total === undefined ? null : Number(it.monto_total),
+          importe_departamento: importe
+        });
+        ajustes += importe;
+      }
     }
     const today = new Date().toISOString().slice(0, 10);
     const overdue = inv.status !== 'PAGADA' && inv.due_date < today;
@@ -104,9 +142,10 @@ export function ResidentBillingView({ schemaName, enabled }: { schemaName?: stri
       fecha_vencimiento: inv.due_date,
       moneda: 'Soles (PEN)',
       simbolo_moneda: 'S/',
-      subtotal: inv.amount,
-      ajustes: inv.fine_total || 0,
-      total_mes: inv.total,
+      subtotal,
+      ajustes_items: ajustesItems,
+      ajustes,
+      total_mes: Math.max(0, subtotal - ajustes),
       deuda_total_acumulada: Math.max(0, inv.total - inv.paid_amount),
       estado_morosidad: estado,
       condominio: condominium?.name || '',

@@ -9,8 +9,72 @@ const CORS = {
 const DEFAULT_CONFIG = {
   default_fee: 150,
   due_days: 5,
-  autolink_cart_fines: true
+  autolink_cart_fines: true,
+  sections: defaultBillingSections(),
+  ajustes: defaultBillingAjustes()
 };
+
+function defaultBillingSections(): Array<Record<string, unknown>> {
+  const item = (descripcion: string) => ({ descripcion, monto_total: 0, cantidad: null, precio_unidad: null, lectura_anterior: null, lectura_actual: null, importe: 0 });
+  return [
+    {
+      id: 'servicios-administrativos',
+      name: 'Servicios administrativos',
+      sedapal: false,
+      items: [item('Servicio de Administración y Sistema de Recaudación')]
+    },
+    {
+      id: 'mantenimiento-equipos',
+      name: 'Mantenimiento de equipos',
+      sedapal: false,
+      items: [
+        item('Mantenimiento Preventivo de equipos y áreas comunes'),
+        item('Mantenimiento Preventivo de Maquinarias y Equipos de su torre')
+      ]
+    },
+    {
+      id: 'fondo-contingencia',
+      name: 'Fondo de contingencia',
+      sedapal: false,
+      items: [
+        item('Fondos de contingencia, emergencia y correctivos de áreas comunes'),
+        item('Fondos de contingencia, emergencia y correctivos de su torre')
+      ]
+    },
+    {
+      id: 'mantenimiento-ascensores',
+      name: 'Mantenimiento preventivo y correctivo de ascensores',
+      sedapal: false,
+      items: [
+        item('Mantenimiento preventivo de ascensores 01 y 02 de su torre'),
+        item('Mantenimiento Correctivo de ascensores 01 y 02 de su torre')
+      ]
+    },
+    {
+      id: 'sedapal',
+      name: 'SEDAPAL',
+      sedapal: true,
+      items: [{ ...item('Servicio de agua'), cantidad: 0, precio_unidad: 0, lectura_anterior: 0, lectura_actual: 0 }]
+    }
+  ];
+}
+
+function defaultBillingAjustes(): Array<Record<string, unknown>> {
+  return [{ descripcion: 'Alquileres de tiendas', monto_total: 0, cantidad: null, precio_unidad: null, lectura_anterior: null, lectura_actual: null, importe: 0 }];
+}
+
+function numberOrZero(v: unknown): number {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : 0;
+}
+
+function conceptImporteTotal(cfg: Record<string, unknown>): number {
+  const sections = Array.isArray(cfg.sections) ? cfg.sections as Array<Record<string, unknown>> : [];
+  return sections.reduce((sum, s) => {
+    const items = Array.isArray(s.items) ? s.items as Array<Record<string, unknown>> : [];
+    return sum + items.reduce((x, it) => x + numberOrZero(it.importe), 0);
+  }, 0);
+}
 
 export default async function(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
@@ -328,7 +392,7 @@ async function generateInvoicesForCycle(
   const { data: existingInvoices } = await db.from('invoices').select('department_id').eq('cycle_id', periodId);
   const done = new Set((existingInvoices || []).map((i: { department_id: string }) => i.department_id));
 
-  const defaultAmount = defaultAmountOverride ?? (Number(cfg.default_fee) || 0);
+  const defaultAmount = defaultAmountOverride ?? conceptImporteTotal(cfg) || (Number(cfg.default_fee) || 0);
   const { data: fees } = await db.from('department_fees').select('department_id, amount, is_exempt').in('department_id', deptIds);
   const feeMap = new Map((fees || []).map((f: Record<string, unknown>) => [f.department_id, f]));
 
@@ -417,7 +481,7 @@ const deptIds = [...new Set(list.map(i => i.department_id as string))];
     finesByInvoice.set(f.invoice_id as string, arr);
   }
 
-  // Resolve the department's primary resident to expose the titular directly
+// Resolve the department's primary resident to expose the titular directly
   const { data: residents } = deptIds.length
     ? await db.from('residents').select('department_id, full_name, is_primary_contact').in('department_id', deptIds)
     : { data: [] } as { data: Array<{ department_id: string; full_name: string; is_primary_contact: boolean }> };
@@ -427,6 +491,23 @@ const deptIds = [...new Set(list.map(i => i.department_id as string))];
     if (!current || r.is_primary_contact) titularMap.set(r.department_id, r.full_name);
   }
 
+  // A department is fully up to date ("al día") when it has no pending
+  // maintenance invoices in cycles other than the current one (i.e., no
+  // previous unpaid debt). This enables the Ajustes / Alquileres de tiendas
+  // discount on the receipt when applicable.
+  const { data: pendingAll } = deptIds.length
+    ? await db.from('invoices')
+        .select('department_id, cycle_id')
+        .in('department_id', deptIds)
+        .in('status', ['PENDIENTE', 'PARCIAL'])
+    : { data: [] } as { data: Array<{ department_id: string; cycle_id: string }> };
+  const pendingCyclesByDept = new Map<string, Set<string>>();
+  for (const row of (pendingAll || [])) {
+    const set = pendingCyclesByDept.get(row.department_id) || new Set<string>();
+    set.add(row.cycle_id);
+    pendingCyclesByDept.set(row.department_id, set);
+  }
+
   return list.map(i => {
     const dept = i.department_id ? deptMap.get(i.department_id as string) : undefined;
     const tower = dept ? towerMap.get(dept.tower_id) : undefined;
@@ -434,16 +515,26 @@ const deptIds = [...new Set(list.map(i => i.department_id as string))];
     const fineTotal = fineRows.filter(f => f.status !== 'ANULADA').reduce((s, f) => s + Number(f.amount), 0);
     const departmentNumber = dept?.department_number || '';
     const towerCode = tower?.code || '';
+    let alDia = true;
+    if (String(i.status) !== 'PAGADA') {
+      const pending = i.department_id ? pendingCyclesByDept.get(i.department_id as string) : undefined;
+      if (pending && i.cycle_id) {
+        for (const c of pending) {
+          if (c !== String(i.cycle_id)) { alDia = false; break; }
+        }
+      }
+    }
     return {
       ...i,
       department_number: departmentNumber,
       tower_code: towerCode,
       edificio: towerCode,
       departamento: departmentNumber.replace(/\D/g, ''),
+      al_dia: alDia,
       titular: i.department_id ? (titularMap.get(i.department_id as string) || '') : '',
       departments: dept ? { department_number: departmentNumber, towers: tower ? { name: tower.name, code: tower.code } : null } : null,
       cycles: cycleMap.get(i.cycle_id as string) || null,
-fine_total: fineTotal,
+      fine_total: fineTotal,
       total: Number(i.amount) + fineTotal,
       fines: fineRows
     };
