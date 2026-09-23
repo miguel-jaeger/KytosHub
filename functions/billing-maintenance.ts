@@ -54,7 +54,13 @@ function defaultBillingSections(): Array<Record<string, unknown>> {
       id: 'sedapal',
       name: 'SEDAPAL',
       sedapal: true,
-      items: [{ ...item('Servicio de agua'), cantidad: 0, precio_unidad: 0, lectura_anterior: 0, lectura_actual: 0 }]
+      items: [{ ...item('Servicio de agua'), cantidad: 0, precio_unidad: 0, lectura_anterior: 0, lectura_actual: 0, foto_lectura: null }]
+    },
+    {
+      id: 'servicios-basicos-luz',
+      name: 'Servicios básicos de luz',
+      sedapal: true,
+      items: [{ ...item('Servicio de electricidad (luz)'), cantidad: 0, precio_unidad: 0, lectura_anterior: 0, lectura_actual: 0, foto_lectura: null }]
     }
   ];
 }
@@ -65,7 +71,7 @@ function defaultBillingAjustes(): Array<Record<string, unknown>> {
 
 function numberOrZero(v: unknown): number {
   const n = Number(v);
-  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : 0;
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 10000) / 10000 : 0;
 }
 
 function conceptImporteTotal(cfg: Record<string, unknown>): number {

@@ -1703,6 +1703,19 @@ html.dark .billing-config-summary { background: #1d2a24; border-color: #2b4a3d; 
 html.dark .billing-section-card { background: #222b35; border-color: #333; color: #e5e7eb; }
 html.dark .billing-section-ajustes { background: #2a261c; border-color: #4a3f26; }
 html.dark .billing-section-tools .billing-check { color: #c8cad1; }
+.billing-sedapal-item { display: flex; flex-direction: column; gap: 0.4rem; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 8px; background: #f4f7f6; }
+html.dark .billing-sedapal-item { background: #1d2731; border-color: #333; }
+.billing-sedapal-photo,
+.receipt-sedapal-photo { display: flex; align-items: center; }
+
+/* Subida de foto de la lectura del medidor */
+.meter-photo-upload { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.meter-photo-upload .btn-cancel { white-space: nowrap; }
+.meter-photo-preview { display: flex; align-items: center; gap: 0.35rem; }
+.meter-photo-preview img { max-width: 96px; max-height: 96px; border: 1px solid #d5dbe1; border-radius: 6px; object-fit: contain; background: #fff; }
+
+/* Foto impresa en el recibo */
+.receipt-photo img { max-width: 120px; max-height: 120px; border: 1px solid #d5dbe1; border-radius: 6px; display: block; margin-top: 4px; object-fit: contain; background: #fff; }
 
 /* Toggle switch */
 .switch { position: relative; display: inline-block; width: 40px; height: 22px; flex: 0 0 auto; }

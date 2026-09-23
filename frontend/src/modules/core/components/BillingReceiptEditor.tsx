@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { BillingReceipt } from './BillingReceipt';
+import { MeterPhotoUpload } from './MeterPhotoUpload';
 import type { BillingConfig, BillingConfigItem, BillingInvoice, MaintenanceReceipt, MaintenanceReceiptItem } from '../types';
 
 function emptyItem(): MaintenanceReceiptItem {
@@ -21,7 +22,7 @@ function recomputeSedapal(it: MaintenanceReceiptItem): MaintenanceReceiptItem {
   const actual = Number(it.lectura_actual) || 0;
   const precio = Number(it.precio_unidad) || 0;
   const cantidad = Math.max(0, actual - anterior);
-  const monto = Math.round(cantidad * precio * 100) / 100;
+  const monto = Math.round(cantidad * precio * 10000) / 10000;
   return { ...it, cantidad: String(cantidad), monto_total_gasto: monto, importe_departamento: monto };
 }
 
@@ -33,16 +34,19 @@ export function BillingReceiptEditor({
   invoice,
   initial,
   config,
+  uploadFolder,
   onSave,
   onClose
 }: {
   invoice: BillingInvoice;
   initial: MaintenanceReceipt | null;
   config?: BillingConfig | null;
+  uploadFolder?: string;
   onSave: (data: MaintenanceReceipt) => Promise<void>;
   onClose: () => void;
 }) {
   const base = initial || buildDefault(invoice, config);
+  const folder = uploadFolder || 'recibos';
   const [data, setData] = useState<MaintenanceReceipt>(base);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -181,7 +185,7 @@ export function BillingReceiptEditor({
             </div>
             <div className="form-group">
               <label>Deuda acumulada (S/)</label>
-              <input type="number" min={0} value={String(data.deuda_total_acumulada)} onChange={e => set({ deuda_total_acumulada: Number(e.target.value) || 0 })} />
+              <input type="number" min={0} step="any" value={String(data.deuda_total_acumulada)} onChange={e => set({ deuda_total_acumulada: Number(e.target.value) || 0 })} />
             </div>
           </div>
           <div className="form-row">
@@ -248,10 +252,10 @@ export function BillingReceiptEditor({
                     <input type="text" placeholder="17.229 m³" value={it.cantidad || ''} onChange={e => updateItem(idx, { cantidad: e.target.value || null })} />
                   </div>
                   <div className="form-group">
-                    <input type="number" placeholder="Total gasto" value={it.monto_total_gasto === null || it.monto_total_gasto === undefined ? '' : String(it.monto_total_gasto)} onChange={e => updateItem(idx, { monto_total_gasto: e.target.value === '' ? null : Number(e.target.value) })} />
+                    <input type="number" step="any" placeholder="Total gasto" value={it.monto_total_gasto === null || it.monto_total_gasto === undefined ? '' : String(it.monto_total_gasto)} onChange={e => updateItem(idx, { monto_total_gasto: e.target.value === '' ? null : Number(e.target.value) })} />
                   </div>
                   <div className="form-group">
-                    <input type="number" placeholder="Importe dpto" value={String(it.importe_departamento)} onChange={e => updateItem(idx, { importe_departamento: Number(e.target.value) || 0 })} />
+                    <input type="number" step="any" placeholder="Importe dpto" value={String(it.importe_departamento)} onChange={e => updateItem(idx, { importe_departamento: Number(e.target.value) || 0 })} />
                   </div>
                   <button type="button" className="icon-btn" title="Subir" onClick={() => moveItem(idx, -1)} disabled={idx === 0}><span className="material-symbols-outlined">arrow_upward</span></button>
                   <button type="button" className="icon-btn" title="Bajar" onClick={() => moveItem(idx, 1)} disabled={idx === data.items.length - 1}><span className="material-symbols-outlined">arrow_downward</span></button>
@@ -261,19 +265,24 @@ export function BillingReceiptEditor({
                   <div className="receipt-sedapal-fields">
                     <div className="form-group">
                       <label>Lectura anterior (m³)</label>
-                      <input type="number" value={it.lectura_anterior === null || it.lectura_anterior === undefined ? '' : String(it.lectura_anterior)} onChange={e => updateItem(idx, { lectura_anterior: e.target.value === '' ? null : Number(e.target.value) }, true)} />
+                      <input type="number" step="any" value={it.lectura_anterior === null || it.lectura_anterior === undefined ? '' : String(it.lectura_anterior)} onChange={e => updateItem(idx, { lectura_anterior: e.target.value === '' ? null : Number(e.target.value) }, true)} />
                     </div>
                     <div className="form-group">
                       <label>Lectura actual (m³)</label>
-                      <input type="number" value={it.lectura_actual === null || it.lectura_actual === undefined ? '' : String(it.lectura_actual)} onChange={e => updateItem(idx, { lectura_actual: e.target.value === '' ? null : Number(e.target.value) }, true)} />
+                      <input type="number" step="any" value={it.lectura_actual === null || it.lectura_actual === undefined ? '' : String(it.lectura_actual)} onChange={e => updateItem(idx, { lectura_actual: e.target.value === '' ? null : Number(e.target.value) }, true)} />
                     </div>
                     <div className="form-group">
                       <label>Precio por unidad (S/)</label>
-                      <input type="number" step="0.01" value={it.precio_unidad === null || it.precio_unidad === undefined ? '' : String(it.precio_unidad)} onChange={e => updateItem(idx, { precio_unidad: e.target.value === '' ? null : Number(e.target.value) }, true)} />
+                      <input type="number" step="any" value={it.precio_unidad === null || it.precio_unidad === undefined ? '' : String(it.precio_unidad)} onChange={e => updateItem(idx, { precio_unidad: e.target.value === '' ? null : Number(e.target.value) }, true)} />
                     </div>
                     <button type="button" className="btn-cancel" title="Calcular consumo = lectura actual - anterior" onClick={() => updateItem(idx, {}, true)}>
                       <span className="material-symbols-outlined">calculate</span> Recalcular
                     </button>
+                  </div>
+                )}
+                {isSedapalItem(it) && (
+                  <div className="receipt-sedapal-photo">
+                    <MeterPhotoUpload value={it.foto_lectura} onChange={url => updateItem(idx, { foto_lectura: url })} folder={folder} />
                   </div>
                 )}
               </div>
@@ -303,10 +312,10 @@ export function BillingReceiptEditor({
                   <input type="text" value={it.descripcion} onChange={e => updateAjuste(idx, { descripcion: e.target.value })} />
                 </div>
                 <div className="form-group">
-                  <input type="number" placeholder="Monto total" value={it.monto_total_gasto === null || it.monto_total_gasto === undefined ? '' : String(it.monto_total_gasto)} onChange={e => updateAjuste(idx, { monto_total_gasto: e.target.value === '' ? null : Number(e.target.value) })} />
+                  <input type="number" step="any" placeholder="Monto total" value={it.monto_total_gasto === null || it.monto_total_gasto === undefined ? '' : String(it.monto_total_gasto)} onChange={e => updateAjuste(idx, { monto_total_gasto: e.target.value === '' ? null : Number(e.target.value) })} />
                 </div>
                 <div className="form-group">
-                  <input type="number" placeholder="Importe a descontar" value={String(it.importe_departamento)} onChange={e => updateAjuste(idx, { importe_departamento: Number(e.target.value) || 0 })} />
+                  <input type="number" step="any" placeholder="Importe a descontar" value={String(it.importe_departamento)} onChange={e => updateAjuste(idx, { importe_departamento: Number(e.target.value) || 0 })} />
                 </div>
                 <button type="button" className="icon-btn danger" title="Eliminar" onClick={() => removeAjuste(idx)}><span className="material-symbols-outlined">close</span></button>
               </div>
@@ -395,11 +404,12 @@ function buildDefault(invoice: BillingInvoice, config: BillingConfig | null | un
           importe_departamento: importe,
           ...(section.sedapal
             ? {
-                lectura_anterior: it.lectura_anterior === null || it.lectura_anterior === undefined ? null : Number(it.lectura_anterior),
-                lectura_actual: it.lectura_actual === null || it.lectura_actual === undefined ? null : Number(it.lectura_actual),
-                precio_unidad: it.precio_unidad === null || it.precio_unidad === undefined ? null : Number(it.precio_unidad)
+                lectura_anterior: it.lectura_anterior === null || it.lectura_anterior === undefined ? 0 : Number(it.lectura_anterior),
+                lectura_actual: it.lectura_actual === null || it.lectura_actual === undefined ? 0 : Number(it.lectura_actual),
+                precio_unidad: it.precio_unidad === null || it.precio_unidad === undefined ? 0 : Number(it.precio_unidad)
               }
-            : {})
+            : {}),
+          ...(typeof it.foto_lectura === 'string' && it.foto_lectura ? { foto_lectura: it.foto_lectura } : {})
         });
       }
     }
