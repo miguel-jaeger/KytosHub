@@ -134,10 +134,6 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
   const [invoicesPage, setInvoicesPage] = useState(1);
   const [invoicesPerPage, setInvoicesPerPage] = useState<number | 'all'>(10);
 
-  const [showFeeModal, setShowFeeModal] = useState(false);
-  const [feeForm, setFeeForm] = useState({ department_id: '', amount: '', is_exempt: false, notes: '' });
-  const [savingFee, setSavingFee] = useState(false);
-
   const [showFineModal, setShowFineModal] = useState(false);
   const [fineForm, setFineForm] = useState({ department_id: '', concept: '', amount: '' });
   const [savingFine, setSavingFine] = useState(false);
@@ -327,32 +323,6 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
     }
   };
 
-  const openFeeModal = () => {
-    setFeeForm({ department_id: '', amount: String(configForm.default_fee || 150), is_exempt: false, notes: '' });
-    setShowFeeModal(true);
-  };
-
-  const handleSaveFee = async () => {
-    if (!feeForm.department_id) { setError('Selecciona un departamento.'); return; }
-    setSavingFee(true);
-    setError(null);
-    try {
-      await billing.setDepartmentFee({
-        department_id: feeForm.department_id,
-        amount: feeForm.is_exempt ? 0 : Number(feeForm.amount) || 0,
-        is_exempt: feeForm.is_exempt,
-        notes: feeForm.notes || undefined
-      });
-      setShowFeeModal(false);
-      setMessage('Cuota del departamento actualizada');
-      setTimeout(() => setMessage(null), 2500);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar la cuota');
-    } finally {
-      setSavingFee(false);
-    }
-  };
-
   const openFineModal = () => {
     setFineForm({ department_id: '', concept: '', amount: '' });
     setShowFineModal(true);
@@ -484,8 +454,6 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
   const { slice: pagedInvoices } = paginate(filteredInvoices, invoicesPage, invoicesPerPage === 'all' ? filteredInvoices.length : invoicesPerPage);
   const { slice: pagedFines } = paginate(fines, finesPage, finesPerPage === 'all' ? fines.length : finesPerPage);
 
-  const feeFor = (deptId: string) => billing.departmentFees.find(f => f.department_id === deptId);
-
   const formatDate = (d: string) => {
     const date = new Date(d);
     return isNaN(date.getTime()) ? d : date.toLocaleDateString('es-PE');
@@ -511,7 +479,6 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
             </>
           )}
           {tab === 'fines' && <button onClick={openFineModal}><span className="material-symbols-outlined">add</span> Registrar multa</button>}
-          <button onClick={openFeeModal}><span className="material-symbols-outlined">tune</span> Cuota por departamento</button>
         </div>
       </div>
 
@@ -786,53 +753,7 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
         </div>
       )}
 
-      {showFeeModal && (
-        <div className="modal-overlay" onClick={() => setShowFeeModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <div>
-                <h3>Cuota de mantenimiento por departamento</h3>
-                <p className="text-on-surface-variant">Personaliza o exonera la cuota de un departamento.</p>
-              </div>
-              <button className="modal-close" onClick={() => setShowFeeModal(false)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label>Departamento</label>
-                <select value={feeForm.department_id} onChange={e => setFeeForm({ ...feeForm, department_id: e.target.value })}>
-                  <option value="">Seleccionar departamento...</option>
-                  {billing.departmentFees.map(d => (
-                    <option key={d.department_id} value={d.department_id}>
-                      {d.department_number} · {d.tower?.code || ''}{d.is_exempt ? ' · Exento' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {feeForm.department_id && feeFor(feeForm.department_id)?.is_exempt && (
-                <div className="module-example"><span className="material-symbols-outlined">info</span><span>Este departamento está exento de pago actualmente.</span></div>
-              )}
-              <div className="form-group">
-                <label>Monto (S/)</label>
-                <input type="number" min={0} value={feeForm.amount} disabled={feeForm.is_exempt} onChange={e => setFeeForm({ ...feeForm, amount: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>
-                  <input type="checkbox" checked={feeForm.is_exempt} onChange={e => setFeeForm({ ...feeForm, is_exempt: e.target.checked })} />
-                  Exonerar del pago de mantenimiento
-                </label>
-              </div>
-              <div className="form-group"><label>Notas</label><input type="text" value={feeForm.notes} onChange={e => setFeeForm({ ...feeForm, notes: e.target.value })} placeholder="Motivo o observación" /></div>
-              {error && <div className="error-message">{error}</div>}
-              <div className="form-actions">
-                <button className="btn-cancel" onClick={() => setShowFeeModal(false)}><span className="material-symbols-outlined">close</span> Cancelar</button>
-                <button onClick={handleSaveFee} disabled={savingFee}><span className="material-symbols-outlined">save</span> {savingFee ? 'Guardando...' : 'Guardar'}</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showFineModal && (
+{showFineModal && (
         <div className="modal-overlay" onClick={() => setShowFineModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
