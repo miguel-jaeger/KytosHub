@@ -178,7 +178,25 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
     const f = { ...filters, ...override };
     setFilters(f);
     try {
-      const list = await billing.fetchInvoices({ period_id: f.period_id || undefined, status: f.status || undefined, department_id: f.department_id || undefined });
+      let list = await billing.fetchInvoices({ period_id: f.period_id || undefined, status: f.status || undefined, department_id: f.department_id || undefined });
+      // Robust fallback: resolve tower/department from the fees catalog if the
+      // backend enrichment is missing on any invoice.
+      if (billing.departmentFees.length > 0) {
+        list = list.map(inv => {
+          const fee = billing.departmentFees.find(x => x.department_id === inv.department_id);
+          if (!fee) return inv;
+          const towerCode = inv.tower_code || inv.departments?.towers?.code || fee.tower?.code || '';
+          const deptNumber = inv.department_number || inv.departments?.department_number || fee.department_number || '';
+          return {
+            ...inv,
+            tower_code: towerCode,
+            department_number: deptNumber,
+            edificio: towerCode,
+            departamento: deptNumber.replace(/\D/g, ''),
+            departments: inv.departments || (fee.tower ? { department_number: deptNumber, towers: { name: fee.tower.name, code: fee.tower.code } } : null)
+          };
+        });
+      }
       setInvoices(list);
       setInvoicesPage(1);
       setError(null);

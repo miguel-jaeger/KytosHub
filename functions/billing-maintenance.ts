@@ -390,13 +390,17 @@ async function listInvoices(db: { from(t: string): any }, body: Record<string, u
   const list = (invoices || []) as Array<Record<string, unknown>>;
   if (list.length === 0) return [];
 
-  const deptIds = [...new Set(list.map(i => i.department_id as string))];
+const deptIds = [...new Set(list.map(i => i.department_id as string))];
   const cycleIds = [...new Set(list.map(i => i.cycle_id as string))];
-  const { data: depts } = await db.from('departments').select('id, department_number, tower_id').in('id', deptIds);
-  const deptMap = new Map((depts || []).map((d: { id: string; department_number: string; tower_id: string }) => [d.id, d]));
-  const towerIds = [...new Set((depts || []).map((d: { tower_id: string }) => d.tower_id))];
-  const { data: towers } = towerIds.length ? await db.from('towers').select('id, name, code').in('id', towerIds) : { data: [] } as { data: Array<{ id: string; name: string; code: string }> };
-  const towerMap = new Map((towers || []).map(t => [t.id, t]));
+
+  // Load the full department/tower catalogs instead of using .in() with large
+  // id lists (which can silently return empty for hundreds of ids).
+  const { data: allDepts } = await db.from('departments').select('id, department_number, tower_id').limit(1000);
+  const deptMap = new Map((allDepts || []).map((d: { id: string; department_number: string; tower_id: string }) => [d.id, d]));
+  const towerIds = [...new Set((allDepts || []).map((d: { tower_id: string }) => d.tower_id))];
+  const { data: allTowers } = await db.from('towers').select('id, name, code').limit(200);
+  const towerMap = new Map((allTowers || []).map((t: { id: string; name: string; code: string }) => [t.id, t]));
+
   const { data: cycles } = await db.from('billing_cycles').select('id, cycle_key, label, start_date, end_date, due_date').in('id', cycleIds);
   const cycleMap = new Map((cycles || []).map((c: Record<string, unknown>) => [c.id, c]));
   const { data: fines } = await db.from('billing_fines').select('invoice_id, amount, status, source, concept').in('invoice_id', list.map(i => i.id as string));
@@ -406,16 +410,34 @@ async function listInvoices(db: { from(t: string): any }, body: Record<string, u
     arr.push(f);
     finesByInvoice.set(f.invoice_id as string, arr);
   }
+
+  // Resolve the department's primary resident to expose the titular directly
+  const { data: residents } = deptIds.length
+    ? await db.from('residents').select('department_id, full_name, is_primary_contact').in('department_id', deptIds)
+    : { data: [] } as { data: Array<{ department_id: string; full_name: string; is_primary_contact: boolean }> };
+  const titularMap = new Map<string, string>();
+  for (const r of (residents || [])) {
+    const current = titularMap.get(r.department_id);
+    if (!current || r.is_primary_contact) titularMap.set(r.department_id, r.full_name);
+  }
+
   return list.map(i => {
     const dept = i.department_id ? deptMap.get(i.department_id as string) : undefined;
     const tower = dept ? towerMap.get(dept.tower_id) : undefined;
     const fineRows = finesByInvoice.get(i.id as string) || [];
     const fineTotal = fineRows.filter(f => f.status !== 'ANULADA').reduce((s, f) => s + Number(f.amount), 0);
+    const departmentNumber = dept?.department_number || '';
+    const towerCode = tower?.code || '';
     return {
       ...i,
-      departments: dept ? { department_number: dept.department_number, towers: tower ? { name: tower.name, code: tower.code } : null } : null,
+      department_number: departmentNumber,
+      tower_code: towerCode,
+      edificio: towerCode,
+      departamento: departmentNumber.replace(/\D/g, ''),
+      titular: i.department_id ? (titularMap.get(i.department_id as string) || '') : '',
+      departments: dept ? { department_number: departmentNumber, towers: tower ? { name: tower.name, code: tower.code } : null } : null,
       cycles: cycleMap.get(i.cycle_id as string) || null,
-      fine_total: fineTotal,
+fine_total: fineTotal,
       total: Number(i.amount) + fineTotal,
       fines: fineRows
     };
