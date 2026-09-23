@@ -21,6 +21,7 @@ export function BillingReceiptEditor({
   const [data, setData] = useState<MaintenanceReceipt>(base);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   const set = (patch: Partial<MaintenanceReceipt>) => setData(prev => ({ ...prev, ...patch }));
 
@@ -85,12 +86,21 @@ export function BillingReceiptEditor({
     <div className="receipt-editor">
       <div className="setup-tabs" style={{ marginBottom: '1rem' }}>
         <button className="active">Datos del recibo</button>
+        <button onClick={() => setShowPreview(v => !v)}>
+          <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>{showPreview ? 'visibility_off' : 'visibility'}</span>
+          {showPreview ? 'Ocultar vista previa' : 'Ver vista previa'}
+        </button>
         <button onClick={() => window.print()}>Imprimir / Guardar PDF</button>
       </div>
 
-      <div className="receipt-editor-grid">
-        <div className="receipt-editor-form">
-          <div className="form-row">
+      {showPreview && (
+        <div className="receipt-editor-preview" style={{ marginBottom: '0.75rem' }}>
+          <BillingReceipt data={data} />
+        </div>
+      )}
+
+      <div className="receipt-editor-form">
+        <div className="form-row">
             <div className="form-group">
               <label>N.º de recibo</label>
               <input type="text" value={data.numero_recibo} onChange={e => set({ numero_recibo: e.target.value })} />
@@ -219,11 +229,6 @@ export function BillingReceiptEditor({
           </div>
 
           {error && <div className="error-message">{error}</div>}
-        </div>
-
-        <div className="receipt-editor-preview">
-          <BillingReceipt data={data} />
-        </div>
       </div>
 
       <div className="form-actions">
@@ -231,7 +236,7 @@ export function BillingReceiptEditor({
         <button onClick={handleSave} disabled={saving}><span className="material-symbols-outlined">save</span> {saving ? 'Guardando...' : 'Guardar recibo'}</button>
       </div>
       <small className="text-on-surface-variant">
-        Recibos listos: modalmente se renderiza en vivo a la derecha. Usa «Imprimir / Guardar PDF» para exportar. Entidades de pago: {entidades.join(', ')}.
+        Usa «Ver vista previa» para revisar el recibo y «Imprimir / Guardar PDF» para exportarlo. Entidades de pago: {entidades.join(', ')}.
       </small>
     </div>
   );
