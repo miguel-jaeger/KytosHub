@@ -239,10 +239,12 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
   const filteredInvoices = invoices.filter(i => {
     if (filters.status && i.status !== filters.status) return false;
     if (filters.department_id && i.department_id !== filters.department_id) return false;
-    if (filters.tower_id && i.departments?.towers?.code !== selectedTowerCode) return false;
+    const invTower = i.tower_code || i.departments?.towers?.code || '';
+    if (filters.tower_id && invTower !== selectedTowerCode) return false;
     if (filters.search) {
-      const dept = i.departments?.department_number || '';
-      if (!dept.toLowerCase().includes(filters.search.toLowerCase())) return false;
+      const dept = i.department_number || i.departments?.department_number || '';
+      const tower = i.tower_code || i.departments?.towers?.code || '';
+      if (!`${dept} ${tower}`.toLowerCase().includes(filters.search.toLowerCase())) return false;
     }
     return true;
   });
@@ -588,9 +590,25 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
             </div>
             <div className="search-bar" style={{ marginTop: '0.75rem' }}>
               <span className="material-symbols-outlined search-icon">apartment</span>
-              <select value={filters.tower_id} onChange={e => setFilters({ ...filters, tower_id: e.target.value })}>
+              <select value={filters.tower_id} onChange={e => setFilters({ ...filters, tower_id: e.target.value, department_id: '' })}>
                 <option value="">Todas las torres</option>
                 {towers.map(t => <option key={t.id} value={t.id}>{t.name} ({t.code})</option>)}
+              </select>
+            </div>
+            <div className="search-bar" style={{ marginTop: '0.75rem' }}>
+              <span className="material-symbols-outlined search-icon">meeting_room</span>
+              <select
+                value={filters.department_id}
+                onChange={e => setFilters({ ...filters, department_id: e.target.value })}
+                disabled={!filters.tower_id}
+              >
+                <option value="">{filters.tower_id ? 'Todos los departamentos de la torre' : 'Primero selecciona una torre'}</option>
+                {billing.departmentFees
+                  .filter(f => !filters.tower_id || f.tower?.id === filters.tower_id)
+                  .sort((a, b) => a.department_number.localeCompare(b.department_number, undefined, { numeric: true }))
+                  .map(f => (
+                    <option key={f.department_id} value={f.department_id}>Dpto. {f.department_number}</option>
+                  ))}
               </select>
             </div>
           </div>
@@ -617,8 +635,8 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
                   <tbody>
                     {pagedInvoices.map(inv => (
                       <tr key={inv.id}>
-                        <td>{inv.departments?.towers?.code || '-'}</td>
-                        <td>{inv.departments?.department_number || '-'}</td>
+                        <td>{inv.tower_code || inv.departments?.towers?.code || '-'}</td>
+                        <td>{inv.department_number || inv.departments?.department_number || '-'}</td>
                         <td>{fmtMoney(inv.amount)}</td>
                         <td>{fmtMoney(inv.fine_total)}</td>
                         <td><strong>{fmtMoney(inv.total)}</strong></td>
