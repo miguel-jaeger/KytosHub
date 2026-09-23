@@ -53,7 +53,7 @@ export function VariableDataCapture({ schemaName, enabled }: { schemaName?: stri
     billing.fetchInvoices({ period_id: periodId })
       .then(list => {
         if (cancelled) return;
-        const filtered = list.filter(i => i.departments?.towers?.code === towerCode);
+        const filtered = list.filter(i => (i.tower_code || i.departments?.towers?.code) === towerCode);
         setInvoices(filtered);
         setPage(1);
       })
@@ -118,7 +118,7 @@ export function VariableDataCapture({ schemaName, enabled }: { schemaName?: stri
     setError(null);
     try {
       await billing.saveVariableData(inv.id, variableOf(inv));
-      setMessage(`Datos guardados para ${inv.departments?.department_number || ''}`);
+      setMessage(`Datos guardados para ${inv.department_number || inv.departments?.department_number || ''}`);
       setTimeout(() => setMessage(null), 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar');
@@ -139,7 +139,7 @@ export function VariableDataCapture({ schemaName, enabled }: { schemaName?: stri
         await billing.saveVariableData(inv.id, variableOf(inv));
         ok++;
       } catch (err) {
-        setError(err instanceof Error ? err.message : `Error en ${inv.departments?.department_number || ''}`);
+        setError(err instanceof Error ? err.message : `Error en ${inv.department_number || inv.departments?.department_number || ''}`);
         break;
       }
     }
@@ -195,7 +195,7 @@ export function VariableDataCapture({ schemaName, enabled }: { schemaName?: stri
             <div key={inv.id} className="module-card variable-capture-card">
               <div className="module-card-head">
                 <div>
-                  <h4>Torre {inv.departments?.towers?.code || '-'} · Dpto. {inv.departments?.department_number || '-'}</h4>
+                  <h4>Torre {inv.tower_code || inv.departments?.towers?.code || '-'} · Dpto. {inv.department_number || inv.departments?.department_number || '-'}</h4>
                   <p>Cuota base {fmtMoney(inv.amount)} · Conceptos variables subtotal {fmtMoney(itemSubtotal(inv))}</p>
                 </div>
                 <div className="module-head-actions">
