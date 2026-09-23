@@ -1,23 +1,48 @@
 import { useState } from 'react';
 import { BillingReceipt } from './BillingReceipt';
-import type { BillingInvoice, MaintenanceReceipt, MaintenanceReceiptItem } from '../types';
+import type { BillingConfig, BillingConfigItem, BillingInvoice, MaintenanceReceipt, MaintenanceReceiptItem } from '../types';
 
 function emptyItem(): MaintenanceReceiptItem {
   return { categoria: '', descripcion: '', cantidad: null, monto_total_gasto: null, importe_departamento: 0 };
 }
 
+function emptyAjuste(): MaintenanceReceiptItem {
+  return { categoria: 'AJUSTES', descripcion: '', cantidad: null, monto_total_gasto: null, importe_departamento: 0 };
+}
+
+function computeTotals(items: MaintenanceReceiptItem[], ajustesItems: MaintenanceReceiptItem[]) {
+  const subtotal = items.reduce((s, it) => s + (Number(it.importe_departamento) || 0), 0);
+  const ajustes = (ajustesItems || []).reduce((s, it) => s + (Number(it.importe_departamento) || 0), 0);
+  return { subtotal, ajustes, total_mes: Math.max(0, subtotal - ajustes) };
+}
+
+function recomputeSedapal(it: MaintenanceReceiptItem): MaintenanceReceiptItem {
+  const anterior = Number(it.lectura_anterior) || 0;
+  const actual = Number(it.lectura_actual) || 0;
+  const precio = Number(it.precio_unidad) || 0;
+  const cantidad = Math.max(0, actual - anterior);
+  const monto = Math.round(cantidad * precio * 100) / 100;
+  return { ...it, cantidad: String(cantidad), monto_total_gasto: monto, importe_departamento: monto };
+}
+
+function isSedapalItem(it: MaintenanceReceiptItem): boolean {
+  return String(it.categoria || '').toUpperCase() === 'SEDAPAL' || it.lectura_actual !== undefined;
+}
+
 export function BillingReceiptEditor({
   invoice,
   initial,
+  config,
   onSave,
   onClose
 }: {
   invoice: BillingInvoice;
   initial: MaintenanceReceipt | null;
+  config?: BillingConfig | null;
   onSave: (data: MaintenanceReceipt) => Promise<void>;
   onClose: () => void;
 }) {
-  const base = initial || buildDefault(invoice);
+  const base = initial || buildDefault(invoice, config);
   const [data, setData] = useState<MaintenanceReceipt>(base);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,20 +50,23 @@ export function BillingReceiptEditor({
 
   const set = (patch: Partial<MaintenanceReceipt>) => setData(prev => ({ ...prev, ...patch }));
 
-  const updateItem = (idx: number, patch: Partial<MaintenanceReceiptItem>) => {
+  const updateItem = (idx: number, patch: Partial<MaintenanceReceiptItem>, recalcSedapal = false) => {
     setData(prev => {
-      const items = prev.items.map((it, i) => (i === idx ? { ...it, ...patch } : it));
-      const subtotal = items.reduce((s, it) => s + (Number(it.importe_departamento) || 0), 0);
-      return { ...prev, items, subtotal, total_mes: subtotal };
+      let items = prev.items.map((it, i) => (i === idx ? { ...it, ...patch } : it));
+      if (recalcSedapal) items[idx] = recomputeSedapal(items[idx]);
+      return { ...prev, items, ...computeTotals(items, prev.ajustes_items || []) };
     });
   };
 
-  const addItem = () => setData(prev => ({ ...prev, items: [...prev.items, emptyItem()] }));
+  const addItem = () => setData(prev => {
+    const items = [...prev.items, emptyItem()];
+    return { ...prev, items, ...computeTotals(items, prev.ajustes_items || []) };
+  });
+
   const removeItem = (idx: number) => {
     setData(prev => {
       const items = prev.items.filter((_, i) => i !== idx);
-      const subtotal = items.reduce((s, it) => s + (Number(it.importe_departamento) || 0), 0);
-      return { ...prev, items, subtotal, total_mes: subtotal };
+      return { ...prev, items, ...computeTotals(items, prev.ajustes_items || []) };
     });
   };
 
@@ -48,14 +76,39 @@ export function BillingReceiptEditor({
       const j = idx + dir;
       if (j < 0 || j >= items.length) return prev;
       [items[idx], items[j]] = [items[j], items[idx]];
-      return { ...prev, items };
+      const totals = computeTotals(items, prev.ajustes_items || []);
+      return { ...prev, items, ...totals };
     });
   };
 
   const resetSubtotals = () => {
     setData(prev => {
-      const subtotal = prev.items.reduce((s, it) => s + (Number(it.importe_departamento) || 0), 0);
-      return { ...prev, subtotal, total_mes: subtotal };
+      let items = prev.items;
+      items = items.map(it =>
+        isSedapalItem(it) && (it.lectura_actual !== undefined || it.lectura_anterior !== undefined)
+          ? recomputeSedapal(it)
+          : it
+      );
+      return { ...prev, items, ...computeTotals(items, prev.ajustes_items || []) };
+    });
+  };
+
+  const updateAjuste = (idx: number, patch: Partial<MaintenanceReceiptItem>) => {
+    setData(prev => {
+      const ajustesItems = (prev.ajustes_items || []).map((it, i) => (i === idx ? { ...it, ...patch } : it));
+      return { ...prev, ajustes_items: ajustesItems, ...computeTotals(prev.items, ajustesItems) };
+    });
+  };
+
+  const addAjuste = () => setData(prev => {
+    const ajustesItems = [...(prev.ajustes_items || []), emptyAjuste()];
+    return { ...prev, ajustes_items: ajustesItems, ...computeTotals(prev.items, ajustesItems) };
+  });
+
+  const removeAjuste = (idx: number) => {
+    setData(prev => {
+      const ajustesItems = (prev.ajustes_items || []).filter((_, i) => i !== idx);
+      return { ...prev, ajustes_items: ajustesItems, ...computeTotals(prev.items, ajustesItems) };
     });
   };
 
@@ -81,6 +134,7 @@ export function BillingReceiptEditor({
   };
 
   const codigoManual = `CLM${data.edificio}${data.departamento.padStart(3, '0')}`;
+  const hasAjustes = (data.ajustes_items || []).length > 0;
 
   return (
     <div className="receipt-editor">
@@ -169,10 +223,10 @@ export function BillingReceiptEditor({
         </div>
 
         <div className="receipt-editor-panel">
-          <div className="receipt-editor-section-title">Conceptos del mes (por categoría)</div>
+          <div className="receipt-editor-section-title">Conceptos del mes (por sección)</div>
           <div className="receipt-items-list">
             <div className="receipt-items-head">
-              <span className="receipt-items-head-label">Categoría</span>
+              <span className="receipt-items-head-label">Sección</span>
               <span className="receipt-items-head-label">Descripción</span>
               <span className="receipt-items-head-label">Cantidad</span>
               <span className="receipt-items-head-label">Total gasto</span>
@@ -182,25 +236,46 @@ export function BillingReceiptEditor({
               <span />
             </div>
             {data.items.map((it, idx) => (
-              <div key={idx} className="receipt-item-row">
-                <div className="form-group">
-                  <input type="text" placeholder="SEDAPAL, Administración..." value={it.categoria} onChange={e => updateItem(idx, { categoria: e.target.value })} />
+              <div key={idx} className={isSedapalItem(it) ? 'receipt-item-wrap' : undefined}>
+                <div className="receipt-item-row">
+                  <div className="form-group">
+                    <input type="text" placeholder="SEDAPAL, Administración..." value={it.categoria} onChange={e => updateItem(idx, { categoria: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <input type="text" placeholder="Descripción del concepto" value={it.descripcion} onChange={e => updateItem(idx, { descripcion: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <input type="text" placeholder="17.229 m³" value={it.cantidad || ''} onChange={e => updateItem(idx, { cantidad: e.target.value || null })} />
+                  </div>
+                  <div className="form-group">
+                    <input type="number" placeholder="Total gasto" value={it.monto_total_gasto === null || it.monto_total_gasto === undefined ? '' : String(it.monto_total_gasto)} onChange={e => updateItem(idx, { monto_total_gasto: e.target.value === '' ? null : Number(e.target.value) })} />
+                  </div>
+                  <div className="form-group">
+                    <input type="number" placeholder="Importe dpto" value={String(it.importe_departamento)} onChange={e => updateItem(idx, { importe_departamento: Number(e.target.value) || 0 })} />
+                  </div>
+                  <button type="button" className="icon-btn" title="Subir" onClick={() => moveItem(idx, -1)} disabled={idx === 0}><span className="material-symbols-outlined">arrow_upward</span></button>
+                  <button type="button" className="icon-btn" title="Bajar" onClick={() => moveItem(idx, 1)} disabled={idx === data.items.length - 1}><span className="material-symbols-outlined">arrow_downward</span></button>
+                  <button type="button" className="icon-btn danger" title="Eliminar" onClick={() => removeItem(idx)}><span className="material-symbols-outlined">close</span></button>
                 </div>
-                <div className="form-group">
-                  <input type="text" placeholder="Descripción del concepto" value={it.descripcion} onChange={e => updateItem(idx, { descripcion: e.target.value })} />
-                </div>
-                <div className="form-group">
-                  <input type="text" placeholder="17.229 m³" value={it.cantidad || ''} onChange={e => updateItem(idx, { cantidad: e.target.value || null })} />
-                </div>
-                <div className="form-group">
-                  <input type="number" placeholder="Total gasto" value={it.monto_total_gasto === null ? '' : String(it.monto_total_gasto)} onChange={e => updateItem(idx, { monto_total_gasto: e.target.value === '' ? null : Number(e.target.value) })} />
-                </div>
-                <div className="form-group">
-                  <input type="number" placeholder="Importe dpto" value={String(it.importe_departamento)} onChange={e => updateItem(idx, { importe_departamento: Number(e.target.value) || 0 })} />
-                </div>
-                <button type="button" className="icon-btn" title="Subir" onClick={() => moveItem(idx, -1)} disabled={idx === 0}><span className="material-symbols-outlined">arrow_upward</span></button>
-                <button type="button" className="icon-btn" title="Bajar" onClick={() => moveItem(idx, 1)} disabled={idx === data.items.length - 1}><span className="material-symbols-outlined">arrow_downward</span></button>
-                <button type="button" className="icon-btn danger" title="Eliminar" onClick={() => removeItem(idx)}><span className="material-symbols-outlined">close</span></button>
+                {isSedapalItem(it) && (
+                  <div className="receipt-sedapal-fields">
+                    <div className="form-group">
+                      <label>Lectura anterior (m³)</label>
+                      <input type="number" value={it.lectura_anterior === null || it.lectura_anterior === undefined ? '' : String(it.lectura_anterior)} onChange={e => updateItem(idx, { lectura_anterior: e.target.value === '' ? null : Number(e.target.value) }, true)} />
+                    </div>
+                    <div className="form-group">
+                      <label>Lectura actual (m³)</label>
+                      <input type="number" value={it.lectura_actual === null || it.lectura_actual === undefined ? '' : String(it.lectura_actual)} onChange={e => updateItem(idx, { lectura_actual: e.target.value === '' ? null : Number(e.target.value) }, true)} />
+                    </div>
+                    <div className="form-group">
+                      <label>Precio por unidad (S/)</label>
+                      <input type="number" step="0.01" value={it.precio_unidad === null || it.precio_unidad === undefined ? '' : String(it.precio_unidad)} onChange={e => updateItem(idx, { precio_unidad: e.target.value === '' ? null : Number(e.target.value) }, true)} />
+                    </div>
+                    <button type="button" className="btn-cancel" title="Calcular consumo = lectura actual - anterior" onClick={() => updateItem(idx, {}, true)}>
+                      <span className="material-symbols-outlined">calculate</span> Recalcular
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -208,6 +283,41 @@ export function BillingReceiptEditor({
             <button type="button" className="btn-cancel" onClick={addItem}><span className="material-symbols-outlined">add</span> Agregar concepto</button>
             <button type="button" className="btn-cancel" onClick={resetSubtotals}><span className="material-symbols-outlined">calculate</span> Recalcular subtotales</button>
           </div>
+        </div>
+
+        <div className="receipt-editor-panel">
+          <div className="receipt-editor-section-title">Ajustes del mes — Alquileres de tiendas</div>
+          <p className="text-muted" style={{ fontSize: '0.8rem', margin: '0 0 0.5rem' }}>
+            Se incluyen únicamente cuando el departamento está al día con el pago de su mantenimiento. El importe se descuenta del total del recibo.
+          </p>
+          <div className="receipt-items-list">
+            <div className="receipt-items-head" style={{ gridTemplateColumns: '1.8fr 0.8fr 0.9fr auto' }}>
+              <span className="receipt-items-head-label">Descripción</span>
+              <span className="receipt-items-head-label">Monto total</span>
+              <span className="receipt-items-head-label">Importe a descontar</span>
+              <span />
+            </div>
+            {(data.ajustes_items || []).map((it, idx) => (
+              <div key={idx} className="receipt-item-row" style={{ gridTemplateColumns: '1.8fr 0.8fr 0.9fr auto' }}>
+                <div className="form-group">
+                  <input type="text" value={it.descripcion} onChange={e => updateAjuste(idx, { descripcion: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <input type="number" placeholder="Monto total" value={it.monto_total_gasto === null || it.monto_total_gasto === undefined ? '' : String(it.monto_total_gasto)} onChange={e => updateAjuste(idx, { monto_total_gasto: e.target.value === '' ? null : Number(e.target.value) })} />
+                </div>
+                <div className="form-group">
+                  <input type="number" placeholder="Importe a descontar" value={String(it.importe_departamento)} onChange={e => updateAjuste(idx, { importe_departamento: Number(e.target.value) || 0 })} />
+                </div>
+                <button type="button" className="icon-btn danger" title="Eliminar" onClick={() => removeAjuste(idx)}><span className="material-symbols-outlined">close</span></button>
+              </div>
+            ))}
+          </div>
+          <div className="form-actions">
+            <button type="button" className="btn-cancel" onClick={addAjuste}><span className="material-symbols-outlined">add</span> Agregar ajuste</button>
+          </div>
+          {!hasAjustes && (
+            <small className="text-on-surface-variant">Sin ajustes; el departamento no calificaría para el descuento o no está al día.</small>
+          )}
         </div>
 
         <div className="receipt-editor-panel">
@@ -265,28 +375,33 @@ export function BillingReceiptEditor({
   );
 }
 
-function buildDefault(invoice: BillingInvoice): MaintenanceReceipt {
+function buildDefault(invoice: BillingInvoice, config: BillingConfig | null | undefined): MaintenanceReceipt {
   const towerCode = invoice.departments?.towers?.code || '';
   const deptNumber = invoice.departments?.department_number || '';
   const today = new Date().toISOString().slice(0, 10);
   const items: MaintenanceReceipt['items'] = [];
 
-  // Prefer the variable concepts captured in the Datos variables grid; when
-  // the admin did not capture items, fall back to cuota + fines.
-  const variable = invoice.variable_data;
-  const variableItems = variable?.items && Array.isArray(variable.items) && variable.items.length > 0
-    ? variable.items.filter(it => it.descripcion || it.importe_departamento)
-    : [];
-
-  if (variableItems.length > 0) {
-    for (const it of variableItems) {
-      items.push({
-        categoria: it.categoria || 'CONCEPTOS',
-        descripcion: it.descripcion || 'Concepto del período',
-        cantidad: it.cantidad ?? null,
-        monto_total_gasto: it.monto_total_gasto ?? null,
-        importe_departamento: Number(it.importe_departamento) || 0
-      });
+  const sections = config?.sections && Array.isArray(config.sections) && config.sections.length > 0 ? config.sections : [];
+  if (sections.length > 0) {
+    for (const section of sections) {
+      for (const it of (section.items || [])) {
+        const importe = Number(it.importe) || 0;
+        if (!it.descripcion) continue;
+        items.push({
+          categoria: section.name || 'CONCEPTOS',
+          descripcion: String(it.descripcion),
+          cantidad: section.sedapal ? String(Number(it.cantidad) || 0) : null,
+          monto_total_gasto: it.monto_total === null || it.monto_total === undefined ? null : Number(it.monto_total),
+          importe_departamento: importe,
+          ...(section.sedapal
+            ? {
+                lectura_anterior: it.lectura_anterior === null || it.lectura_anterior === undefined ? null : Number(it.lectura_anterior),
+                lectura_actual: it.lectura_actual === null || it.lectura_actual === undefined ? null : Number(it.lectura_actual),
+                precio_unidad: it.precio_unidad === null || it.precio_unidad === undefined ? null : Number(it.precio_unidad)
+              }
+            : {})
+        });
+      }
     }
   } else {
     for (const fine of (invoice.fines || [])) {
@@ -302,9 +417,25 @@ function buildDefault(invoice: BillingInvoice): MaintenanceReceipt {
   }
 
   const subtotal = items.reduce((s, it) => s + (Number(it.importe_departamento) || 0), 0);
-  const marcas_agua = variable?.meters && Array.isArray(variable.meters)
-    ? variable.meters.filter(m => m.label || m.value)
-    : [];
+
+  const ajustesItems: MaintenanceReceipt['items'] = [];
+  let ajustes = 0;
+  if ((invoice.al_dia ?? invoice.status === 'PAGADA') && config?.ajustes && config.ajustes.length > 0) {
+    for (const it of config.ajustes as BillingConfigItem[]) {
+      const importe = Number(it.importe) || 0;
+      if (!it.descripcion) continue;
+      ajustesItems.push({
+        categoria: 'AJUSTES',
+        descripcion: it.descripcion,
+        cantidad: null,
+        monto_total_gasto: it.monto_total === null || it.monto_total === undefined ? null : Number(it.monto_total),
+        importe_departamento: importe
+      });
+      ajustes += importe;
+    }
+  }
+
+  const marcas_agua: MaintenanceReceipt['marcas_agua'] = [];
 
   return {
     numero_recibo: `RCP-${(invoice.id || '').slice(0, 12).toUpperCase()}`,
@@ -314,12 +445,13 @@ function buildDefault(invoice: BillingInvoice): MaintenanceReceipt {
     moneda: 'Soles (PEN)',
     simbolo_moneda: 'S/',
     subtotal,
-    ajustes: 0,
-    total_mes: subtotal,
+    ajustes_items: ajustesItems,
+    ajustes,
+    total_mes: Math.max(0, subtotal - ajustes),
     deuda_total_acumulada: Math.max(0, invoice.total - invoice.paid_amount),
-    estado_morosidad: invoice.status === 'PAGADA'
+    estado_morosidad: (invoice.al_dia ?? invoice.status === 'PAGADA')
       ? 'FELICITACIONES, sus pagos están al día'
-      : 'Su cuota se encuentra dentro del plazo de pago',
+      : 'ATENCIÓN: tiene pagos pendientes de mantenimiento',
     condominio: '',
     titular: '',
     edificio: towerCode,

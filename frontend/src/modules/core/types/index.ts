@@ -456,10 +456,29 @@ export interface GeneralBoardCandidate {
   } | null;
 }
 
+export interface BillingConfigItem {
+  descripcion: string;
+  monto_total: number | null;
+  cantidad: number | null;
+  precio_unidad: number | null;
+  lectura_anterior: number | null;
+  lectura_actual: number | null;
+  importe: number;
+}
+
+export interface BillingConfigSection {
+  id: string;
+  name: string;
+  sedapal: boolean;
+  items: BillingConfigItem[];
+}
+
 export interface BillingConfig {
   default_fee: number;
   due_days: number;
   autolink_cart_fines: boolean;
+  sections: BillingConfigSection[];
+  ajustes: BillingConfigItem[];
 }
 
 export type InvoiceStatus = 'PENDIENTE' | 'PARCIAL' | 'PAGADA' | 'ANULADA';
@@ -530,6 +549,7 @@ export interface BillingInvoice {
   created_at: string;
   fine_total: number;
   total: number;
+  al_dia?: boolean;
   receipt_data: MaintenanceReceipt | null;
   variable_data: BillingVariableData | null;
   department_number?: string;
@@ -558,6 +578,9 @@ export interface MaintenanceReceiptItem {
   cantidad: string | null;
   monto_total_gasto: number | null;
   importe_departamento: number;
+  lectura_anterior?: number | null;
+  lectura_actual?: number | null;
+  precio_unidad?: number | null;
 }
 
 export interface MaintenanceReceipt {
@@ -580,6 +603,7 @@ export interface MaintenanceReceipt {
   codigo_recaudacion: string;
   plataforma_recaudacion: string;
   items: MaintenanceReceiptItem[];
+  ajustes_items?: MaintenanceReceiptItem[];
   marcas_agua: Array<{ label: string; value: string }>;
   entidades_autorizadas: string[];
   regla_codigo_pago: string;

@@ -79,6 +79,36 @@ export function BillingReceipt({ data }: { data: MaintenanceReceipt }) {
         </tbody>
       </table>
 
+      {data.ajustes_items && data.ajustes_items.length > 0 && (
+        <>
+          <div className="receipt-section-title">Ajustes del mes</div>
+          <table className="receipt-table">
+            <thead>
+              <tr>
+                <th className="desc">Descripción</th>
+                <th className="cant">Cantidad / Lectura</th>
+                <th className="num">Total ({data.simbolo_moneda})</th>
+                <th className="num">Importe a descontar ({data.simbolo_moneda})</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.ajustes_items.map((r, i) => (
+                <tr key={i}>
+                  <td>{r.descripcion}</td>
+                  <td className="cant">{r.cantidad || '—'}</td>
+                  <td className="num">{r.monto_total_gasto !== null && r.monto_total_gasto !== undefined ? `${data.simbolo_moneda} ${fmt(r.monto_total_gasto)}` : '—'}</td>
+                  <td className="num">-{data.simbolo_moneda} {fmtShort(r.importe_departamento)}</td>
+                </tr>
+              ))}
+              <tr className="receipt-subtotal">
+                <td colSpan={3}>Total a descontar</td>
+                <td className="num">-{data.simbolo_moneda} {fmtShort(data.ajustes_items.reduce((s, r) => s + (Number(r.importe_departamento) || 0), 0))}</td>
+              </tr>
+            </tbody>
+          </table>
+        </>
+      )}
+
       <div className="receipt-totals">
         <div className="receipt-totals-card">
           <p><span>Subtotal del mes</span><strong>{data.simbolo_moneda} {fmt(data.subtotal)}</strong></p>
@@ -146,7 +176,15 @@ function ReceiptCategory({ categoria, rows, simbolo }: { categoria: string; rows
       <tr className="receipt-category"><td colSpan={4}>{categoria}</td></tr>
       {rows.map((r, i) => (
         <tr key={i}>
-          <td>{r.descripcion}</td>
+          <td>
+            {r.descripcion}
+            {r.lectura_actual !== undefined && (
+              <div className="receipt-reading-sub">
+                Lectura anterior: {(Number(r.lectura_anterior) || 0).toFixed(2)} m³ · Lectura actual: {(Number(r.lectura_actual) || 0).toFixed(2)} m³
+                {r.precio_unidad !== undefined && <> · Precio por unidad: {simbolo} {(Number(r.precio_unidad) || 0).toFixed(2)}</>}
+              </div>
+            )}
+          </td>
           <td className="cant">{r.cantidad || '—'}</td>
           <td className="num">{r.monto_total_gasto !== null && r.monto_total_gasto !== undefined ? `${simbolo} ${fmt(r.monto_total_gasto)}` : '—'}</td>
           <td className="num">{simbolo} {fmtShort(r.importe_departamento)}</td>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useCondoModules } from '../hooks/useCondoModules';
+import { BillingConfigForm, normalizeBillingConfig } from './BillingConfigForm';
 import type { ModuleInfo } from '../types';
 
 const CART_CONFIG_FIELDS: Array<{ key: string; label: string; type: 'number' | 'checkbox' }> = [
@@ -86,6 +87,10 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
     try { parsed = JSON.parse(current); } catch { parsed = {}; }
     parsed[key] = value;
     setConfigDrafts(prev => ({ ...prev, [m.module_key]: JSON.stringify(parsed, null, 2) }));
+  };
+
+  const updateDraftConfig = (m: ModuleInfo, next: Record<string, unknown>) => {
+    setConfigDrafts(prev => ({ ...prev, [m.module_key]: JSON.stringify(next, null, 2) }));
   };
 
   const updateParkingLayoutField = (m: ModuleInfo, value: { rows: number; spots_per_row: number[] }) => {
@@ -219,46 +224,24 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
       );
     }
     if (m.module_key === 'billing_maintenance') {
-      return (
-        <>
+      if (!canEdit) {
+        return (
           <div className="cart-config-form">
-            <label>
-              Cuota por defecto (S/)
-              <input
-                type="number"
-                min={0}
-                disabled={!canEdit}
-                value={String((JSON.parse(configDrafts?.[m.module_key] || '{}') || {} as Record<string, unknown>).default_fee ?? 150)}
-                onChange={e => updateDraftField(m, 'default_fee', Math.max(0, Number(e.target.value) || 0))}
-              />
-            </label>
-            <label>
-              Días de gracia para el vencimiento
-              <input
-                type="number"
-                min={0}
-                disabled={!canEdit}
-                value={String((JSON.parse(configDrafts?.[m.module_key] || '{}') || {} as Record<string, unknown>).due_days ?? 5)}
-                onChange={e => updateDraftField(m, 'due_days', Math.max(0, Math.round(Number(e.target.value) || 0)))}
-              />
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                disabled={!canEdit}
-                checked={!!((JSON.parse(configDrafts?.[m.module_key] || '{}') || {} as Record<string, unknown>).autolink_cart_fines ?? true)}
-                onChange={e => updateDraftField(m, 'autolink_cart_fines', e.target.checked)}
-              />
-              Vincular automáticamente las multas de carritos al estado de cuenta
-            </label>
+            <BillingConfigForm
+              value={normalizeBillingConfig(parseDraft(configDrafts?.[m.module_key] || '{}'))}
+              onChange={() => {}}
+              disabled
+            />
           </div>
-          <div className="module-example">
-            <span className="material-symbols-outlined">info</span>
-            <span>
-              La cuota por defecto se aplica a los departamentos sin cuota personalizada. Puedes asignar o exonerar cuotas individuales y generar los recibos detallados desde la pestaña <strong>Facturación</strong>.
-            </span>
-          </div>
-        </>
+        );
+      }
+      return (
+        <div className="cart-config-form" style={{ display: 'block' }}>
+          <BillingConfigForm
+            value={normalizeBillingConfig(parseDraft(configDrafts?.[m.module_key] || '{}'))}
+            onChange={next => updateDraftConfig(m, next as unknown as Record<string, unknown>)}
+          />
+        </div>
       );
     }
     return <p className="text-muted">Este módulo no requiere configuración adicional.</p>;
