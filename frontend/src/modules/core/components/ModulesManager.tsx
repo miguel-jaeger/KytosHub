@@ -74,6 +74,7 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
       if (saved) setModules(prev => prev.map(x => x.module_key === m.module_key ? { ...x, config_json: saved.config_json } : x));
       setConfigDrafts(prev => ({ ...prev, [m.module_key]: JSON.stringify(parsed, null, 2) }));
       onModulesUpdated?.();
+      setOpenConfig(null);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Error');
     } finally {
