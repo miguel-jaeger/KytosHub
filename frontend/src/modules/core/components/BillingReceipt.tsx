@@ -184,6 +184,11 @@ function ReceiptCategory({ categoria, rows, simbolo }: { categoria: string; rows
                 {r.precio_unidad !== undefined && <> · Precio por unidad: {simbolo} {(Number(r.precio_unidad) || 0).toFixed(2)}</>}
               </div>
             )}
+            {r.foto_lectura && (
+              <div className="receipt-photo">
+                <img src={r.foto_lectura} alt="Foto de lectura actual" />
+              </div>
+            )}
           </td>
           <td className="cant">{r.cantidad || '—'}</td>
           <td className="num">{r.monto_total_gasto !== null && r.monto_total_gasto !== undefined ? `${simbolo} ${fmt(r.monto_total_gasto)}` : '—'}</td>

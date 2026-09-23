@@ -224,6 +224,7 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
       );
     }
     if (m.module_key === 'billing_maintenance') {
+      const uploadFolder = schemaName ? `condominios/${schemaName}/recibos` : 'recibos';
       if (!canEdit) {
         return (
           <div className="cart-config-form">
@@ -231,6 +232,7 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
               value={normalizeBillingConfig(parseDraft(configDrafts?.[m.module_key] || '{}'))}
               onChange={() => {}}
               disabled
+              uploadFolder={uploadFolder}
             />
           </div>
         );
@@ -240,6 +242,7 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
           <BillingConfigForm
             value={normalizeBillingConfig(parseDraft(configDrafts?.[m.module_key] || '{}'))}
             onChange={next => updateDraftConfig(m, next as unknown as Record<string, unknown>)}
+            uploadFolder={uploadFolder}
           />
         </div>
       );

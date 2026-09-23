@@ -464,6 +464,7 @@ export interface BillingConfigItem {
   lectura_anterior: number | null;
   lectura_actual: number | null;
   importe: number;
+  foto_lectura?: string | null;
 }
 
 export interface BillingConfigSection {
@@ -581,6 +582,7 @@ export interface MaintenanceReceiptItem {
   lectura_anterior?: number | null;
   lectura_actual?: number | null;
   precio_unidad?: number | null;
+  foto_lectura?: string | null;
 }
 
 export interface MaintenanceReceipt {
