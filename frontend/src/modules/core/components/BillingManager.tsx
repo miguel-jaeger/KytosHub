@@ -6,34 +6,54 @@ import { BillingReceiptEditor } from './BillingReceiptEditor';
 import { MorososView } from './MorososView';
 import { VariableDataCapture } from './VariableDataCapture';
 import { PaginationBar, paginate } from '../../../components/Pagination';
-import type { Tower, BillingInvoice, BillingFine, MaintenanceReceipt, Resident } from '../types';
+import type { Tower, BillingInvoice, BillingFine, MaintenanceReceipt, Resident, BillingConfig, BillingConfigItem } from '../types';
 
 function fmtMoney(n: number): string {
   return `S/ ${(Number(n) || 0).toFixed(2)}`;
 }
 
-function buildReceiptDefault(invoice: BillingInvoice, titular: string, condominioName: string): MaintenanceReceipt {
+function configConceptTotal(cfg: BillingConfig | null): number {
+  if (!cfg) return 0;
+  return (cfg.sections || []).reduce((sum, s) => sum + (s.items || []).reduce((x, it) => x + (Number(it.importe) || 0), 0), 0);
+}
+
+function buildReceiptDefault(invoice: BillingInvoice, titular: string, condominioName: string, cfg: BillingConfig | null): MaintenanceReceipt {
   const towerCode = invoice.departments?.towers?.code || '';
   const deptNumber = invoice.departments?.department_number || '';
   const today = new Date().toISOString().slice(0, 10);
   const items: MaintenanceReceipt['items'] = [];
 
+  const sections = cfg?.sections && Array.isArray(cfg.sections) && cfg.sections.length > 0 ? cfg.sections : [];
+  if (sections.length > 0) {
+    for (const section of sections) {
+      for (const it of (section.items || [])) {
+        const importe = Number(it.importe) || 0;
+        if (!it.descripcion) continue;
+        items.push({
+          categoria: section.name || 'CONCEPTOS',
+          descripcion: String(it.descripcion),
+          cantidad: section.sedapal ? String(Number(it.cantidad) || 0) : null,
+          monto_total_gasto: it.monto_total === null || it.monto_total === undefined ? null : Number(it.monto_total),
+          importe_departamento: importe,
+          ...(section.sedapal
+            ? {
+                lectura_anterior: it.lectura_anterior === null || it.lectura_anterior === undefined ? null : Number(it.lectura_anterior),
+                lectura_actual: it.lectura_actual === null || it.lectura_actual === undefined ? null : Number(it.lectura_actual),
+                precio_unidad: it.precio_unidad === null || it.precio_unidad === undefined ? null : Number(it.precio_unidad)
+              }
+            : {})
+        });
+      }
+    }
+  }
+
+  // Per-department variable concepts captured in the Datos variables grid
   const variable = invoice.variable_data;
   const variableItems = variable?.items && Array.isArray(variable.items) && variable.items.length > 0
     ? variable.items.filter(it => it.descripcion || it.importe_departamento)
     : [];
 
-  if (variableItems.length > 0) {
-    for (const it of variableItems) {
-      items.push({
-        categoria: it.categoria || 'CONCEPTOS',
-        descripcion: it.descripcion || 'Concepto del período',
-        cantidad: it.cantidad ?? null,
-        monto_total_gasto: it.monto_total_gasto ?? null,
-        importe_departamento: Number(it.importe_departamento) || 0
-      });
-    }
-  } else {
+  if (sections.length === 0 && variableItems.length === 0) {
     for (const fine of (invoice.fines || [])) {
       items.push({ categoria: 'MULTAS', descripcion: fine.concept, cantidad: null, monto_total_gasto: null, importe_departamento: fine.amount });
     }
@@ -44,12 +64,44 @@ function buildReceiptDefault(invoice: BillingInvoice, titular: string, condomini
       monto_total_gasto: null,
       importe_departamento: invoice.amount
     });
+  } else if (variableItems.length > 0) {
+    for (const it of variableItems) {
+      items.push({
+        categoria: it.categoria || 'CONSUMOS DEL PERÍODO',
+        descripcion: it.descripcion || 'Concepto del período',
+        cantidad: it.cantidad ?? null,
+        monto_total_gasto: it.monto_total_gasto ?? null,
+        importe_departamento: Number(it.importe_departamento) || 0
+      });
+    }
   }
 
   const subtotal = items.reduce((s, it) => s + (Number(it.importe_departamento) || 0), 0);
+
+  // Ajustes (Alquileres de tiendas) only applies when the department is fully
+  // up to date with its maintenance payments.
+  const ajustesItems: MaintenanceReceipt['items'] = [];
+  let ajustes = 0;
+  if ((invoice.al_dia ?? invoice.status === 'PAGADA') && cfg?.ajustes && cfg.ajustes.length > 0) {
+    for (const it of cfg.ajustes) {
+      const importe = Number(it.importe) || 0;
+      if (!(it as BillingConfigItem).descripcion) continue;
+      ajustesItems.push({
+        categoria: 'AJUSTES',
+        descripcion: (it as BillingConfigItem).descripcion,
+        cantidad: null,
+        monto_total_gasto: it.monto_total === null || it.monto_total === undefined ? null : Number(it.monto_total),
+        importe_departamento: importe
+      });
+      ajustes += importe;
+    }
+  }
+
   const marcas_agua = variable?.meters && Array.isArray(variable.meters)
     ? variable.meters.filter(m => m.label || m.value)
     : [];
+
+  const alDia = invoice.al_dia ?? invoice.status === 'PAGADA';
 
   return {
     numero_recibo: `RCP-${(invoice.id || '').slice(0, 12).toUpperCase()}`,
@@ -59,12 +111,13 @@ function buildReceiptDefault(invoice: BillingInvoice, titular: string, condomini
     moneda: 'Soles (PEN)',
     simbolo_moneda: 'S/',
     subtotal,
-    ajustes: 0,
-    total_mes: subtotal,
+    ajustes_items: ajustesItems,
+    ajustes,
+    total_mes: Math.max(0, subtotal - ajustes),
     deuda_total_acumulada: Math.max(0, invoice.total - invoice.paid_amount),
-    estado_morosidad: invoice.status === 'PAGADA'
+    estado_morosidad: alDia
       ? 'FELICITACIONES, sus pagos están al día'
-      : 'Su cuota se encuentra dentro del plazo de pago',
+      : 'ATENCIÓN: tiene pagos pendientes de mantenimiento',
     condominio: condominioName,
     titular,
     edificio: towerCode,
@@ -122,8 +175,6 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [configForm, setConfigForm] = useState({ default_fee: 150, due_days: 5, autolink_cart_fines: true });
-
   const [showPeriodModal, setShowPeriodModal] = useState(false);
   const [periodForm, setPeriodForm] = useState({ label: '', start_date: '', end_date: '', due_date: '', amount: '' });
   const [savingPeriod, setSavingPeriod] = useState(false);
@@ -156,16 +207,6 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
       .catch(() => {});
     return () => { cancelled = true; };
   }, [schemaName]);
-
-  useEffect(() => {
-    if (billing.config) {
-      setConfigForm({
-        default_fee: Number(billing.config.default_fee) || 150,
-        due_days: Number(billing.config.due_days) || 5,
-        autolink_cart_fines: billing.config.autolink_cart_fines !== false
-      });
-    }
-  }, [billing.config]);
 
   const [invoices, setInvoices] = useState<BillingInvoice[]>([]);
   const [fines, setFines] = useState<BillingFine[]>([]);
@@ -259,12 +300,13 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
     const monthLabel = next.toLocaleDateString('es-PE', { month: 'long', year: 'numeric' });
     const start = new Date(next.getFullYear(), next.getMonth(), 1);
     const end = new Date(next.getFullYear(), next.getMonth() + 1, 0);
+    const defaultAmount = configConceptTotal(billing.config) || billing.config?.default_fee || 150;
     setPeriodForm({
       label: `Cuota de mantenimiento - ${monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}`,
       start_date: start.toISOString().slice(0, 10),
       end_date: end.toISOString().slice(0, 10),
       due_date: '',
-      amount: String(configForm.default_fee || 150)
+      amount: String(defaultAmount)
     });
     setShowPeriodModal(true);
   };
@@ -437,7 +479,7 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
     };
     const base = inv.receipt_data
       ? { ...inv.receipt_data, ...registered }
-      : buildReceiptDefault(inv, titular, condominium?.name || '');
+      : buildReceiptDefault(inv, titular, condominium?.name || '', billing.config);
     setReceiptInitial(base);
     setReceiptEditing(inv);
   };
@@ -811,6 +853,7 @@ export function BillingManager({ schemaName, enabled }: { schemaName?: string; e
               <BillingReceiptEditor
                 invoice={receiptEditing}
                 initial={receiptInitial}
+                config={billing.config}
                 onSave={handleSaveReceipt}
                 onClose={closeReceipt}
               />

@@ -62,7 +62,51 @@ const MODULES: Record<string, ModuleDef> = {
     default_config: {
       default_fee: 150,
       due_days: 5,
-      autolink_cart_fines: true
+      autolink_cart_fines: true,
+      sections: [
+        {
+          id: 'servicios-administrativos',
+          name: 'Servicios administrativos',
+          sedapal: false,
+          items: [{ descripcion: 'Servicio de Administración y Sistema de Recaudación', monto_total: 0, cantidad: null, precio_unidad: null, lectura_anterior: null, lectura_actual: null, importe: 0 }]
+        },
+        {
+          id: 'mantenimiento-equipos',
+          name: 'Mantenimiento de equipos',
+          sedapal: false,
+          items: [
+            { descripcion: 'Mantenimiento Preventivo de equipos y áreas comunes', monto_total: 0, cantidad: null, precio_unidad: null, lectura_anterior: null, lectura_actual: null, importe: 0 },
+            { descripcion: 'Mantenimiento Preventivo de Maquinarias y Equipos de su torre', monto_total: 0, cantidad: null, precio_unidad: null, lectura_anterior: null, lectura_actual: null, importe: 0 }
+          ]
+        },
+        {
+          id: 'fondo-contingencia',
+          name: 'Fondo de contingencia',
+          sedapal: false,
+          items: [
+            { descripcion: 'Fondos de contingencia, emergencia y correctivos de áreas comunes', monto_total: 0, cantidad: null, precio_unidad: null, lectura_anterior: null, lectura_actual: null, importe: 0 },
+            { descripcion: 'Fondos de contingencia, emergencia y correctivos de su torre', monto_total: 0, cantidad: null, precio_unidad: null, lectura_anterior: null, lectura_actual: null, importe: 0 }
+          ]
+        },
+        {
+          id: 'mantenimiento-ascensores',
+          name: 'Mantenimiento preventivo y correctivo de ascensores',
+          sedapal: false,
+          items: [
+            { descripcion: 'Mantenimiento preventivo de ascensores 01 y 02 de su torre', monto_total: 0, cantidad: null, precio_unidad: null, lectura_anterior: null, lectura_actual: null, importe: 0 },
+            { descripcion: 'Mantenimiento Correctivo de ascensores 01 y 02 de su torre', monto_total: 0, cantidad: null, precio_unidad: null, lectura_anterior: null, lectura_actual: null, importe: 0 }
+          ]
+        },
+        {
+          id: 'sedapal',
+          name: 'SEDAPAL',
+          sedapal: true,
+          items: [{ descripcion: 'Servicio de agua', monto_total: 0, cantidad: 0, precio_unidad: 0, lectura_anterior: 0, lectura_actual: 0, importe: 0 }]
+        }
+      ],
+      ajustes: [
+        { descripcion: 'Alquileres de tiendas', monto_total: 0, cantidad: null, precio_unidad: null, lectura_anterior: null, lectura_actual: null, importe: 0 }
+      ]
     }
   }
 };
@@ -246,6 +290,26 @@ function sanitizeConfig(key: string, config: Record<string, unknown>): Record<st
     cfg.default_fee = num(cfg.default_fee, 150);
     cfg.due_days = Math.round(num(cfg.due_days, 5));
     cfg.autolink_cart_fines = cfg.autolink_cart_fines !== false;
+    const sanitizeItem = (it: Record<string, unknown>): Record<string, unknown> => ({
+      descripcion: typeof it.descripcion === 'string' ? it.descripcion.trim() : '',
+      monto_total: it.monto_total === null || it.monto_total === undefined ? null : num(it.monto_total, 0),
+      cantidad: it.cantidad === null || it.cantidad === undefined ? null : num(it.cantidad, 0),
+      precio_unidad: it.precio_unidad === null || it.precio_unidad === undefined ? null : num(it.precio_unidad, 0),
+      lectura_anterior: it.lectura_anterior === null || it.lectura_anterior === undefined ? null : num(it.lectura_anterior, 0),
+      lectura_actual: it.lectura_actual === null || it.lectura_actual === undefined ? null : num(it.lectura_actual, 0),
+      importe: num(it.importe, 0)
+    });
+    if (Array.isArray(cfg.sections)) {
+      cfg.sections = (cfg.sections as Record<string, unknown>[]).map(s => ({
+        id: typeof s.id === 'string' && s.id ? s.id : `s_${Math.random().toString(36).slice(2, 8)}`,
+        name: typeof s.name === 'string' ? s.name.trim() : 'Sección',
+        sedapal: s.sedapal === true,
+        items: Array.isArray(s.items) ? (s.items as Record<string, unknown>[]).map(sanitizeItem) : []
+      }));
+    }
+    if (Array.isArray(cfg.ajustes)) {
+      cfg.ajustes = (cfg.ajustes as Record<string, unknown>[]).map(sanitizeItem);
+    }
   }
   return cfg;
 }

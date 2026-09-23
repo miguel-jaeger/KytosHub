@@ -1660,8 +1660,49 @@ html.dark .theme-switch input:checked + .theme-switch-track { background: #006c4
 .module-json { width: 100%; font-family: monospace; resize: vertical; }
 
 /* Module configuration opens in a modal, not inside the card */
-.module-config-modal { max-width: 560px; }
+.module-config-modal { max-width: 860px; }
 .module-config-modal .module-config { margin-top: 0; border-top: none; padding-top: 0.25rem; }
+
+/* Billing maintenance: config de secciones e ítems del recibo */
+.billing-config { display: flex; flex-direction: column; gap: 0.75rem; }
+.billing-config-summary {
+  display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem;
+  padding: 0.55rem 0.7rem; border-radius: 8px;
+  background: #eef4f1; border: 1px solid #b6dfca; font-size: 0.85rem; color: #0b1c30;
+}
+.billing-config-sections { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.25rem; }
+.billing-section-card {
+  border: 1px solid #e5e7eb; border-radius: 10px; padding: 0.7rem 0.8rem;
+  background: #fafbfc;
+}
+.billing-section-ajustes { border-color: #d8c7a2; background: #fdf8ef; }
+.billing-section-head { display: flex; gap: 0.75rem; align-items: flex-start; justify-content: space-between; margin-bottom: 0.55rem; }
+.billing-section-head .form-group { flex: 1; min-width: 0; }
+.billing-section-tools { display: flex; align-items: center; gap: 0.5rem; padding-top: 1.15rem; }
+.billing-section-tools .billing-check { display: flex; align-items: center; gap: 0.35rem; font-size: 0.78rem; color: #45464d; white-space: nowrap; }
+.billing-items { display: flex; flex-direction: column; gap: 0.45rem; }
+.billing-items-head,
+.billing-item-row {
+  display: grid;
+  grid-template-columns: 1.8fr 0.9fr 0.9fr auto;
+  gap: 0.4rem;
+  align-items: center;
+}
+.billing-item-row-sedapal,
+.billing-items-head-sedapal {
+  grid-template-columns: 1.6fr 0.7fr 0.7fr 0.7fr 0.55fr 0.7fr 0.7fr auto;
+}
+.billing-items-head > span {
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.03em; color: #76777d; padding: 0 0.15rem;
+}
+.billing-item-row .form-group { min-width: 0; }
+.billing-item-row .form-group input { padding: 0.5rem 0.6rem; font-size: 0.85rem; }
+.billing-item-row .icon-btn { flex-shrink: 0; }
+html.dark .billing-config-summary { background: #1d2a24; border-color: #2b4a3d; color: #e5e7eb; }
+html.dark .billing-section-card { background: #222b35; border-color: #333; color: #e5e7eb; }
+html.dark .billing-section-ajustes { background: #2a261c; border-color: #4a3f26; }
+html.dark .billing-section-tools .billing-check { color: #c8cad1; }
 
 /* Toggle switch */
 .switch { position: relative; display: inline-block; width: 40px; height: 22px; flex: 0 0 auto; }
@@ -3514,6 +3555,33 @@ html.dark .receipt-editor-form .form-group select { background: #27313c; border-
 .receipt-action-row { grid-template-columns: 1fr auto; }
 .receipt-meter-row .form-group input,
 .receipt-action-row .form-group input { padding: 0.5rem 0.6rem; font-size: 0.85rem; }
+
+/* SEDAPAL: lecturas del medidor dentro del item del recibo */
+.receipt-item-wrap { border: 1px solid #d5dbe1; border-radius: 8px; padding: 0.45rem; background: #f4f7f6; }
+.receipt-sedapal-fields {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr) minmax(120px, 1fr) auto;
+  gap: 0.5rem;
+  align-items: end;
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
+  border-top: 1px dashed #d5dbe1;
+}
+.receipt-sedapal-fields .form-group label { display: block; font-size: 0.7rem; font-weight: 600; color: #45464d; margin-bottom: 0.2rem; }
+.receipt-sedapal-fields .form-group input { padding: 0.5rem 0.6rem; font-size: 0.85rem; }
+.receipt-sedapal-fields .btn-cancel { white-space: nowrap; }
+html.dark .receipt-item-wrap { background: #1d2731; border-color: #333; }
+html.dark .receipt-sedapal-fields .form-group label { color: #9aa0a6; }
+html.dark .receipt-sedapal-fields { border-top-color: #444; }
+
+/* Detalle de lecturas impreso dentro de la descripción */
+.receipt-reading-sub {
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: #5f6b76;
+  margin-top: 2px;
+  line-height: 1.3;
+}
 
 @media print {
   body.printing-receipt .receipt-editor-form,
