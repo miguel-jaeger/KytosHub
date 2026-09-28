@@ -30,6 +30,10 @@ export interface PlateOcrResult {
   full_text: string;
 }
 
+export interface PlateOcrOptions {
+  vehicleType?: 'AUTO' | 'MOTO';
+}
+
 function loadImage(dataUrl: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -87,28 +91,38 @@ async function thresholdVariant(dataUrl: string, width: number, threshold: numbe
 const HEAD_LETTER_FIX: Record<string, string> = { '0': 'O', '1': 'I', '2': 'Z', '4': 'A', '5': 'S', '6': 'G', '8': 'B' };
 const TAIL_DIGIT_FIX: Record<string, string> = { O: '0', I: '1', L: '1', Z: '2', S: '5', B: '8', G: '6' };
 
-// Normalize a raw OCR token into canonical hyphenated plate candidates.
-function plateVariants(token: string): string[] {
-  const base = token.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (!base) return [];
+// Normalize a raw OCR token into canonical hyphenated plate candidates. The
+// vehicle type breaks the ambiguity of 6-char tokens: AB-1234 (moto) vs
+// AB1-234 (auto). When the OCR keeps the hyphen, its position is authoritative.
+function plateVariants(token: string, vehicleType?: 'AUTO' | 'MOTO'): string[] {
+  const upper = token.toUpperCase();
   const out: string[] = [];
   const add = (p: string) => { if (p && !out.includes(p)) out.push(p); };
 
-  if (/^[A-Z0-9]{3}[0-9]{3}$/.test(base)) {
-    add(`${base.slice(0, 3)}-${base.slice(3)}`);
+  // If OCR kept the hyphen, trust its position: ABC-123 (auto) vs AB-1234 (moto).
+  const hyphenated = upper.match(/^([A-Z0-9]{1,4})-([A-Z0-9]{1,4})$/);
+  if (hyphenated) {
+    const [, head, tail] = hyphenated;
+    if (/^[0-9]+$/.test(tail)) add(`${head}-${tail}`);
   }
-  // Moto plates: 2 alphanumeric + dash + 4 digits (AB-1234).
-  if (/^[A-Z0-9]{2}[0-9]{4}$/.test(base)) {
-    add(`${base.slice(0, 2)}-${base.slice(2)}`);
+
+  const base = upper.replace(/[^A-Z0-9]/g, '');
+  if (!base) return out;
+
+  const auto = /^[A-Z0-9]{3}[0-9]{3}$/.test(base) ? `${base.slice(0, 3)}-${base.slice(3)}` : null;
+  const moto = /^[A-Z0-9]{2}[0-9]{4}$/.test(base) ? `${base.slice(0, 2)}-${base.slice(2)}` : null;
+  for (const s of vehicleType === 'MOTO' ? [moto, auto] : [auto, moto]) {
+    if (s) add(s);
   }
+
   // Legacy 7-char plates.
   if (/^[A-Z]{3}[0-9]{4}$/.test(base)) add(`${base.slice(0, 3)}-${base.slice(3)}`);
   if (/^[A-Z]{4}[0-9]{3}$/.test(base)) add(`${base.slice(0, 4)}-${base.slice(4)}`);
 
-  // Fix common OCR misreads on 6-char plates: try the auto split (3 alnum +
-  // 3 digits, e.g. ABC-123) and the moto split (2 alnum + 4 digits, e.g. AB-1234).
+  // Fix common OCR misreads on 6-char plates: prefer the split that matches
+  // the vehicle type (AB-1234 for motos, ABC-123 for autos).
   if (/^[A-Z0-9]{6}$/.test(base)) {
-    for (const headLen of [3, 2]) {
+    for (const headLen of vehicleType === 'MOTO' ? [2, 3] : [3, 2]) {
       const head = base.slice(0, headLen);
       const fixedTail = [...base.slice(headLen)].map(ch => TAIL_DIGIT_FIX[ch] ?? ch).join('');
       if (new RegExp(`^[0-9]{${6 - headLen}}$`).test(fixedTail)) {
@@ -128,6 +142,9 @@ function tokenize(text: string): string[] {
   const upper = text.toUpperCase();
   const tokens = new Set<string>();
   for (const word of upper.split(/\s+/)) {
+    const trimmed = word.trim();
+    // Keep hyphenated candidates verbatim so the split position survives.
+    if (/^[A-Z0-9]{1,4}-[A-Z0-9]{1,4}$/.test(trimmed)) tokens.add(trimmed);
     const compact = word.replace(/[^A-Z0-9]/g, '');
     if (compact.length >= 4 && compact.length <= 8) tokens.add(compact);
   }
@@ -140,9 +157,10 @@ function tokenize(text: string): string[] {
   return [...tokens];
 }
 
-export async function recognizePlate(imageDataUrl: string, box?: ScanBox): Promise<PlateOcrResult> {
+export async function recognizePlate(imageDataUrl: string, box?: ScanBox, options?: PlateOcrOptions): Promise<PlateOcrResult> {
   const worker = await getWorker();
   const src = box ? await cropBox(imageDataUrl, box).catch(() => imageDataUrl) : imageDataUrl;
+  const vehicleType = options?.vehicleType;
 
   const variants: string[] = [];
   for (const width of [700, 1200]) {
@@ -162,7 +180,7 @@ export async function recognizePlate(imageDataUrl: string, box?: ScanBox): Promi
       if (text) {
         texts.push(text.trim());
         for (const tok of tokenize(text)) {
-          for (const c of plateVariants(tok)) {
+          for (const c of plateVariants(tok, vehicleType)) {
             if (!seen.has(c)) {
               seen.add(c);
             }

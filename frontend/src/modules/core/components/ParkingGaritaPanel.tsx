@@ -89,7 +89,7 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
     setError(null);
     setMessage(null);
     try {
-      const res = await recognizePlate(dataUrl, box);
+      const res = await recognizePlate(dataUrl, box, { vehicleType });
       const candidates = res.candidates;
       let used = false;
       // Try each candidate against the registry; pick the first match.
