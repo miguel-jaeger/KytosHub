@@ -81,9 +81,9 @@ async function thresholdVariant(dataUrl: string, width: number, threshold: numbe
   return canvas.toDataURL('image/png');
 }
 
-// Peruvian plates are 6 characters split by a hyphen: the first 3 are
-// alphanumeric (ABC-123, A1B-234) and the last 3 are digits. Legacy 7-char
-// formats (ABC-1234, ABCD-123) are kept as fallbacks.
+// Peruvian plates are 6 characters split by a hyphen: cars use 3+3 (ABC-123,
+// A1B-234) where the last 3 are digits, while motos use 2+4 (AB-1234). Legacy
+// 7-char formats (ABC-1234, ABCD-123) are kept as fallbacks.
 const HEAD_LETTER_FIX: Record<string, string> = { '0': 'O', '1': 'I', '2': 'Z', '4': 'A', '5': 'S', '6': 'G', '8': 'B' };
 const TAIL_DIGIT_FIX: Record<string, string> = { O: '0', I: '1', L: '1', Z: '2', S: '5', B: '8', G: '6' };
 
@@ -97,21 +97,27 @@ function plateVariants(token: string): string[] {
   if (/^[A-Z0-9]{3}[0-9]{3}$/.test(base)) {
     add(`${base.slice(0, 3)}-${base.slice(3)}`);
   }
+  // Moto plates: 2 alphanumeric + dash + 4 digits (AB-1234).
+  if (/^[A-Z0-9]{2}[0-9]{4}$/.test(base)) {
+    add(`${base.slice(0, 2)}-${base.slice(2)}`);
+  }
   // Legacy 7-char plates.
   if (/^[A-Z]{3}[0-9]{4}$/.test(base)) add(`${base.slice(0, 3)}-${base.slice(3)}`);
   if (/^[A-Z]{4}[0-9]{3}$/.test(base)) add(`${base.slice(0, 4)}-${base.slice(4)}`);
 
-  // Fix common OCR misreads on 6-char plates: the last 3 must be digits and
-  // the first 3 usually letters.
+  // Fix common OCR misreads on 6-char plates: try the auto split (3 alnum +
+  // 3 digits, e.g. ABC-123) and the moto split (2 alnum + 4 digits, e.g. AB-1234).
   if (/^[A-Z0-9]{6}$/.test(base)) {
-    const head = base.slice(0, 3);
-    const fixedTail = [...base.slice(3)].map(ch => TAIL_DIGIT_FIX[ch] ?? ch).join('');
-    if (/^[0-9]{3}$/.test(fixedTail)) {
-      add(`${head}-${fixedTail}`);
-      for (let i = 0; i < head.length; i++) {
-        const fix = HEAD_LETTER_FIX[head[i]];
-        if (!fix) continue;
-        add(`${head.slice(0, i)}${fix}${head.slice(i + 1)}-${fixedTail}`);
+    for (const headLen of [3, 2]) {
+      const head = base.slice(0, headLen);
+      const fixedTail = [...base.slice(headLen)].map(ch => TAIL_DIGIT_FIX[ch] ?? ch).join('');
+      if (new RegExp(`^[0-9]{${6 - headLen}}$`).test(fixedTail)) {
+        add(`${head}-${fixedTail}`);
+        for (let i = 0; i < head.length; i++) {
+          const fix = HEAD_LETTER_FIX[head[i]];
+          if (!fix) continue;
+          add(`${head.slice(0, i)}${fix}${head.slice(i + 1)}-${fixedTail}`);
+        }
       }
     }
   }
@@ -128,7 +134,7 @@ function tokenize(text: string): string[] {
   // OCR can glue the plate to neighboring text; scan the full line, but avoid
   // partial/spurious matches inside longer alphanumeric runs.
   const compactAll = upper.replace(/[^A-Z0-9]/g, '');
-  for (const m of compactAll.matchAll(/(?<![A-Z0-9])(?:[A-Z0-9]{3}[0-9]{3}|[A-Z]{3}[0-9]{4}|[A-Z]{4}[0-9]{3})(?![A-Z0-9])/g)) {
+  for (const m of compactAll.matchAll(/(?<![A-Z0-9])(?:[A-Z0-9]{3}[0-9]{3}|[A-Z0-9]{2}[0-9]{4}|[A-Z]{3}[0-9]{4}|[A-Z]{4}[0-9]{3})(?![A-Z0-9])/g)) {
     tokens.add(m[0]);
   }
   return [...tokens];
@@ -166,9 +172,9 @@ export async function recognizePlate(imageDataUrl: string, box?: ScanBox): Promi
     } catch {}
   }
 
-  // Prefer canonical ABC-123 plates first, then other letter+digit plates.
+  // Prefer canonical ABC-123 (auto) and AB-1234 (moto) plates first.
   const ordered: string[] = [];
-  const canonical = [...seen].filter(t => /^[A-Z0-9]{3}-[0-9]{3}$/.test(t));
+  const canonical = [...seen].filter(t => /^[A-Z0-9]{3}-[0-9]{3}$/.test(t) || /^[A-Z0-9]{2}-[0-9]{4}$/.test(t));
   const plateLike = [...seen].filter(t => !canonical.includes(t) && /[A-Z]/.test(t) && /[0-9]/.test(t));
   const others = [...seen].filter(t => !canonical.includes(t) && !plateLike.includes(t));
   ordered.push(...canonical, ...plateLike, ...others);
