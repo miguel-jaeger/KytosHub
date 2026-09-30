@@ -7,7 +7,7 @@ import type { Department, Floor, ParkingLayout, ParkingOrientation, ParkingSpot,
 const emptySpotForm = { type: 'PROPIO' as ParkingSpotType, department_id: '' };
 
 export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
-  const { listSpots, getLayout, provisionLayout, updateSpot } = useParking();
+  const { listSpots, getLayout, provisionLayout, resetLayout, updateSpot } = useParking();
   const [layout, setLayout] = useState<ParkingLayout | null>(null);
   const [spots, setSpots] = useState<ParkingSpot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,6 +19,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
   const [rowNameInputs, setRowNameInputs] = useState<string[]>(['', '']);
   const [orientation, setOrientation] = useState<ParkingOrientation>('HORIZONTAL');
   const [generating, setGenerating] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const [editingSpot, setEditingSpot] = useState<ParkingSpot | null>(null);
   const [spotForm, setSpotForm] = useState(emptySpotForm);
@@ -109,8 +110,10 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
     try {
       const [sp, ly] = await Promise.all([listSpots(schemaName), getLayout(schemaName)]);
       setSpots(sp);
-      setLayout(ly);
-      if (ly) {
+      // Only apply a real, persisted layout. get-layout returns null when there is
+      // no saved configuration, so the form keeps its defaults instead of corrupting.
+      if (ly && Number(ly.rows) >= 1) {
+        setLayout(ly);
         setRowsInput(String(ly.rows));
         const counts = Array.isArray(ly.spots_per_row)
           ? ly.spots_per_row.map(v => String(v))
@@ -121,6 +124,8 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
           : Array.from({ length: ly.rows }, () => '');
         setRowNameInputs(names);
         setOrientation(ly.orientation === 'VERTICAL' ? 'VERTICAL' : 'HORIZONTAL');
+      } else {
+        setLayout(null);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar');
@@ -182,6 +187,28 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
       setError(err instanceof Error ? err.message : 'Error al generar layout');
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleResetLayout = async () => {
+    if (!schemaName) return;
+    if (!window.confirm('¿Borrar la configuración guardada del estacionamiento? Se eliminarán las filas, plazas por fila, nombres y orientación guardados. Esta acción no es reversible.')) return;
+    setResetting(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await resetLayout(schemaName);
+      setLayout(null);
+      setRowsInput('2');
+      setPerRowInputs(['4', '4']);
+      setRowNameInputs(['', '']);
+      setOrientation('HORIZONTAL');
+      setSpots(await listSpots(schemaName));
+      setMessage('Configuración del layout borrada. Puedes regenerar el layout desde cero.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al borrar la configuración');
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -280,8 +307,11 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
           ))}
         </div>
         <div className="form-actions">
-          <button onClick={handleProvision} disabled={generating || !schemaName}>
+          <button onClick={handleProvision} disabled={generating || resetting || !schemaName}>
             <span className="material-symbols-outlined">grid_3x3</span> {generating ? 'Generando...' : spots.length === 0 ? 'Generar plazas' : 'Regenerar layout (conserva plazas existentes)'}
+          </button>
+          <button className="btn-cancel parking-reset-btn" onClick={handleResetLayout} disabled={resetting || generating || !schemaName}>
+            <span className="material-symbols-outlined">restart_alt</span> {resetting ? 'Borrando...' : 'Borrar configuración guardada'}
           </button>
           <small className="text-muted">Al regenerar se conservan las plazas ya existentes (por número) y se agregan las que falten; no se borra nada.</small>
         </div>

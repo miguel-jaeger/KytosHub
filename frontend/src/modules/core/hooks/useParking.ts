@@ -202,6 +202,16 @@ export function useParking() {
     return data.data;
   }, []);
 
+  const resetLayout = useCallback(async (schemaName: string): Promise<{ reset: boolean }> => {
+    const { data, error } = await invokeFunction<{ success: boolean; data: { reset: boolean } | null; error: { message: string } | null }>('parking-control', {
+      method: 'POST',
+      body: { action: 'reset-layout', schema_name: schemaName }
+    });
+    if (error) throw error;
+    if (!data?.success || !data.data) throw new Error(data?.error?.message || 'Error al borrar la configuración del layout');
+    return data.data;
+  }, []);
+
   const ocrPlate = useCallback(async (image: string): Promise<OcrResult> => {
     const { data, error } = await invokeFunction<{ success: boolean; data: OcrResult | null; error: { message: string } | null }>('plate-ocr', {
       method: 'POST',
@@ -225,6 +235,6 @@ export function useParking() {
     listVehicles, createVehicle, updateVehicle, updateVehicleDriver, deleteVehicle,
     listLoans, createLoan, updateLoanStatus,
     plateStatus, searchPlates, registerEntry, registerExit, listLogs,
-    getLayout, provisionLayout, ocrPlate, ocrConfigured
+    getLayout, provisionLayout, resetLayout, ocrPlate, ocrConfigured
   };
 }

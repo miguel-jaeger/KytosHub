@@ -59,7 +59,36 @@ export default async function(req: Request): Promise<Response> {
       case 'get-layout': {
         const layout = await getLayoutConfig(db);
         const { count } = await db.from('parking_spots').select('*', { count: 'exact', head: true });
-        return json({ success: true, data: { ...(layout || {}), total_spots: (count || 0) }, error: null }, 200);
+        // Return null when there is no persisted layout so the frontend does not
+        // mistake a "no layout" response for a valid one and corrupt the form.
+        return json({
+          success: true,
+          data: layout ? { ...layout, total_spots: (count || 0) } : null,
+          error: null
+        }, 200);
+      }
+
+      case 'reset-layout': {
+        if (!isAdmin) return forbidden();
+        // Deletes the persisted layout configuration (rows, spots per row, row
+        // names, orientation) without touching the parking spots themselves.
+        let nextConfig: Record<string, unknown> = {};
+        try {
+          const { data } = await db.from('condo_settings').select('config_json').eq('module_key', 'parking_control').single();
+          const cfg = data?.config_json && typeof data.config_json === 'object' ? (data.config_json as Record<string, unknown>) : {};
+          nextConfig = { ...cfg };
+          delete nextConfig.layout;
+        } catch { /* no prev config */ }
+        const now = new Date().toISOString();
+        const { error } = await db.from('condo_settings').update({ config_json: nextConfig, updated_at: now }).eq('module_key', 'parking_control');
+        if (error) throw error;
+
+        // Clear the positional hints so the map falls back until a layout is regenerated.
+        try {
+          await db.from('parking_spots').update({ spot_row: null, spot_index: null });
+        } catch { /* best effort */ }
+
+        return json({ success: true, data: { reset: true }, error: null }, 200);
       }
 
       case 'provision-layout': {

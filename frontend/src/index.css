@@ -3177,6 +3177,10 @@ html.dark .plaza-legend-item.plaza-rented { background: #2b2212; border-color: #
 .parking-row-config label { font-weight: 700; }
 .parking-row-config input[type="text"] { margin-bottom: 0.6rem; }
 .parking-row-config .parking-row-config-count { margin-top: 0.15rem; }
+.parking-reset-btn { border-color: #e0b4b4; color: #b00020; background: #fff5f5; }
+.parking-reset-btn:hover:not(:disabled) { background: #ffe3e3; border-color: #b00020; color: #b00020; }
+html.dark .parking-reset-btn { border-color: #7a4444; color: #ff8a8a; background: #2f1c1c; }
+html.dark .parking-reset-btn:hover:not(:disabled) { background: #3a2222; border-color: #ff8a8a; color: #ff8a8a; }
 html.dark .plaza-map-title { color: #e5e7eb; }
 html.dark .plaza-row-label { color: #888; }
 html.dark .plaza-cell-empty { border-color: #333; }
