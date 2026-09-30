@@ -178,6 +178,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
       setEditingVehicle(null);
       setShowVehicleForm(false);
       setSpotId('');
+      setSpotSearch('');
       setDeptId('');
       await load();
     } catch (err) {
@@ -190,6 +191,9 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
   const startVehicleEdit = (v: Vehicle) => {
     setEditingVehicle(v);
     setVehicleForm({ license_plate: v.license_plate, vehicle_type: v.vehicle_type || 'AUTO', driver_name: v.driver_name || '', brand: v.brand || '', model: v.model || '', color: v.color || '' });
+    setSpotId('');
+    setSpotSearch('');
+    setDeptId('');
     setShowVehicleForm(true);
   };
 
@@ -198,6 +202,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
     setEditingVehicle(null);
     setVehicleForm(emptyVehicleForm);
     setSpotId('');
+    setSpotSearch('');
     setDeptId('');
   };
 
@@ -237,7 +242,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
           <small>Registra los vehículos de cada departamento para validar su ingreso/salida en garita.</small>
         </div>
         {!showVehicleForm && (
-          <button onClick={() => { setShowVehicleForm(true); setEditingVehicle(null); setVehicleForm(emptyVehicleForm); }}>
+          <button onClick={() => { setShowVehicleForm(true); setEditingVehicle(null); setVehicleForm(emptyVehicleForm); setSpotId(''); setSpotSearch(''); setDeptId(''); }}>
             <span className="material-symbols-outlined">directions_car</span> Adicionar vehículo
           </button>
         )}
@@ -275,7 +280,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
                     onFocus={() => setSpotDropdownOpen(true)}
                     onChange={e => { setSpotSearch(e.target.value); setSpotDropdownOpen(true); }}
                   />
-                  {spotDropdownOpen && (
+                  {spotDropdownOpen && !(spotQuery === '' && filteredSpots.length === 0) && (
                     <div className="condo-picker-dropdown">
                       {filteredSpots.length === 0 ? (
                         <div className="condo-picker-empty">Sin resultados</div>
