@@ -87,6 +87,11 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
     setDeptId(sp?.department_id || '');
     setSpotSearch(sp ? `Cochera ${sp.spot_number}` : '');
     setSpotDropdownOpen(false);
+    // Conductor por defecto: el propietario del departamento dueño de la cochera.
+    const owner = sp?.departments?.owner_name;
+    if (owner && !vehicleForm.driver_name.trim()) {
+      setVehicleForm(prev => prev.driver_name.trim() ? prev : { ...prev, driver_name: owner });
+    }
   };
 
   const assignedSpots = spots.filter(s => s.department_id);
@@ -257,7 +262,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
             <p className="cart-checkout-hint">Vehículo de : {editingVehicle.departments ? `${editingVehicle.departments.department_number} (T ${editingVehicle.departments.towers?.code || '-'})` : '-'} — solo editas los datos del vehículo.</p>
           ) : (
             <>
-              <p className="cart-checkout-hint">Busca y selecciona la cochera del vehículo. El departamento se toma de la cochera configurada y el conductor lo completas en el campo Conductor.</p>
+              <p className="cart-checkout-hint">Busca y selecciona la cochera del vehículo. El departamento se toma de la cochera y el nombre del conductor se rellena por defecto con el propietario de la cochera (puedes cambiarlo).</p>
 
               <div className="form-group">
                 <label>Cochera del vehículo</label>
