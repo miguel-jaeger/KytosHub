@@ -236,6 +236,7 @@ export default async function(req: Request): Promise<Response> {
         const results = {
           created: 0,
           skipped: 0,
+          existing: 0,
           failed: 0,
           errors: [] as Array<{ email: string; reason: string }>
         };
@@ -276,17 +277,38 @@ export default async function(req: Request): Promise<Response> {
           //    of users already linked to this tenant. This avoids one auth lookup
           //    (and one signUp) per row, which previously made large imports time out.
           const existingGlobalByEmail = new Map<string, string>();
+          const existingGlobalByDoc = new Map<string, { userId: string; email: string }>();
           const userEmails = Array.from(seenEmails);
           try {
             for (let i = 0; i < userEmails.length; i += 100) {
               const chunk = userEmails.slice(i, i + 100);
               if (chunk.length === 0) continue;
-              const { data } = await client.database.from('users_global').select('id, email').in('email', chunk);
-              for (const u of (data || []) as Array<{ id: string; email: string }>) {
-                existingGlobalByEmail.set(String(u.email).toLowerCase(), String(u.id));
+              const { data } = await client.database.from('users_global').select('id, email, document_type, document_number').in('email', chunk);
+              for (const u of (data || []) as Array<{ id: string; email: string; document_type?: string | null; document_number?: string | null }>) {
+                const em = String(u.email).toLowerCase();
+                existingGlobalByEmail.set(em, String(u.id));
+                if (u.document_type && u.document_number) {
+                  existingGlobalByDoc.set(documentKey(String(u.document_type), String(u.document_number)), { userId: String(u.id), email: em });
+                }
               }
             }
           } catch (e) { console.error('bulk users_global lookup error:', e); }
+
+          // Document numbers are unique (DNI / CE / Pasaporte), so also look them up
+          // globally even when the email differs from the row being imported.
+          const docNumbers = Array.from(new Set(normalizedRows.filter(r => r.documentNumber).map(r => r.documentNumber)));
+          try {
+            for (let i = 0; i < docNumbers.length; i += 100) {
+              const chunk = docNumbers.slice(i, i + 100);
+              if (chunk.length === 0) continue;
+              const { data } = await client.database.from('users_global').select('id, email, document_type, document_number').in('document_number', chunk);
+              for (const u of (data || []) as Array<{ id: string; email: string; document_type?: string | null; document_number?: string | null }>) {
+                if (u.document_type && u.document_number) {
+                  existingGlobalByDoc.set(documentKey(String(u.document_type), String(u.document_number)), { userId: String(u.id), email: String(u.email).toLowerCase() });
+                }
+              }
+            }
+          } catch (e) { console.error('bulk document lookup error:', e); }
 
           const linkedUserIdSet = new Set<string>();
           try {
@@ -308,9 +330,30 @@ export default async function(req: Request): Promise<Response> {
             }
             const effectiveDocType = documentType || 'DNI';
 
+            // Uniqueness checks: the document (DNI / CE / Pasaporte) is unique, so if
+            // someone already holds it (or the email already exists), the user already
+            // exists and we just notify it at the end instead of creating a duplicate.
+            const existingDoc = documentNumber
+              ? existingGlobalByDoc.get(documentKey(effectiveDocType, documentNumber))
+              : undefined;
+            const existingEmailId = existingGlobalByEmail.get(email);
+
+            if (existingDoc && existingDoc.email !== email) {
+              results.existing++;
+              results.errors.push({
+                email,
+                reason: `Ya existe un usuario con documento ${documentNumber} (${effectiveDocType})${existingDoc.email ? ` asociado a ${existingDoc.email}` : ''}`
+              });
+              return;
+            }
+            if (existingDoc || existingEmailId) {
+              results.existing++;
+              results.errors.push({ email, reason: existingDoc ? 'Ya existe un usuario con ese documento' : 'Ya existe un usuario con ese correo' });
+              return;
+            }
+
             try {
               let userId = existingGlobalByEmail.get(email) || null;
-              const isNewAccount = !userId;
 
               if (!userId) {
                 const { data: signUpData, error: signUpError } = await client.auth.signUp({
@@ -330,36 +373,35 @@ export default async function(req: Request): Promise<Response> {
               }
 
               if (linkedUserIdSet.has(userId)) {
-                results.skipped++;
+                results.existing++;
+                results.errors.push({ email, reason: 'Ya existe un usuario con ese correo en este condominio' });
                 return;
               }
 
-              if (isNewAccount) {
-                const ugPayload: Record<string, unknown> = {
-                  id: userId,
-                  email,
-                  name,
-                  password_hash: defaultPassword,
-                  is_superadmin: false
-                };
-                if (documentNumber) {
-                  ugPayload.document_type = effectiveDocType;
-                  ugPayload.document_number = documentNumber;
-                }
-                if (phone) ugPayload.phone = phone;
+              const ugPayload: Record<string, unknown> = {
+                id: userId,
+                email,
+                name,
+                password_hash: defaultPassword,
+                is_superadmin: false
+              };
+              if (documentNumber) {
+                ugPayload.document_type = effectiveDocType;
+                ugPayload.document_number = documentNumber;
+              }
+              if (phone) ugPayload.phone = phone;
 
-                const { error: ugError } = await client.database.from('users_global').insert([ugPayload]);
-                if (ugError) {
-                  const ugUpdate: Record<string, unknown> = { name };
-                  if (documentNumber) {
-                    ugUpdate.document_type = effectiveDocType;
-                    ugUpdate.document_number = documentNumber;
-                  }
-                  if (phone) ugUpdate.phone = phone;
-                  try {
-                    await client.database.from('users_global').update(ugUpdate).eq('id', userId);
-                  } catch (e) { console.error('users_global update error:', e); }
+              const { error: ugError } = await client.database.from('users_global').insert([ugPayload]);
+              if (ugError) {
+                const ugUpdate: Record<string, unknown> = { name };
+                if (documentNumber) {
+                  ugUpdate.document_type = effectiveDocType;
+                  ugUpdate.document_number = documentNumber;
                 }
+                if (phone) ugUpdate.phone = phone;
+                try {
+                  await client.database.from('users_global').update(ugUpdate).eq('id', userId);
+                } catch (e) { console.error('users_global update error:', e); }
               }
 
               await client.database.from('tenant_users').insert([{
@@ -370,6 +412,7 @@ export default async function(req: Request): Promise<Response> {
               }]);
               linkedUserIdSet.add(userId);
               existingGlobalByEmail.set(email, userId);
+              if (documentNumber) existingGlobalByDoc.set(documentKey(effectiveDocType, documentNumber), { userId, email });
               results.created++;
             } catch (err) {
               results.failed++;
@@ -756,6 +799,19 @@ function normalizeDocumentType(value: string): string | null {
   if (['ce', 'carnetdeextranjeria', 'carnetdeextranjera', 'extranjeria', 'extranjera', 'carnetextranjeria', 'carnetextranjera'].includes(v)) return 'CE';
   if (['pasaporte', 'passport', 'passeport', 'pasaport'].includes(v)) return 'PASAPORTE';
   return null;
+}
+
+// Normalizes a stored document type (DNI / CE / PASAPORTE) to a canonical value.
+function canonicalDocumentType(value: string): string {
+  const v = value.trim().toUpperCase();
+  if (v === 'DNI') return 'DNI';
+  if (v === 'CE' || v.includes('EXTRANJER') || v === 'CARNET') return 'CE';
+  return 'PASAPORTE';
+}
+
+// Unique identity key for a person: document type + document number are unique.
+function documentKey(documentType: string, documentNumber: string): string {
+  return `${canonicalDocumentType(documentType)}:${documentNumber.trim().toLowerCase()}`;
 }
 
 async function findUserGlobalByEmail(client: ReturnType<typeof createAdminClient>, email: string) {

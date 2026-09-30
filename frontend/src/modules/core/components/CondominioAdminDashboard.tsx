@@ -56,6 +56,7 @@ interface ImportColumnIndexes {
 interface ImportResult {
   created: number;
   skipped: number;
+  existing?: number;
   failed: number;
   errors: Array<{ email: string; reason: string }>;
 }
@@ -581,10 +582,10 @@ export function CondominioAdminDashboard() {
     setImporting(true);
     setImportParseError(null);
     setImportResult(null);
-    const results: ImportResult = { created: 0, skipped: 0, failed: 0, errors: [] };
+const results: ImportResult = { created: 0, skipped: 0, existing: 0, failed: 0, errors: [] };
     try {
       // Envío por lotes para que ninguna llamada exceda el límite de 30s de la
-      // función; cada lote completa se acumula en el resumen final.
+      // función; cada lote completo se acumula en el resumen final.
       const CHUNK = 50;
       for (let i = 0; i < importPreview.length; i += CHUNK) {
         const chunk = importPreview.slice(i, i + CHUNK);
@@ -598,6 +599,7 @@ export function CondominioAdminDashboard() {
         const r = data.data;
         results.created += r.created;
         results.skipped += r.skipped;
+        results.existing = (results.existing || 0) + (r.existing || 0);
         results.failed += r.failed;
         results.errors.push(...r.errors);
         setImportProgress({ current: Math.min(i + CHUNK, importPreview.length), total: importPreview.length });
@@ -1054,10 +1056,17 @@ export function CondominioAdminDashboard() {
             <div className="import-result">
               <div className="import-result-summary">
                 <div className="import-result-count"><span className="material-symbols-outlined">check_circle</span><span><strong>{importResult.created}</strong> importado(s)</span></div>
-                <div className="import-result-count"><span className="material-symbols-outlined">skip_next</span><span><strong>{importResult.skipped}</strong> omitido(s) (ya existían)</span></div>
-                <div className="import-result-count"><span className="material-symbols-outlined">error</span><span><strong>{importResult.failed}</strong> con error</span></div>
+                {(importResult.existing || 0) > 0 && (
+                  <div className="import-result-count"><span className="material-symbols-outlined">person_off</span><span><strong>{importResult.existing}</strong> ya existía(n)</span></div>
+                )}
+                {(importResult.skipped || 0) > 0 && (
+                  <div className="import-result-count"><span className="material-symbols-outlined">skip_next</span><span><strong>{importResult.skipped}</strong> omitido(s)</span></div>
+                )}
+                {(importResult.failed || 0) > 0 && (
+                  <div className="import-result-count"><span className="material-symbols-outlined">error</span><span><strong>{importResult.failed}</strong> con error</span></div>
+                )}
               </div>
-              <small className="import-result-total">Total procesado: {importResult.created + importResult.skipped + importResult.failed} fila(s)</small>
+              <small className="import-result-total">Total procesado: {importResult.created + importResult.skipped + (importResult.existing || 0) + importResult.failed} fila(s)</small>
               {importResult.errors.length > 0 && (
                 <ul className="import-result-errors">
                   {importResult.errors.slice(0, 10).map((e, i) => (
