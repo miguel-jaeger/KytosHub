@@ -801,14 +801,43 @@ async function resolvePlateEntry(db: { from(t: string): any }, plate: string, ov
 // Occupancy rule: at most ONE car parked at a time in a spot; motorcycles may
 // share (several motos, or one moto alongside one car).
 async function spotCanHostType(db: { from(t: string): any }, spotId: string, vehicleType: string): Promise<{ ok: boolean; message: string }> {
-  const { count } = await db.from('parking_access_logs')
+  const { data: spotRow } = await db.from('parking_spots').select('cochera_type').eq('id', spotId).single();
+  const isMultiple = String((spotRow as { cochera_type?: string } | null)?.cochera_type || '').trim().toUpperCase() === 'MULTIPLE';
+
+  const { count: autoCount } = await db.from('parking_access_logs')
     .select('*', { count: 'exact', head: true })
     .eq('spot_id', spotId)
     .is('exit_time', null)
     .eq('vehicle_type', 'AUTO');
-  const carsInside = (count || 0);
+  const carsInside = (autoCount || 0);
+
+  if (!isMultiple) {
+    // Individual cochera: only one vehicle at a time.
+    const { count: motoCount } = await db.from('parking_access_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('spot_id', spotId)
+      .is('exit_time', null)
+      .eq('vehicle_type', 'MOTO');
+    const totalInside = carsInside + (motoCount || 0);
+    if (totalInside >= 1) {
+      return { ok: false, message: 'La cochera es individual y ya tiene un vehículo estacionado. Solo admite un vehículo a la vez.' };
+    }
+    return { ok: true, message: '' };
+  }
+
+  // Multiple cochera: up to 3 vehicles, at most one auto (+ motos).
+  const { count: motoCount } = await db.from('parking_access_logs')
+    .select('*', { count: 'exact', head: true })
+    .eq('spot_id', spotId)
+    .is('exit_time', null)
+    .eq('vehicle_type', 'MOTO');
+  const totalInside = carsInside + (motoCount || 0);
+
+  if (totalInside >= 3) {
+    return { ok: false, message: 'La cochera múltiple ya alcanzó su capacidad (máximo 3 vehículos).' };
+  }
   if (vehicleType === 'AUTO' && carsInside >= 1) {
-    return { ok: false, message: 'En ese estacionamiento ya hay un auto estacionado. No pueden coexistir dos autos en la misma plaza.' };
+    return { ok: false, message: 'La cochera múltiple ya tiene un auto estacionado. No pueden coexistir dos autos en la misma plaza.' };
   }
   return { ok: true, message: '' };
 }
@@ -1163,8 +1192,8 @@ function normalizeSpotType(v: unknown): string {
 const COCHERA_TYPES = ['INDIVIDUAL', 'MULTIPLE'];
 
 function normalizeCocheraType(v: unknown): string {
-  const t = String(v || 'INDIVIDUAL').trim().toUpperCase();
-  return COCHERA_TYPES.includes(t) ? t : 'INDIVIDUAL';
+  const t = String(v || 'MULTIPLE').trim().toUpperCase();
+  return COCHERA_TYPES.includes(t) ? t : 'MULTIPLE';
 }
 
 function normalizeVehicleType(v: unknown): string {
