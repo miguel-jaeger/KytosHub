@@ -1052,6 +1052,28 @@ const results: ImportResult = { created: 0, skipped: 0, existing: 0, failed: 0, 
 
           {importParseError && <div className="error-message">{importParseError}</div>}
 
+          {importing && (
+            <div className="import-loader">
+              <div className="import-loader-spinner" aria-hidden="true" />
+              <div className="import-loader-text">
+                <strong>Importando usuarios...</strong>
+                {importProgress && importProgress.total > 0 && (
+                  <span>
+                    {importProgress.current} de {importProgress.total} fila(s) procesada(s) · {Math.round((importProgress.current / importProgress.total) * 100)}%
+                  </span>
+                )}
+              </div>
+              {importProgress && importProgress.total > 0 && (
+                <div className="import-progress-track">
+                  <div
+                    className="import-progress-fill"
+                    style={{ width: `${Math.round((importProgress.current / importProgress.total) * 100)}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
           {importResult && (
             <div className="import-result">
               <div className="import-result-summary">
@@ -1080,7 +1102,7 @@ const results: ImportResult = { created: 0, skipped: 0, existing: 0, failed: 0, 
           )}
 
           <div className="form-actions">
-            <button className="btn-cancel" onClick={() => setShowImportForm(false)}><span className="material-symbols-outlined">close</span> Cerrar</button>
+            <button className="btn-cancel" onClick={() => setShowImportForm(false)} disabled={importing}><span className="material-symbols-outlined">close</span> Cerrar</button>
             <button onClick={handleImportUsers} disabled={importing || importPreview.length === 0}>
               <span className="material-symbols-outlined">upload_file</span>
               {importing
