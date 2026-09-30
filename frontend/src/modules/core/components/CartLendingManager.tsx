@@ -53,8 +53,8 @@ const emptyFilters: FinesFilters = { start_date: '', end_date: '', tower_id: '',
 
 export function CartLendingManager({ schemaName }: { schemaName?: string }) {
   const { user } = useAuth();
-  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
-  const { clearHistory } = useCondoStats();
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const { getStats, clearHistory } = useCondoStats();
   const { listCarts, createCart, updateCart, deleteCart, listLoans, finesSummary, updateFineStatus } = useCartLending();
   const { list: listGates } = useCondoGates();
   const [carts, setCarts] = useState<Cart[]>([]);
@@ -111,6 +111,10 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
       try {
         await loadCarts();
         await loadLoans();
+        try {
+          const st = await getStats(schemaName);
+          setIsSuperAdmin(st.is_superadmin === true || user?.email === SUPER_ADMIN_EMAIL);
+        } catch { setIsSuperAdmin(user?.email === SUPER_ADMIN_EMAIL); }
         setGates(await listGates(schemaName));
         const towerRes = await invokeFunction<{ success: boolean; data: Tower[] | null }>('towers', { method: 'POST', body: { action: 'list', schema_name: schemaName } });
         if (cancelled) return;

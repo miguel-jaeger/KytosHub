@@ -7,7 +7,7 @@ import { ParkingLogsTab } from './ParkingLogsTab';
 export function ParkingStatsTab({ schemaName }: { schemaName?: string }) {
   const { getStats, resetStats, clearHistory } = useCondoStats();
   const { user } = useAuth();
-  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [stats, setStats] = useState<{
     access_total: number;
     access_inside: number;
@@ -28,6 +28,7 @@ export function ParkingStatsTab({ schemaName }: { schemaName?: string }) {
     setLoading(true);
     try {
       const s = await getStats(schemaName);
+      setIsSuperAdmin(s.is_superadmin === true || user?.email === SUPER_ADMIN_EMAIL);
       setStats({
         access_total: s.access_total,
         access_inside: s.access_inside,

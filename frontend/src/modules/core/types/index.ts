@@ -325,6 +325,7 @@ export interface CondoStats {
   carts_mantenimiento: number;
   cart_loans_total: number;
   cart_loans_active: number;
+  is_superadmin?: boolean;
 }
 
 export type VisitorVisitStatus = 'PENDIENTE' | 'ACTIVO' | 'EXPIRADO' | 'CANCELADO';

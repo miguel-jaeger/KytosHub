@@ -53,7 +53,10 @@ export default async function(req: Request): Promise<Response> {
       const { data, error } = await db.from('condo_stats').select('*').eq('id', 1).maybeSingle();
       if (error) throw error;
       const stats = data ? { ...DEFAULT_STATS, ...data } : DEFAULT_STATS;
-      return json({ success: true, data: stats, error: null }, 200);
+      // Informa si el llamador es super admin global para mostrar las opciones de
+      // limpieza/borrado en el frontend de forma confiable.
+      const isSuper = await isGlobalSuperAdmin(req, client);
+      return json({ success: true, data: { ...stats, is_superadmin: isSuper }, error: null }, 200);
     }
 
     if (action === 'reset') {
