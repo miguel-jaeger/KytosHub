@@ -1203,12 +1203,13 @@ const results: ImportResult = { created: 0, skipped: 0, existing: 0, failed: 0, 
             </span>
             {selectedUsers.length > 0 && (
               <button className="btn-cancel users-bulk-delete" onClick={handleBulkDelete} disabled={bulkDeleting}>
-                <span className="material-symbols-outlined">delete_sweep</span>
-                {bulkDeleting ? 'Eliminando...' : 'Eliminar seleccionados'}
+                {bulkDeleting
+                  ? <><span className="spinner spinner-inline" aria-hidden="true" /> Eliminando...</>
+                  : <><span className="material-symbols-outlined">delete_sweep</span> Eliminar seleccionados</>}
               </button>
             )}
             {selectedUsers.length > 0 && (
-              <button className="btn-cancel" onClick={() => setSelectedUserKeys(new Set())}>
+              <button className="btn-cancel" onClick={() => setSelectedUserKeys(new Set())} disabled={bulkDeleting}>
                 <span className="material-symbols-outlined">deselect</span> Limpiar selección
               </button>
             )}
