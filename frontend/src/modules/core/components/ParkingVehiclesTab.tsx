@@ -406,7 +406,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
             {vehPageItems.map(v => (
               <tr key={v.id}>
                 <td><strong>{v.license_plate}</strong></td>
-                <td>{(VEHICLE_TYPE_LABELS[v.vehicle_type] || v.vehicle_type)}{[v.brand, v.model].filter(Boolean).join(' ') ? ` · ${[v.brand, v.model].filter(Boolean).join(' ')}` : ''}</td>
+                <td>{(VEHICLE_TYPE_LABELS[v.vehicle_type] || v.vehicle_type)}{(v.model || v.brand) ? ` · ${v.model || v.brand}` : ''}</td>
                 <td>{v.driver_name || <span className="text-muted">Sin conductor</span>}</td>
                 <td>{v.color || '-'}</td>
                 <td>{v.departments ? `${v.departments.department_number} (T${v.departments.towers?.code || '-'} · P${v.departments.floor_number ?? '-'})` : '-'}</td>
