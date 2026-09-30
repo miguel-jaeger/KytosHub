@@ -916,6 +916,25 @@ async function enrichSpots(db: { from(t: string): any }, spots: Array<Record<str
   const deptMap = new Map((deptRows as Array<{ id: string; department_number: string; tower_id: string }>).map(d => [d.id, d]));
   const towerMap = new Map((towerRows as Array<{ id: string; name: string; code: string }>).map(t => [t.id, t]));
 
+  // Owner of each assigned department (primary / owner resident) so the vehicles
+  // form can prefill the driver name from the parking spot without asking again.
+  const ownerMap = new Map<string, string>();
+  if (deptIds.length) {
+    try {
+      const { data: resRows } = await db.from('residents').select('department_id, full_name, is_primary_contact, relationship_type').in('department_id', deptIds);
+      const best = new Map<string, { name: string; score: number }>();
+      for (const r of (resRows || []) as Array<{ department_id: string; full_name: string; is_primary_contact: boolean; relationship_type: string }>) {
+        const deptId = r.department_id;
+        let score = 2;
+        if (r.relationship_type === 'PROPIETARIO') score--;
+        if (r.is_primary_contact) score--;
+        const cur = best.get(deptId);
+        if (!cur || score < cur.score) best.set(deptId, { name: r.full_name, score });
+      }
+      for (const [deptId, v] of best) ownerMap.set(deptId, v.name);
+    } catch {}
+  }
+
   const spotIds = spots.map(s => s.id as string).filter(Boolean);
   const insideSpotIds = new Set<string>();
   if (spotIds.length) {
@@ -933,7 +952,11 @@ async function enrichSpots(db: { from(t: string): any }, spots: Array<Record<str
       // stale OCUPADO row never leaves the spot visually occupied.
       status: inside ? 'OCUPADO' : 'DISPONIBLE',
       inside,
-      departments: dept ? { department_number: dept.department_number, towers: tower ? { name: tower.name, code: tower.code } : undefined } : undefined
+      departments: dept ? {
+        department_number: dept.department_number,
+        owner_name: dept ? ownerMap.get(dept.id) : undefined,
+        towers: tower ? { name: tower.name, code: tower.code } : undefined
+      } : undefined
     };
   });
 }

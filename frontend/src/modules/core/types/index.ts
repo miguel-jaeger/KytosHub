@@ -187,6 +187,7 @@ export interface ParkingSpot {
   created_at: string;
   departments?: {
     department_number: string;
+    owner_name?: string;
     towers?: { name: string; code: string };
   };
   inside?: boolean;

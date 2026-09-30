@@ -2,14 +2,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import { useParking } from '../hooks/useParking';
 import { PaginationBar, paginate } from '../../../components/Pagination';
-import type { Department, Floor, Tower, Vehicle, VehicleType } from '../types';
+import type { Department, Floor, ParkingSpot, Tower, Vehicle, VehicleType } from '../types';
 
 const emptyVehicleForm = { license_plate: '', vehicle_type: 'AUTO' as VehicleType, driver_name: '', brand: '', model: '', color: '' };
 const VEHICLE_TYPE_LABELS: Record<VehicleType, string> = { AUTO: 'Auto', MOTO: 'Moto' };
 
 export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
-  const { listVehicles, createVehicle, updateVehicle, deleteVehicle } = useParking();
+  const { listVehicles, createVehicle, updateVehicle, deleteVehicle, listSpots } = useParking();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [spots, setSpots] = useState<ParkingSpot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -19,13 +20,10 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
   const [showVehicleForm, setShowVehicleForm] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [towers, setTowers] = useState<Tower[]>([]);
-  const [towerId, setTowerId] = useState('');
-  const [floorId, setFloorId] = useState('');
+  const [spotId, setSpotId] = useState('');
   const [deptId, setDeptId] = useState('');
-  const [floors, setFloors] = useState<Floor[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [loadingStep, setLoadingStep] = useState<string | null>(null);
+
+  const [towers, setTowers] = useState<Tower[]>([]);
 
   const [vehPage, setVehPage] = useState(1);
   const [vehPerPage, setVehPerPage] = useState<number | 'all'>(10);
@@ -43,14 +41,15 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
     setLoading(true);
     setError(null);
     try {
-      const ve = await listVehicles(schemaName);
+      const [ve, sp] = await Promise.all([listVehicles(schemaName), listSpots(schemaName)]);
       setVehicles(ve);
+      setSpots(sp);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar');
     } finally {
       setLoading(false);
     }
-  }, [schemaName, listVehicles]);
+  }, [schemaName, listVehicles, listSpots]);
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { setVehPage(1); }, [vehicles.length]);
@@ -69,54 +68,13 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
 
   useEffect(() => { void loadTowers(); }, [loadTowers]);
 
-  const loadFloors = async (tid: string) => {
-    if (!schemaName) return;
-    setLoadingStep('pisos');
-    setFloors([]);
-    setFloorId('');
-    setDeptId('');
-    try {
-      const { data } = await invokeFunction<{ success: boolean; data: Floor[] | null }>('floors', {
-        method: 'POST',
-        body: { action: 'list', schema_name: schemaName, tower_id: tid }
-      });
-      setFloors((data?.data || []).sort((a, b) => a.floor_number - b.floor_number));
-    } finally {
-      setLoadingStep(null);
+  const selectSpot = (id: string) => {
+    setSpotId(id);
+    const sp = spots.find(s => s.id === id);
+    setDeptId(sp?.department_id || '');
+    if (sp?.departments?.owner_name) {
+      setVehicleForm(prev => prev.driver_name.trim() ? prev : { ...prev, driver_name: sp.departments!.owner_name! });
     }
-  };
-
-  const loadDepartments = async (fid: string) => {
-    if (!schemaName) return;
-    setLoadingStep('departamentos');
-    setDepartments([]);
-    setDeptId('');
-    try {
-      const { data } = await invokeFunction<{ success: boolean; data: Department[] | null }>('departments', {
-        method: 'POST',
-        body: { action: 'list', schema_name: schemaName, tower_id: towerId, floor_id: fid }
-      });
-      setDepartments((data?.data || []).sort((a, b) => a.department_number.localeCompare(b.department_number)));
-    } finally {
-      setLoadingStep(null);
-    }
-  };
-
-  const selectedTower = towers.find(t => t.id === towerId);
-  const selectedFloor = floors.find(f => f.id === floorId);
-  const selectedDepartment = departments.find(d => d.id === deptId);
-
-  const selectTower = (id: string) => {
-    setTowerId(id);
-    setFloorId('');
-    setDeptId('');
-    void loadFloors(id);
-  };
-
-  const selectFloor = (id: string) => {
-    setFloorId(id);
-    setDeptId('');
-    void loadDepartments(id);
   };
 
   const loadFilterFloors = async (tid: string) => {
@@ -174,7 +132,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
 
   const handleVehicleSave = async () => {
     if (!schemaName || !vehicleForm.license_plate.trim()) { alert('Indica la placa'); return; }
-    if (!editingVehicle && !deptId) { alert('Selecciona el torre, piso y departamento del vehículo'); return; }
+    if (!editingVehicle && !deptId) { alert('Selecciona la cochera del vehículo'); return; }
     setSaving(true);
     setError(null);
     try {
@@ -191,16 +149,13 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
         setMessage('Vehículo actualizado');
       } else {
         await createVehicle(schemaName, { ...payload, department_id: deptId });
-        setMessage('Vehículo registrado');
+        setMessage('Vehículo registrado a la cochera seleccionada');
       }
       setVehicleForm(emptyVehicleForm);
       setEditingVehicle(null);
       setShowVehicleForm(false);
-      setTowerId('');
-      setFloorId('');
+      setSpotId('');
       setDeptId('');
-      setFloors([]);
-      setDepartments([]);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error');
@@ -219,11 +174,8 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
     setShowVehicleForm(false);
     setEditingVehicle(null);
     setVehicleForm(emptyVehicleForm);
-    setTowerId('');
-    setFloorId('');
+    setSpotId('');
     setDeptId('');
-    setFloors([]);
-    setDepartments([]);
   };
 
   const handleVehicleDelete = async (v: Vehicle) => {
@@ -277,7 +229,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
             <div className="modal-header">
               <div>
                 <h3>{editingVehicle ? 'Editar vehículo' : 'Registrar vehículo'}</h3>
-                <p className="text-on-surface-variant">{editingVehicle ? 'Solo editas los datos del vehículo.' : 'Selecciona el torre, piso y departamento al que pertenece el vehículo.'}</p>
+                <p className="text-on-surface-variant">{editingVehicle ? 'Solo editas los datos del vehículo.' : 'Selecciona la cochera a la que pertenece el vehículo (el departamento se carga de la cochera).'}</p>
               </div>
               <button className="modal-close" onClick={closeForm} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
             </div>
@@ -287,70 +239,37 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
             <p className="cart-checkout-hint">Vehículo de : {editingVehicle.departments ? `${editingVehicle.departments.department_number} (T ${editingVehicle.departments.towers?.code || '-'})` : '-'} — solo editas los datos del vehículo.</p>
           ) : (
             <>
-              <p className="cart-checkout-hint">Selecciona primero el torre, piso y departamento al que pertenece el vehículo.</p>
+              <p className="cart-checkout-hint">Selecciona la cochera del vehículo: el departamento se toma de la cochera configurada y el nombre del conductor se carga del dueño de la cochera (puedes completarlo o corregirlo).</p>
 
-              <div className="checkout-field">
-                <label>1. Torre</label>
-                {towers.length === 0 ? (
-                  <span className="text-muted">No hay torres registradas.</span>
-                ) : (
-                  <div className="checkout-chip-row">
-                    {towers.map(t => (
-                      <button key={t.id} type="button" className={`checkout-chip ${towerId === t.id ? 'active' : ''}`} onClick={() => selectTower(t.id)}>
-                        <span className="checkout-chip-code">{t.code}</span>
-                      </button>
-                    ))}
-                  </div>
+              <div className="form-group">
+                <label>Cochera del vehículo</label>
+                <select value={spotId} onChange={e => selectSpot(e.target.value)} autoFocus>
+                  <option value="">Selecciona una cochera...</option>
+                  {spots.filter(s => s.department_id).map(s => {
+                    const assigned = s.departments?.department_number;
+                    const owner = s.departments?.owner_name;
+                    return (
+                      <option key={s.id} value={s.id}>
+                        Cochera {s.spot_number}{assigned ? ` · Dpto ${assigned}${s.departments?.towers?.code ? ` (T${s.departments.towers.code})` : ''}` : ''}{owner ? ` · ${owner}` : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+                {spots.filter(s => s.department_id).length === 0 && (
+                  <small className="text-muted">No hay cocheras asignadas a departamentos. Primero asigna la cochera a un departamento en la configuración del estacionamiento.</small>
                 )}
               </div>
 
-              {towerId !== '' && (
-                <div className="checkout-field">
-                  <label>2. Piso</label>
-                  {loadingStep === 'pisos' ? (
-                    <span className="text-muted">Cargando pisos...</span>
-                  ) : floors.length === 0 ? (
-                    <span className="text-muted">Esa torre no tiene pisos.</span>
-                  ) : (
-                    <div className="checkout-chip-grid">
-                      {floors.map(f => (
-                        <button key={f.id} type="button" className={`checkout-chip ${floorId === f.id ? 'active' : ''}`} onClick={() => selectFloor(f.id)}>
-                          {f.floor_number}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {towerId !== '' && floorId !== '' && (
-                <div className="checkout-field">
-                  <label>3. Departamento</label>
-                  {loadingStep === 'departamentos' ? (
-                    <span className="text-muted">Cargando departamentos...</span>
-                  ) : departments.length === 0 ? (
-                    <span className="text-muted">Ese piso no tiene departamentos.</span>
-                  ) : (
-                    <div className="checkout-chip-grid">
-                      {departments.map(d => (
-                        <button
-                          key={d.id}
-                          type="button"
-                          className={`checkout-chip checkout-chip-wide ${deptId === d.id ? 'active' : ''}`}
-                          onClick={() => setDeptId(d.id)}
-                        >
-                          {d.department_number}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {selectedTower && selectedFloor && deptId && (
-                    <span className="checkout-hint-inline">
-                      Torre {selectedTower.code} · Piso {selectedFloor.floor_number} · Dpto {selectedDepartment?.department_number}
-                    </span>
-                  )}
-                </div>
-              )}
+              {spotId && (() => {
+                const sp = spots.find(s => s.id === spotId);
+                return sp?.department_id ? (
+                  <span className="checkout-hint-inline">
+                    Cochera {sp.spot_number} · Dpto {sp.departments?.department_number || ''} · {sp.departments?.owner_name || 'sin dueño registrado'}
+                  </span>
+                ) : (
+                  <span className="checkout-hint-inline">Cochera sin departamento asignado.</span>
+                );
+              })()}
             </>
           )}
 
