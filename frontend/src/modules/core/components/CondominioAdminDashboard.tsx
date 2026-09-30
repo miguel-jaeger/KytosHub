@@ -490,15 +490,23 @@ export function CondominioAdminDashboard() {
     try {
       const items = sel.map(u => ({
         id: u.id,
+        user_id: u.user_id || '',
         source: u.source || 'tenant_user',
-        ...(u.source === 'resident' ? { schema_name: condominium?.schema_name || '' } : {})
+        tenant_id: u.tenant_id || (condominium?.tenant_id || ''),
+        ...(u.source === 'resident'
+          ? { schema_name: condominium?.schema_name || '' }
+          : {})
       }));
-      const { data, error: fnError } = await invokeFunction<{ success: boolean; data: { deleted: number } | null; error: { message: string } | null }>('list-condominium-users', {
+      const { data, error: fnError } = await invokeFunction<{ success: boolean; data: { deleted: number; failed?: Array<{ id: string; reason: string }> } | null; error: { message: string } | null }>('list-condominium-users', {
         method: 'POST',
         body: { action: 'bulk-delete', items }
       });
       if (fnError) throw fnError;
       if (!data?.success) throw new Error(data?.error?.message || 'Error al eliminar los usuarios');
+      const failedCount = (data.data?.failed || []).length;
+      if (failedCount > 0) {
+        setError(`No se pudieron eliminar ${failedCount} usuario(s). ${data.data?.failed?.[0]?.reason || ''}`);
+      }
       setSelectedUserKeys(new Set());
       fetchUsers();
     } catch (err) {

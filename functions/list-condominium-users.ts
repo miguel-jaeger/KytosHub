@@ -757,7 +757,7 @@ export default async function(req: Request): Promise<Response> {
       }
 
       case 'bulk-delete': {
-        const items = (Array.isArray(body.items) ? body.items : []) as Array<{ id?: string; source?: string; schema_name?: string }>;
+        const items = (Array.isArray(body.items) ? body.items : []) as Array<{ id?: string; user_id?: string; source?: string; schema_name?: string; tenant_id?: string }>;
         if (items.length === 0) {
           return new Response(
             JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'No se recibieron usuarios para eliminar' } }),
@@ -765,41 +765,54 @@ export default async function(req: Request): Promise<Response> {
           );
         }
 
-        const tenantIds: string[] = [];
-        const residentsBySchema: Record<string, string[]> = {};
+        let deleted = 0;
+        const failed: Array<{ id: string; reason: string }> = [];
+
+        // Delete each item with an equality filter (the same path the single delete
+        // uses; IN() filters are not reliable for deletes on this backend). A user
+        // may show both as a tenant_user and as a resident, so both records are
+        // removed to make the user actually disappear from the list.
         for (const it of items) {
           const id = String(it.id || '').trim();
           if (!id) continue;
-          if (it.source === 'resident') {
-            const schema = String(it.schema_name || '').trim();
-            if (!schema) continue;
-            if (!residentsBySchema[schema]) residentsBySchema[schema] = [];
-            residentsBySchema[schema].push(id);
-          } else {
-            tenantIds.push(id);
-          }
-        }
+          const userId = String(it.user_id || '').trim();
+          const isResident = it.source === 'resident';
+          try {
+            let schema = String(it.schema_name || '').trim();
+            if (!schema && it.tenant_id) {
+              const { data: tenantRow } = await client.database.from('tenants').select('schema_name').eq('id', String(it.tenant_id)).single();
+              schema = String((tenantRow as { schema_name?: string } | null)?.schema_name || '');
+            }
+            if (!schema) {
+              failed.push({ id, reason: 'No se pudo resolver el condominio del usuario' });
+              continue;
+            }
 
-        let deleted = 0;
-        if (tenantIds.length > 0) {
-          try {
-            const { error } = await client.database.from('tenant_users').delete().in('id', tenantIds);
-            if (error) throw error;
-            deleted += tenantIds.length;
+            if (isResident) {
+              await client.database.schema(schema).from('residents').delete().eq('id', id);
+              deleted++;
+              if (userId) {
+                try {
+                  await client.database.from('tenant_users').delete().eq('user_id', userId).eq('tenant_id', String(it.tenant_id || ''));
+                  deleted++;
+                } catch {}
+              }
+            } else {
+              await client.database.from('tenant_users').delete().eq('id', id);
+              deleted++;
+              if (userId) {
+                try {
+                  await client.database.schema(schema).from('residents').delete().eq('user_id', userId);
+                } catch {}
+              }
+            }
           } catch (e) {
-            console.error('bulk-delete tenant_users error:', e);
+            failed.push({ id, reason: e instanceof Error ? e.message : 'Error interno' });
           }
-        }
-        for (const schema of Object.keys(residentsBySchema)) {
-          try {
-            const { error } = await client.database.schema(schema).from('residents').delete().in('id', residentsBySchema[schema]);
-            if (error) throw error;
-            deleted += residentsBySchema[schema].length;
-          } catch (e) { console.error('bulk-delete residents error:', e); }
         }
 
         return new Response(
-          JSON.stringify({ success: true, data: { deleted }, error: null }),
+          JSON.stringify({ success: true, data: { deleted, failed }, error: null }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
