@@ -164,6 +164,8 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
   while (perRowCounts.length < rows) perRowCounts.push(1);
   const effectiveCounts = perRowCounts.slice(0, rows);
   const totalExpected = effectiveCounts.reduce((a, b) => a + b, 0);
+  const assignedCount = spots.filter(s => Boolean(s.department_id)).length;
+  const availableCount = spots.length - assignedCount;
   const previewLayout = layout ? { ...layout, orientation } : null;
 
   const handleRowsChange = (value: string) => {
@@ -286,6 +288,12 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
           <div className="form-group" style={{ justifyContent: 'center' }}>
             <label>Total de plazas</label>
             <div className="plaza-total-preview"><strong>{totalExpected}</strong> plazas · numeración 01…{String(totalExpected).padStart(Math.max(2, String(totalExpected).length), '0')}</div>
+            {spots.length > 0 && (
+              <div className="plaza-assign-stats">
+                <span>Asignadas: <strong>{assignedCount}</strong></span>
+                <span>Disponibles: <strong>{availableCount}</strong></span>
+              </div>
+            )}
           </div>
         </div>
         <div className="form-row">

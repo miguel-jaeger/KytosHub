@@ -3246,6 +3246,10 @@ html.dark .plaza-legend-item.plaza-rented { background: #2b2212; border-color: #
 .plaza-empty { text-align: center; color: #76777d; padding: 0.75rem 0; }
 .plaza-total-preview { display: flex; align-items: center; font-size: 0.9rem; color: #45464d; }
 .plaza-total-preview strong { font-size: 1.2rem; color: #006c49; margin: 0 0.35rem; }
+.plaza-assign-stats { display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem; margin-top: 0.4rem; font-size: 0.82rem; color: #45464d; }
+.plaza-assign-stats strong { color: #0b1c30; }
+html.dark .plaza-assign-stats { color: #9ca3af; }
+html.dark .plaza-assign-stats strong { color: #e5e7eb; }
 .parking-layout-config .form-actions { flex-wrap: wrap; gap: 0.5rem; }
 .parking-layout-config .form-actions small { width: 100%; }
 .plaza-per-row-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr)); gap: 0.6rem; margin-bottom: 0.75rem; }
