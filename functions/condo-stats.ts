@@ -82,6 +82,32 @@ export default async function(req: Request): Promise<Response> {
       return json({ success: true, data: data ? { ...DEFAULT_STATS, ...data } : DEFAULT_STATS, error: null }, 200);
     }
 
+    if (action === 'clear-history') {
+      // Only the global super admin can delete operational history.
+      if (!(await isGlobalSuperAdmin(req, client))) return forbidden();
+      const db = client.database.schema(schemaName);
+      const area = String(body.area || 'all');
+      const NEUTRAL_ID = '00000000-0000-0000-0000-000000000000';
+
+      if (area === 'parking' || area === 'all') {
+        // Historial del estacionamiento: accesos y préstamos, y limpieza del
+        // estado de ocupación de las plazas (derivado de los accesos abiertos).
+        try { await db.from('parking_access_logs').delete().neq('id', NEUTRAL_ID); } catch (e) { console.error('clear parking logs:', e); }
+        try { await db.from('parking_loans').delete().neq('id', NEUTRAL_ID); } catch (e) { console.error('clear parking loans:', e); }
+        try { await db.from('parking_spots').update({ status: 'DISPONIBLE' }); } catch (e) { console.error('reset spots status:', e); }
+      }
+      if (area === 'carts' || area === 'all') {
+        // Historial de carritos: préstamos y devolución del estado de los carritos.
+        try { await db.from('cart_loans').delete().neq('id', NEUTRAL_ID); } catch (e) { console.error('clear cart loans:', e); }
+        try { await db.from('carts').update({ status: 'DISPONIBLE' }).in('status', ['PRESTADO', 'ATRASADO']); } catch (e) { console.error('reset carts status:', e); }
+      }
+
+      // Recalcula los contadores consolidados (quedan en cero los de actividad).
+      try { await db.rpc('refresh_condo_stats'); } catch (e) { console.error('refresh condo stats after clear:', e); }
+      const { data } = await db.from('condo_stats').select('*').eq('id', 1).maybeSingle();
+      return json({ success: true, data: data ? { ...DEFAULT_STATS, ...data } : DEFAULT_STATS, error: null }, 200);
+    }
+
     return json({ success: false, data: null, error: { code: 'METHOD_NOT_ALLOWED', message: 'Acción desconocida' } }, 405);
   } catch (error) {
     console.error('Error in condo-stats:', error);

@@ -23,5 +23,15 @@ export function useCondoStats() {
     return data.data;
   }, []);
 
-  return { getStats, resetStats };
+  const clearHistory = useCallback(async (schemaName: string, area: 'parking' | 'carts'): Promise<CondoStats> => {
+    const { data, error } = await invokeFunction<{ success: boolean; data: CondoStats | null; error: { message: string } | null }>('condo-stats', {
+      method: 'POST',
+      body: { action: 'clear-history', schema_name: schemaName, area }
+    });
+    if (error) throw error;
+    if (!data?.success || !data.data) throw new Error(data?.error?.message || 'No se pudo eliminar el historial');
+    return data.data;
+  }, []);
+
+  return { getStats, resetStats, clearHistory };
 }

@@ -666,6 +666,18 @@ button:disabled {
 .import-invalid-email { font-weight: 600; margin: 0 0.35rem; }
 .import-result-total { display: block; margin-top: 0.45rem; color: #45464d; }
 
+.history-tools {
+  margin-top: 1rem;
+  padding: 0.8rem 1rem;
+  background: #fff5f5;
+  border: 1px solid #efb0ad;
+  border-radius: 12px;
+}
+.history-tools-title { display: flex; align-items: center; gap: 0.4rem; color: #b00020; font-size: 0.9rem; margin-bottom: 0.6rem; }
+.history-tools-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+html.dark .history-tools { background: #2b1c1c; border-color: #7a4444; }
+html.dark .history-tools-title { color: #ff8a8a; }
+
 .import-loader {
   display: flex;
   align-items: center;
