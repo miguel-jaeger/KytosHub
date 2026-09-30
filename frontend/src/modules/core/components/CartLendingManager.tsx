@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
+import { useAuth } from '../../../contexts/AuthContext';
+import { SUPER_ADMIN_EMAIL } from '../../../hooks/useUserRole';
 import { useCartLending } from '../hooks/useCartLending';
 import { useCondoGates } from '../hooks/useCondoGates';
+import { useCondoStats } from '../hooks/useCondoStats';
 import { PaginationBar, paginate } from '../../../components/Pagination';
 import type { Cart, CartLoan, CartLendingConfig, FinesSummaryRow, Gate, Tower, Floor, Department } from '../types';
 
@@ -49,6 +52,9 @@ interface FinesFilters {
 const emptyFilters: FinesFilters = { start_date: '', end_date: '', tower_id: '', floor_id: '', department_id: '' };
 
 export function CartLendingManager({ schemaName }: { schemaName?: string }) {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
+  const { clearHistory } = useCondoStats();
   const { listCarts, createCart, updateCart, deleteCart, listLoans, finesSummary, updateFineStatus } = useCartLending();
   const { list: listGates } = useCondoGates();
   const [carts, setCarts] = useState<Cart[]>([]);
@@ -125,6 +131,27 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
       await loadLoans();
       setFines(await finesSummary(schemaName, buildFinesFilters(filters)));
     } catch (err) { setError(err instanceof Error ? err.message : 'Error'); }
+  };
+
+  const [deletingCarts, setDeletingCarts] = useState(false);
+  const [cartMsg, setCartMsg] = useState<string | null>(null);
+
+  const handleClearCartHistory = async () => {
+    if (!schemaName) return;
+    if (!confirm('¿Eliminar completamente el historial de préstamos y multas de carritos? Se borrarán los préstamos y los carritos quedarán disponibles. Esta acción no se puede deshacer.')) return;
+    setDeletingCarts(true);
+    setCartMsg(null);
+    try {
+      await clearHistory(schemaName, 'carts');
+      setCartMsg('Historial de carritos eliminado.');
+      await loadCarts();
+      await loadLoans();
+      setFines(await finesSummary(schemaName, buildFinesFilters(filters)));
+    } catch (err) {
+      setCartMsg(err instanceof Error ? err.message : 'No se pudo eliminar el historial');
+    } finally {
+      setDeletingCarts(false);
+    }
   };
 
   const buildFinesFilters = (f: FinesFilters) => ({
@@ -410,6 +437,24 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
 
       {tab === 'stats' && (
         <div className="cart-estado">
+          {isSuperAdmin && (
+            <>
+              {cartMsg && <div className="success-message" onClick={() => setCartMsg(null)}>{cartMsg} — clic para cerrar</div>}
+              <div className="history-tools">
+                <div className="history-tools-title">
+                  <span className="material-symbols-outlined">delete_forever</span>
+                  <strong>Registros de carritos (solo super admin)</strong>
+                </div>
+                <div className="history-tools-actions">
+                  <button className="btn-cancel users-bulk-delete" onClick={handleClearCartHistory} disabled={deletingCarts}>
+                    {deletingCarts ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">luggage</span>}
+                    {deletingCarts ? 'Eliminando...' : 'Eliminar registros de carritos'}
+                  </button>
+                </div>
+                <small className="text-muted">Borra préstamos y multas de carritos y libera los carritos. No se puede deshacer.</small>
+              </div>
+            </>
+          )}
           <div className="cart-kpi-row">
             <div className="cart-kpi"><span className="material-symbols-outlined">shopping_cart</span><strong>{carts.length}</strong> carritos</div>
             <div className="cart-kpi cart-kpi-dispo"><span className="material-symbols-outlined">check_circle</span><strong>{disponibles}</strong> disponibles</div>

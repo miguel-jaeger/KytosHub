@@ -132,27 +132,27 @@ export function ParkingStatsTab({ schemaName }: { schemaName?: string }) {
         </>
       )}
 
-      <ParkingLogsTab schemaName={schemaName} />
-
       {isSuperAdmin && (
         <div className="history-tools">
           <div className="history-tools-title">
             <span className="material-symbols-outlined">delete_forever</span>
-            <strong>Historial (solo super admin)</strong>
+            <strong>Registros (solo super admin)</strong>
           </div>
           <div className="history-tools-actions">
             <button className="btn-cancel users-bulk-delete" onClick={() => handleClearHistory('parking')} disabled={deletingHistory !== null}>
               {deletingHistory === 'parking' ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">directions_car</span>}
-              {deletingHistory === 'parking' ? 'Eliminando...' : 'Eliminar historial del estacionamiento'}
+              {deletingHistory === 'parking' ? 'Eliminando...' : 'Eliminar registros del estacionamiento'}
             </button>
             <button className="btn-cancel users-bulk-delete" onClick={() => handleClearHistory('carts')} disabled={deletingHistory !== null}>
               {deletingHistory === 'carts' ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">luggage</span>}
-              {deletingHistory === 'carts' ? 'Eliminando...' : 'Eliminar historial de carritos'}
+              {deletingHistory === 'carts' ? 'Eliminando...' : 'Eliminar registros de carritos'}
             </button>
           </div>
           <small className="text-muted">Borra todos los registros de accesos/préstamos y libera plazas y carritos. No se puede deshacer.</small>
         </div>
       )}
+
+      <ParkingLogsTab schemaName={schemaName} />
     </div>
   );
 }
