@@ -37,7 +37,8 @@ function spotStateLabel(spot: ParkingSpot): string {
   if (spot.type === 'VISITA') return 'Visita disponible';
   if (spot.type === 'ALQUILADO') return 'Alquilada disponible';
   if (!spot.department_id) return 'Sin asignar a un departamento';
-  return `Asignada a ${deptLabel(spot.departments)} · disponible`;
+  const owner = spot.departments?.owner_name;
+  return `Asignada a ${deptLabel(spot.departments)}${owner ? ` · Propietario(a): ${owner}` : ''} · disponible`;
 }
 
 export function deptLabel(departments?: { department_number?: string; towers?: { code?: string } }): string {
@@ -112,7 +113,13 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend }: Props) {
       <div className={`plaza-map-grid${vertical ? ' plaza-map-vertical' : ''}`}>
         {placed.map((rowSpots, r) => (
           <div key={r} className={`plaza-row${vertical ? ' plaza-row-vertical' : ''}`}>
-            {hasLayout && <span className="plaza-row-label">{rowNames[r]?.trim() || `Fila ${r + 1}`}</span>}
+            {hasLayout && (
+              <span className="plaza-row-label">
+                {vertical && <span className="material-symbols-outlined">local_parking</span>}
+                {rowNames[r]?.trim() || `Fila ${r + 1}`}
+              </span>
+            )}
+            {vertical && hasLayout && <span className="plaza-row-count">{countsForRow(r + 1)} plazas</span>}
             <div className={`plaza-row-spots${hasLayout ? ' plaza-row-grid' : ''}${vertical ? ' plaza-row-vertical-spots' : ''}`}>
               {rowSpots.map((s, c) => (
                 s ? (
@@ -120,8 +127,9 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend }: Props) {
                     key={`${r}-${c}`}
                     className={`plaza-cell ${spotClass(s)}${onSpotClick ? ' plaza-cell-clickable' : ''}`}
                     onClick={onSpotClick ? () => onSpotClick(s) : undefined}
-                    title={`Plaza ${s.spot_number} · ${SPOT_TYPE_LABELS[s.type] || s.type} · ${spotStateLabel(s)}${s.departments ? ` · ${deptLabel(s.departments)}` : ''}`}
+                    title={`Plaza ${s.spot_number} · ${SPOT_TYPE_LABELS[s.type] || s.type} · ${spotStateLabel(s)}`}
                   >
+                    <span className="plaza-cell-icon material-symbols-outlined">directions_car</span>
                     <strong>{s.spot_number}</strong>
                     {onSpotClick && <small>{COCHERA_TYPE_SHORT[s.cochera_type || 'MULTIPLE'] ?? 'M'}</small>}
                     {s.departments && <small className="plaza-cell-dept">{deptLabel(s.departments)}</small>}
