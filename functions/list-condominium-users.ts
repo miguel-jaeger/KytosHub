@@ -879,24 +879,23 @@ async function findUserGlobalByEmail(client: ReturnType<typeof createAdminClient
   } catch { return null; }
 }
 
-// Batches the users_global lookups for many user ids into a handful of queries,
-// avoiding the N+1 per-user round trips that made user listing/search slow.
+// Loads the global profiles for many user ids with a single table scan instead of
+// per-user round trips (or an IN() filter that the backend may expand per value),
+// which previously made user listing/search scale linearly with the user count.
 async function batchLoadUsersGlobal(
   client: ReturnType<typeof createAdminClient>,
   userIds: string[]
 ): Promise<Map<string, Record<string, unknown>>> {
+  const wanted = new Set(userIds.map((v: string) => String(v || '')).filter(Boolean));
   const map = new Map<string, Record<string, unknown>>();
-  const ids = Array.from(new Set(userIds.map((v: string) => String(v || '')).filter(Boolean)));
-  for (let i = 0; i < ids.length; i += 200) {
-    const chunk = ids.slice(i, i + 200);
-    if (chunk.length === 0) continue;
-    try {
-      const { data } = await client.database.from('users_global').select('id, email, name, document_type, document_number, phone').in('id', chunk);
-      for (const u of (data || []) as Array<{ id?: string } & Record<string, unknown>>) {
-        if (u.id) map.set(String(u.id), u);
-      }
-    } catch (e) { console.error('batch users_global lookup error:', e); }
-  }
+  if (wanted.size === 0) return map;
+  try {
+    const { data, error } = await client.database.from('users_global').select('id, email, name, document_type, document_number, phone').limit(10000);
+    if (error || !Array.isArray(data)) return map;
+    for (const u of (data as Array<{ id?: string } & Record<string, unknown>>)) {
+      if (u.id && wanted.has(String(u.id))) map.set(String(u.id), u);
+    }
+  } catch (e) { console.error('users_global scan error:', e); }
   return map;
 }
 
