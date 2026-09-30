@@ -2,9 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import { useParking } from '../hooks/useParking';
 import { ParkingMap, SPOT_TYPE_LABELS } from './ParkingMap';
-import type { Department, Floor, ParkingLayout, ParkingOrientation, ParkingSpot, ParkingSpotType, Tower } from '../types';
+import type { CocheraType, Department, Floor, ParkingLayout, ParkingOrientation, ParkingSpot, ParkingSpotType, Tower } from '../types';
 
-const emptySpotForm = { type: 'PROPIO' as ParkingSpotType, department_id: '' };
+const emptySpotForm = { type: 'PROPIO' as ParkingSpotType, cochera_type: 'INDIVIDUAL' as CocheraType, department_id: '' };
+
+export const COCHERA_TYPE_LABELS: Record<CocheraType, string> = {
+  INDIVIDUAL: 'Individual',
+  MULTIPLE: 'Múltiple'
+};
 
 export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
   const { listSpots, getLayout, provisionLayout, resetLayout, updateSpot } = useParking();
@@ -82,7 +87,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
 
   const startSpotEdit = (s: ParkingSpot) => {
     setEditingSpot(s);
-    setSpotForm({ type: s.type, department_id: s.department_id || '' });
+    setSpotForm({ type: s.type, cochera_type: s.cochera_type === 'MULTIPLE' ? 'MULTIPLE' : 'INDIVIDUAL', department_id: s.department_id || '' });
     setSpotTowerId('');
     setSpotFloorId('');
     setSpotDeptId(s.department_id || '');
@@ -223,6 +228,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
     try {
       const updated = await updateSpot(schemaName, editingSpot.id, {
         type: spotForm.type,
+        cochera_type: spotForm.cochera_type,
         department_id: chosenDept
       });
       if (updated) {
@@ -346,6 +352,13 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
             <select value={spotForm.type} onChange={e => setSpotForm({ ...spotForm, type: e.target.value as ParkingSpotType })}>
               {Object.entries(SPOT_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
+          </div>
+          <div className="form-group">
+            <label>Tipo de cochera</label>
+            <select value={spotForm.cochera_type} onChange={e => setSpotForm({ ...spotForm, cochera_type: e.target.value as CocheraType })}>
+              {Object.entries(COCHERA_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            <small className="text-muted">Individual: una sola plaza para un vehículo. Múltiple: puede albergar varios vehículos (ej. motos).</small>
           </div>
 
           {(spotForm.type === 'VISITA' || spotForm.type === 'ALQUILADO' ? false : true) && (

@@ -172,6 +172,7 @@ export interface FinesSummaryRow {
 }
 
 export type ParkingSpotType = 'PROPIO' | 'VISITA' | 'ALQUILADO';
+export type CocheraType = 'INDIVIDUAL' | 'MULTIPLE';
 export type VehicleType = 'AUTO' | 'MOTO';
 export type ParkingLoanStatus = 'PENDIENTE' | 'ACTIVO' | 'FINALIZADO' | 'CANCELADO';
 export type ParkingOrientation = 'HORIZONTAL' | 'VERTICAL';
@@ -180,6 +181,7 @@ export interface ParkingSpot {
   id: string;
   spot_number: string;
   type: ParkingSpotType;
+  cochera_type?: CocheraType | null;
   department_id: string | null;
   status: 'DISPONIBLE' | 'OCUPADO';
   spot_row?: number | null;

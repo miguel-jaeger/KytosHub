@@ -3180,6 +3180,8 @@ html.dark .parking-spot-number { color: #e5e7eb; }
 }
 .plaza-cell small { font-size: 0.68rem; font-weight: 600; opacity: 0.85; }
 .plaza-cell-dept { display: block; }
+.plaza-cell-multi { display: block; font-size: 0.62rem; font-weight: 700; color: #7a4d00; text-transform: uppercase; letter-spacing: 0.03em; }
+html.dark .plaza-cell-multi { color: #f0c674; }
 .plaza-cell-clickable { cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
 .plaza-cell-clickable:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(11, 28, 48, 0.2); }
 .plaza-cell-empty { background: transparent; border: 1px dashed #e2e3e7; color: transparent; min-width: 64px; min-height: 50px; }

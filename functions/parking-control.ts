@@ -178,7 +178,8 @@ export default async function(req: Request): Promise<Response> {
           department_id: body.department_id || null,
           status: body.status === 'OCUPADO' ? 'OCUPADO' : 'DISPONIBLE',
           spot_row: Number.isInteger(Number(body.spot_row)) ? Number(body.spot_row) : null,
-          spot_index: Number.isInteger(Number(body.spot_index)) ? Number(body.spot_index) : null
+          spot_index: Number.isInteger(Number(body.spot_index)) ? Number(body.spot_index) : null,
+          cochera_type: normalizeCocheraType(body.cochera_type)
         }]).select().single();
         if (error) throw error;
         const enriched = (await enrichSpots(db, [data]))[0];
@@ -197,6 +198,7 @@ export default async function(req: Request): Promise<Response> {
         }
         if (body.type !== undefined) updates.type = normalizeSpotType(body.type);
         if (body.department_id !== undefined) updates.department_id = body.department_id || null;
+        if (body.cochera_type !== undefined) updates.cochera_type = normalizeCocheraType(body.cochera_type);
         if (body.status !== undefined) updates.status = body.status === 'OCUPADO' ? 'OCUPADO' : 'DISPONIBLE';
         const { data, error } = await db.from('parking_spots').update(updates).eq('id', id).select().single();
         if (error) throw error;
@@ -1156,6 +1158,13 @@ async function isModuleEnabled(client: ReturnType<typeof createAdminClient>, sch
 function normalizeSpotType(v: unknown): string {
   const t = String(v || 'PROPIO').trim().toUpperCase();
   return SPOT_TYPES.includes(t) ? t : 'PROPIO';
+}
+
+const COCHERA_TYPES = ['INDIVIDUAL', 'MULTIPLE'];
+
+function normalizeCocheraType(v: unknown): string {
+  const t = String(v || 'INDIVIDUAL').trim().toUpperCase();
+  return COCHERA_TYPES.includes(t) ? t : 'INDIVIDUAL';
 }
 
 function normalizeVehicleType(v: unknown): string {
