@@ -72,11 +72,11 @@ export default async function(req: Request): Promise<Response> {
         // spots_per_row may be a single number (uniform) or an array (per row)
         let counts: number[] = [];
         if (Array.isArray(body.spots_per_row)) {
-          counts = (body.spots_per_row as unknown[]).map(v => Math.max(1, Math.min(50, Math.round(Number(v) || 1))));
+          counts = (body.spots_per_row as unknown[]).map(v => Math.max(1, Math.round(Number(v) || 1)));
           if (counts.length > rows) counts = counts.slice(0, rows);
           while (counts.length < rows) counts.push(counts[counts.length - 1] || 1);
         } else {
-          const per = Math.max(1, Math.min(50, Math.round(Number(body.spots_per_row) || 1)));
+          const per = Math.max(1, Math.round(Number(body.spots_per_row) || 1));
           counts = Array.from({ length: rows }, () => per);
         }
 
@@ -88,6 +88,8 @@ export default async function(req: Request): Promise<Response> {
           rowNames = rowNames.slice(0, rows);
         }
 
+        const orientation = normalizeOrientation(body.orientation);
+
         const { data: tenantRow } = await client.database.from('tenants').select('id').eq('schema_name', schemaName).single();
         if (!tenantRow) {
           return json({ success: false, data: null, error: { code: 'NOT_FOUND', message: 'Condominio no encontrado' } }, 404);
@@ -96,7 +98,8 @@ export default async function(req: Request): Promise<Response> {
           p_tenant_id: tenantRow.id,
           p_rows: rows,
           p_spots_per_row: counts,
-          p_row_names: rowNames
+          p_row_names: rowNames,
+          p_orientation: orientation
         });
         if (rpcError) {
           console.error('provision_parking_layout error:', rpcError);
@@ -116,7 +119,8 @@ export default async function(req: Request): Promise<Response> {
             layout: layout || {
               rows,
               spots_per_row: counts,
-              row_names: rowNames || counts.map((_, i) => `Fila ${i + 1}`)
+              row_names: rowNames || counts.map((_, i) => `Fila ${i + 1}`),
+              orientation
             },
             result: rpcResult,
             spots: enriched
@@ -1023,7 +1027,7 @@ async function enrichLogs(
 // Support helpers
 // ---------------------------------------------------------------------------
 
-async function getLayoutConfig(db: { from(t: string): any }): Promise<{ rows: number; spots_per_row: number[]; row_names: string[] } | null> {
+async function getLayoutConfig(db: { from(t: string): any }): Promise<{ rows: number; spots_per_row: number[]; row_names: string[]; orientation: 'HORIZONTAL' | 'VERTICAL' } | null> {
   try {
     const { data } = await db.from('condo_settings').select('config_json').eq('module_key', 'parking_control').single();
     const cfg = data?.config_json && typeof data.config_json === 'object' ? (data.config_json as Record<string, unknown>) : {};
@@ -1034,20 +1038,25 @@ async function getLayoutConfig(db: { from(t: string): any }): Promise<{ rows: nu
         ? (layout.row_names as unknown[]).map(v => String(v ?? '').trim().slice(0, 60))
         : [];
       while (names.length < rows) names.push(`Fila ${names.length + 1}`);
+      const orientation = normalizeOrientation(layout.orientation);
       if (Array.isArray(layout.spots_per_row)) {
         const counts = (layout.spots_per_row as unknown[]).map(v => Math.max(1, Math.round(Number(v) || 1)));
         while (counts.length < rows) counts.push(counts[counts.length - 1] || 1);
-        return { rows, spots_per_row: counts, row_names: names.slice(0, rows) };
+        return { rows, spots_per_row: counts, row_names: names.slice(0, rows), orientation };
       }
       if (Number(layout.spots_per_row) > 0) {
         const per = Math.max(1, Math.round(Number(layout.spots_per_row)));
-        return { rows, spots_per_row: Array.from({ length: rows }, () => per), row_names: names.slice(0, rows) };
+        return { rows, spots_per_row: Array.from({ length: rows }, () => per), row_names: names.slice(0, rows), orientation };
       }
     }
     return null;
   } catch {
     return null;
   }
+}
+
+function normalizeOrientation(v: unknown): 'HORIZONTAL' | 'VERTICAL' {
+  return String(v || '').trim().toUpperCase() === 'VERTICAL' ? 'VERTICAL' : 'HORIZONTAL';
 }
 
 async function departmentOfUser(

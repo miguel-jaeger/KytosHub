@@ -192,10 +192,10 @@ export function useParking() {
     return data.data;
   }, []);
 
-  const provisionLayout = useCallback(async (schemaName: string, rows: number, spotsPerRow: number | number[], rowNames?: string[]): Promise<{ layout: ParkingLayout; result: Record<string, unknown>; spots: ParkingSpot[] }> => {
+  const provisionLayout = useCallback(async (schemaName: string, rows: number, spotsPerRow: number | number[], rowNames?: string[], orientation?: 'HORIZONTAL' | 'VERTICAL'): Promise<{ layout: ParkingLayout; result: Record<string, unknown>; spots: ParkingSpot[] }> => {
     const { data, error } = await invokeFunction<{ success: boolean; data: { layout: ParkingLayout; result: Record<string, unknown>; spots: ParkingSpot[] } | null; error: { message: string } | null }>('parking-control', {
       method: 'POST',
-      body: { action: 'provision-layout', schema_name: schemaName, rows, spots_per_row: spotsPerRow, row_names: rowNames }
+      body: { action: 'provision-layout', schema_name: schemaName, rows, spots_per_row: spotsPerRow, row_names: rowNames, orientation }
     });
     if (error) throw error;
     if (!data?.success || !data.data) throw new Error(data?.error?.message || 'Error al generar el layout');

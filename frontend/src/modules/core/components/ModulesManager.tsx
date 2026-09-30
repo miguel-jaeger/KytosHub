@@ -94,14 +94,14 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
     setConfigDrafts(prev => ({ ...prev, [m.module_key]: JSON.stringify(next, null, 2) }));
   };
 
-  const updateParkingLayoutField = (m: ModuleInfo, value: { rows: number; spots_per_row: number[]; row_names: string[] }) => {
+  const updateParkingLayoutField = (m: ModuleInfo, value: { rows: number; spots_per_row: number[]; row_names: string[]; orientation: 'HORIZONTAL' | 'VERTICAL' }) => {
     const current = configDrafts[m.module_key] || '{}';
     const parsed = parseDraft(current);
     parsed.layout = value;
     setConfigDrafts(prev => ({ ...prev, [m.module_key]: JSON.stringify(parsed, null, 2) }));
   };
 
-  const parkingLayoutOf = (m: ModuleInfo): { rows: number; spots_per_row: number[]; row_names: string[] } => {
+  const parkingLayoutOf = (m: ModuleInfo): { rows: number; spots_per_row: number[]; row_names: string[]; orientation: 'HORIZONTAL' | 'VERTICAL' } => {
     const cfg = parseDraft(configDrafts[m.module_key] || '{}');
     const layout = cfg.layout && typeof cfg.layout === 'object' ? cfg.layout as Record<string, unknown> : {};
     const rows = Number(layout.rows) || 2;
@@ -110,13 +110,14 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
       : [];
     while (names.length < rows) names.push('');
     const normNames = names.slice(0, rows);
+    const orientation = String(layout.orientation || '').trim().toUpperCase() === 'VERTICAL' ? 'VERTICAL' : 'HORIZONTAL';
     if (Array.isArray(layout.spots_per_row)) {
       const counts = (layout.spots_per_row as unknown[]).map(v => Math.max(1, Math.round(Number(v) || 1)));
       while (counts.length < rows) counts.push(counts[counts.length - 1] || 1);
-      return { rows, spots_per_row: counts.slice(0, rows), row_names: normNames };
+      return { rows, spots_per_row: counts.slice(0, rows), row_names: normNames, orientation };
     }
     const per = Math.max(1, Number(layout.spots_per_row) || 4);
-    return { rows, spots_per_row: Array.from({ length: rows }, () => per), row_names: normNames };
+    return { rows, spots_per_row: Array.from({ length: rows }, () => per), row_names: normNames, orientation };
   };
 
   const renderModuleConfig = (m: ModuleInfo) => {
@@ -177,9 +178,23 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
                   while (counts.length < n) counts.push(counts[counts.length - 1] || 1);
                   const names = [...current.row_names];
                   while (names.length < n) names.push('');
-                  updateParkingLayoutField(m, { rows: n, spots_per_row: counts.slice(0, n), row_names: names.slice(0, n) });
+                  updateParkingLayoutField(m, { rows: n, spots_per_row: counts.slice(0, n), row_names: names.slice(0, n), orientation: current.orientation });
                 }}
               />
+            </label>
+            <label>
+              Orientación del mapa
+              <select
+                disabled={!canEdit}
+                value={parkingLayout.orientation}
+                onChange={e => {
+                  const current = parkingLayoutOf(m);
+                  updateParkingLayoutField(m, { ...current, orientation: e.target.value === 'VERTICAL' ? 'VERTICAL' : 'HORIZONTAL' });
+                }}
+              >
+                <option value="HORIZONTAL">Horizontal (filas de izquierda a derecha)</option>
+                <option value="VERTICAL">Vertical (filas de arriba hacia abajo)</option>
+              </select>
             </label>
             {Array.from({ length: parkingLayout.rows }, (_, i) => (
               <div key={i} className="parking-module-row-fields">
@@ -195,7 +210,7 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
                       const current = parkingLayoutOf(m);
                       const names = [...current.row_names];
                       names[i] = e.target.value;
-                      updateParkingLayoutField(m, { rows: current.rows, spots_per_row: [...current.spots_per_row], row_names: names });
+                      updateParkingLayoutField(m, { rows: current.rows, spots_per_row: [...current.spots_per_row], row_names: names, orientation: current.orientation });
                     }}
                   />
                 </label>
@@ -204,14 +219,13 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
                   <input
                     type="number"
                     min={1}
-                    max={50}
                     disabled={!canEdit}
                     value={String(parkingLayout.spots_per_row[i] ?? 1)}
                     onChange={e => {
                       const current = parkingLayoutOf(m);
                       const counts = [...current.spots_per_row];
-                      counts[i] = Math.max(1, Math.min(50, Number(e.target.value) || 1));
-                      updateParkingLayoutField(m, { rows: current.rows, spots_per_row: counts, row_names: [...current.row_names] });
+                      counts[i] = Math.max(1, Number(e.target.value) || 1);
+                      updateParkingLayoutField(m, { rows: current.rows, spots_per_row: counts, row_names: [...current.row_names], orientation: current.orientation });
                     }}
                   />
                 </label>
@@ -221,7 +235,7 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
           <div className="module-example">
             <span className="material-symbols-outlined">info</span>
             <span>
-              El layout visual (filas con nombre editable × plazas por fila, distintas por fila) y el mapa de plazas se administran en la pestaña <strong>Estacionamiento</strong>. Guardado aquí solo persiste el layout indicado.
+              El layout visual (filas con nombre editable × plazas por fila, distintas por fila) y el mapa de plazas se administran en la pestaña <strong>Estacionamiento</strong>. Aquí solo se persiste el layout indicado (filas, plazas, nombres y orientación del mapa).
             </span>
           </div>
         </>

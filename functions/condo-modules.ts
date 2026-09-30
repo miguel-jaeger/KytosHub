@@ -283,13 +283,14 @@ function sanitizeConfig(key: string, config: Record<string, unknown>): Record<st
       ? (layout.row_names as unknown[]).map(v => String(v ?? '').trim().slice(0, 60))
       : [];
     while (names.length < rows) names.push(`Fila ${names.length + 1}`);
+    const orientation = String(layout.orientation || '').trim().toUpperCase() === 'VERTICAL' ? 'VERTICAL' : 'HORIZONTAL';
     if (Array.isArray(layout.spots_per_row)) {
-      const counts: number[] = (layout.spots_per_row as unknown[]).map(v => Math.max(1, Math.min(50, Math.round(Number(v) || 1))));
+      const counts: number[] = (layout.spots_per_row as unknown[]).map(v => Math.max(1, Math.round(Number(v) || 1)));
       while (counts.length < rows) counts.push(counts[counts.length - 1] || 1);
-      cfg.layout = { rows, spots_per_row: counts.slice(0, rows), row_names: names.slice(0, rows) };
+      cfg.layout = { rows, spots_per_row: counts.slice(0, rows), row_names: names.slice(0, rows), orientation };
     } else {
-      const per = Math.max(1, Math.min(50, Math.round(Number(layout.spots_per_row) || 1)));
-      cfg.layout = { rows, spots_per_row: per, row_names: names.slice(0, rows) };
+      const per = Math.max(1, Math.round(Number(layout.spots_per_row) || 1));
+      cfg.layout = { rows, spots_per_row: per, row_names: names.slice(0, rows), orientation };
     }
   }
   if (key === 'billing_maintenance') {

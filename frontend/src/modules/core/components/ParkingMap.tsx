@@ -64,6 +64,7 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend }: Props) {
 
   const rows = hasLayout ? layout!.rows : 1;
   const rowNames = hasLayout && Array.isArray(layout!.row_names) ? layout!.row_names! : [];
+  const vertical = hasLayout && layout!.orientation === 'VERTICAL';
 
   const placed = [...Array(rows)].map((_, r) => {
     const row = r + 1;
@@ -80,11 +81,11 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend }: Props) {
     <div className="plaza-map">
       {hasLayout && <div className="plaza-map-title">Mapa de estacionamiento</div>}
 
-      <div className="plaza-map-grid">
+      <div className={`plaza-map-grid${vertical ? ' plaza-map-vertical' : ''}`}>
         {placed.map((rowSpots, r) => (
-          <div key={r} className="plaza-row">
+          <div key={r} className={`plaza-row${vertical ? ' plaza-row-vertical' : ''}`}>
             {hasLayout && <span className="plaza-row-label">{rowNames[r]?.trim() || `Fila ${r + 1}`}</span>}
-            <div className={`plaza-row-spots${hasLayout ? ' plaza-row-grid' : ''}`}>
+            <div className={`plaza-row-spots${hasLayout ? ' plaza-row-grid' : ''}${vertical ? ' plaza-row-vertical-spots' : ''}`}>
               {rowSpots.map((s, c) => (
                 s ? (
                   <button

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import { useParking } from '../hooks/useParking';
 import { ParkingMap, SPOT_TYPE_LABELS } from './ParkingMap';
-import type { Department, Floor, ParkingLayout, ParkingSpot, ParkingSpotType, Tower } from '../types';
+import type { Department, Floor, ParkingLayout, ParkingOrientation, ParkingSpot, ParkingSpotType, Tower } from '../types';
 
 const emptySpotForm = { type: 'PROPIO' as ParkingSpotType, department_id: '' };
 
@@ -17,6 +17,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
   const [rowsInput, setRowsInput] = useState('2');
   const [perRowInputs, setPerRowInputs] = useState<string[]>(['4', '4']);
   const [rowNameInputs, setRowNameInputs] = useState<string[]>(['', '']);
+  const [orientation, setOrientation] = useState<ParkingOrientation>('HORIZONTAL');
   const [generating, setGenerating] = useState(false);
 
   const [editingSpot, setEditingSpot] = useState<ParkingSpot | null>(null);
@@ -119,6 +120,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
           ? ly.row_names.slice(0, ly.rows)
           : Array.from({ length: ly.rows }, () => '');
         setRowNameInputs(names);
+        setOrientation(ly.orientation === 'VERTICAL' ? 'VERTICAL' : 'HORIZONTAL');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar');
@@ -130,7 +132,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
   useEffect(() => { void load(); }, [load]);
 
   const rows = Math.max(1, Math.min(50, Number(rowsInput) || 1));
-  const perRowCounts = perRowInputs.map(v => Math.max(1, Math.min(50, Number(v) || 1)));
+  const perRowCounts = perRowInputs.map(v => Math.max(1, Number(v) || 1));
   while (perRowCounts.length < rows) perRowCounts.push(1);
   const effectiveCounts = perRowCounts.slice(0, rows);
   const totalExpected = effectiveCounts.reduce((a, b) => a + b, 0);
@@ -164,7 +166,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
     setError(null);
     setMessage(null);
     try {
-      const res = await provisionLayout(schemaName, rows, effectiveCounts, rowNameInputs);
+      const res = await provisionLayout(schemaName, rows, effectiveCounts, rowNameInputs, orientation);
       setLayout(res.layout);
       setSpots(res.spots);
       setPerRowInputs(Array.isArray(res.result.spots_per_row)
@@ -173,6 +175,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
       setRowNameInputs(Array.isArray(res.layout.row_names)
         ? res.layout.row_names
         : effectiveCounts.map((_, i) => rowNameInputs[i] || `Fila ${i + 1}`));
+      setOrientation(res.layout.orientation === 'VERTICAL' ? 'VERTICAL' : 'HORIZONTAL');
       setMessage(`Layout generado: ${res.result.total ?? totalExpected} plazas en ${res.result.rows ?? rows} fila(s). Creadas: ${res.result.created ?? 0}, actualizadas: ${res.result.updated ?? 0}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al generar layout');
@@ -214,7 +217,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
       <div className="header">
         <div>
           <h3>Configuración del estacionamiento</h3>
-          <small>Define cuántas filas tendrá el estacionamiento, un nombre para cada fila y cuántas plazas en cada fila (pueden variar). Las plazas se numeran automáticamente en orden consecutivo comenzando por la fila 1 (01, 02, 03...).</small>
+          <small>Define cuántas filas tendrá el estacionamiento, un nombre para cada fila y cuántas plazas en cada fila (pueden variar, sin límite). Elige cómo mostrar las filas en el mapa (horizontal o vertical). Las plazas se numeran automáticamente en orden consecutivo comenzando por la fila 1 (01, 02, 03...).</small>
         </div>
       </div>
 
@@ -233,6 +236,27 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
             <div className="plaza-total-preview"><strong>{totalExpected}</strong> plazas · numeración 01…{String(totalExpected).padStart(Math.max(2, String(totalExpected).length), '0')}</div>
           </div>
         </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label>Orientación del mapa de plazas</label>
+            <div className="parking-orientation-toggle">
+              <button
+                type="button"
+                className={`checkout-chip ${orientation === 'HORIZONTAL' ? 'active' : ''}`}
+                onClick={() => setOrientation('HORIZONTAL')}
+              >
+                <span className="material-symbols-outlined">swap_horiz</span> Horizontal (las filas van de izquierda a derecha)
+              </button>
+              <button
+                type="button"
+                className={`checkout-chip ${orientation === 'VERTICAL' ? 'active' : ''}`}
+                onClick={() => setOrientation('VERTICAL')}
+              >
+                <span className="material-symbols-outlined">swap_vert</span> Vertical (las filas van de arriba hacia abajo)
+              </button>
+            </div>
+          </div>
+        </div>
         <div className="plaza-per-row-grid">
           {effectiveCounts.map((_, idx) => (
             <div key={idx} className="form-group parking-row-config">
@@ -248,7 +272,6 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
               <input
                 type="number"
                 min={1}
-                max={50}
                 value={perRowInputs[idx] ?? '1'}
                 onChange={e => handleRowColsChange(idx, e.target.value)}
               />

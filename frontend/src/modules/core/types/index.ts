@@ -174,6 +174,7 @@ export interface FinesSummaryRow {
 export type ParkingSpotType = 'PROPIO' | 'VISITA' | 'ALQUILADO';
 export type VehicleType = 'AUTO' | 'MOTO';
 export type ParkingLoanStatus = 'PENDIENTE' | 'ACTIVO' | 'FINALIZADO' | 'CANCELADO';
+export type ParkingOrientation = 'HORIZONTAL' | 'VERTICAL';
 
 export interface ParkingSpot {
   id: string;
@@ -195,6 +196,7 @@ export interface ParkingLayout {
   rows: number;
   spots_per_row: number[] | number;
   row_names?: string[];
+  orientation?: ParkingOrientation;
   total_spots?: number;
 }
 

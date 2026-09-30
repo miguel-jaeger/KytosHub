@@ -2980,6 +2980,10 @@ html.dark .parking-spot-number { color: #e5e7eb; }
 .plaza-row-label { font-size: 0.75rem; font-weight: 700; color: #76777d; min-width: 42px; padding-top: 0.55rem; text-transform: uppercase; }
 .plaza-row-spots { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .plaza-row-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(74px, 100%), 1fr)); flex: 1; gap: 0.5rem; }
+.plaza-map-vertical { flex-direction: row; align-items: flex-start; overflow-x: auto; }
+.plaza-map-vertical .plaza-row { flex: 1 1 0; min-width: 0; flex-direction: column; align-items: center; }
+.plaza-map-vertical .plaza-row-label { min-width: 0; padding-top: 0; margin-bottom: 0.4rem; white-space: nowrap; }
+.plaza-map-vertical .plaza-row-vertical-spots { grid-template-columns: minmax(min(74px, 100%), 1fr); }
 .plaza-cell {
   min-width: 64px;
   min-height: 50px;
@@ -3058,6 +3062,9 @@ html.dark .plaza-legend-item.plaza-rented { background: #2b2212; border-color: #
 .parking-layout-config .form-actions { flex-wrap: wrap; gap: 0.5rem; }
 .parking-layout-config .form-actions small { width: 100%; }
 .plaza-per-row-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr)); gap: 0.6rem; margin-bottom: 0.75rem; }
+.parking-orientation-toggle { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.parking-orientation-toggle .checkout-chip { display: inline-flex; align-items: center; justify-content: center; }
+.parking-orientation-toggle .checkout-chip .material-symbols-outlined { font-size: 1.1rem; }
 .parking-row-config { border: 1px solid #e2e4e9; border-radius: 0.5rem; padding: 0.6rem; background: #f7f8fa; }
 .parking-row-config .form-group-label,
 .parking-row-config label { font-weight: 700; }
