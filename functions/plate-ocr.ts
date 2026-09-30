@@ -71,9 +71,10 @@ export default async function(req: Request): Promise<Response> {
   }
 }
 
-// Peruvian-style plates: 3 letters + 3 digits (cars), or 1 letter + 3 digits + 2 letters
-// (motos / newer), or generic alphabetic-numeric tokens. We normalize to how the
-// system stores plates (uppercase alphanumeric with optional hyphen).
+// Peruvian-style plates: 3 letters + 3 digits (cars), 2 alnum + 4 digits
+// (motos, e.g. AB-1234), or 1 letter + 3 digits + 2 letters (newer), or generic
+// alphabetic-numeric tokens. We normalize to how the system stores plates
+// (uppercase alphanumeric with optional hyphen).
 function inferPlate(fullText: string, blocks: string[]): string | null {
   const candidates = [fullText, ...blocks];
   const cleaned = candidates
@@ -81,7 +82,7 @@ function inferPlate(fullText: string, blocks: string[]): string | null {
     .filter(Boolean);
 
   for (const c of cleaned) {
-    const expr = /\b([A-Za-z]{2,3}[\s\-]?\d{3,4}(?:[A-Za-z]{0,2})?)\b|\b([A-Za-z]\d{3}[A-Za-z]{2})\b/g;
+    const expr = /\b([A-Za-z]{2,3}[\s\-]?\d{3,4}(?:[A-Za-z]{0,2})?)\b|\b([A-Za-z]\d{3}[A-Za-z]{2})\b|\b([A-Za-z0-9]{2}[\s\-]?\d{4})\b/g;
     const m = c.toUpperCase().match(expr);
     if (m && m[0]) return normalize(m[0]);
   }
