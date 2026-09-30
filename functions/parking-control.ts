@@ -65,8 +65,8 @@ export default async function(req: Request): Promise<Response> {
       case 'provision-layout': {
         if (!isAdmin) return forbidden();
         const rows = Number(body.rows);
-        if (!Number.isInteger(rows) || rows < 1 || rows > 50) {
-          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'rows debe ser un entero entre 1 y 50' } }, 400);
+        if (!Number.isInteger(rows) || rows < 1) {
+          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'rows debe ser un entero mayor o igual a 1' } }, 400);
         }
 
         // spots_per_row may be a single number (uniform) or an array (per row)

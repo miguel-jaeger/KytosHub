@@ -131,7 +131,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
 
   useEffect(() => { void load(); }, [load]);
 
-  const rows = Math.max(1, Math.min(50, Number(rowsInput) || 1));
+  const rows = Math.max(1, Number(rowsInput) || 1);
   const perRowCounts = perRowInputs.map(v => Math.max(1, Number(v) || 1));
   while (perRowCounts.length < rows) perRowCounts.push(1);
   const effectiveCounts = perRowCounts.slice(0, rows);
@@ -140,7 +140,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
 
   const handleRowsChange = (value: string) => {
     setRowsInput(value);
-    const n = Math.max(1, Math.min(50, Number(value) || 1));
+    const n = Math.max(1, Number(value) || 1);
     setPerRowInputs(prev => {
       const next = [...prev];
       while (next.length < n) next.push('1');
@@ -230,7 +230,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
         <div className="form-row">
           <div className="form-group">
             <label>Filas de estacionamiento</label>
-            <input type="number" min={1} max={50} value={rowsInput} onChange={e => handleRowsChange(e.target.value)} />
+            <input type="number" min={1} value={rowsInput} onChange={e => handleRowsChange(e.target.value)} />
           </div>
           <div className="form-group" style={{ justifyContent: 'center' }}>
             <label>Total de plazas</label>

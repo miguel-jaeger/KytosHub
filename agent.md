@@ -150,7 +150,7 @@ Modela la jerarquía: **Condominio → Torres → Pisos → Departamentos**.
   - `parking_access_logs` (`id`, `spot_id`, `license_plate`, `vehicle_type` [AUTO, MOTO], `driver_name`, `entry_time`, `exit_time`, `entry_gate_id`, `exit_gate_id`, `authorized_by_user_id`, `guard_user_id`) — registra **la puerta de ingreso y la puerta de salida** por separado.
   - `guard_gate_sessions` (`id`, `user_id`, `gate_id`, `started_at`, `ended_at`) — persiste en qué puerta está autenticado cada agente de seguridad.
 - **Layout del estacionamiento (configuración visual):**
-  - El administrador/super admin configura en una vista propia cuántas **filas** tendrá el estacionamiento y **cuántas plazas en cada fila** (la cantidad puede variar por fila, **sin límite** de plazas por fila) (`provisionParkingLayout` / RPC `provision_parking_layout`).
+  - El administrador/super admin configura en una vista propia cuántas **filas** tendrá el estacionamiento y **cuántas plazas en cada fila** (la cantidad puede variar por fila; **sin límite** ni en filas ni en plazas por fila) (`provisionParkingLayout` / RPC `provision_parking_layout`).
   - **Cada fila tiene un nombre editable** (`row_names`, array de strings; si se deja vacío se usa "Fila N") que se muestra como etiqueta de fila en el mapa.
   - **Orientación del mapa** (`orientation`): `HORIZONTAL` (las filas se muestran como una línea horizontal de plazas de izquierda a derecha) o `VERTICAL` (cada fila se muestra como una columna vertical de plazas de arriba hacia abajo). El administrador la elige al generar el layout.
   - Cada plaza se numera automáticamente de forma **secuencial global en orden consecutivo comenzando por la fila 1** (01, 02, 03 ...) y se guardan `spot_row`/`spot_index`.

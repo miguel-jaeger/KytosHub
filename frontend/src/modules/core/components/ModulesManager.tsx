@@ -168,11 +168,10 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
               <input
                 type="number"
                 min={1}
-                max={50}
                 disabled={!canEdit}
                 value={String(parkingLayout.rows)}
                 onChange={e => {
-                  const n = Math.max(1, Math.min(50, Number(e.target.value) || 1));
+                  const n = Math.max(1, Number(e.target.value) || 1);
                   const current = parkingLayoutOf(m);
                   const counts = [...current.spots_per_row];
                   while (counts.length < n) counts.push(counts[counts.length - 1] || 1);

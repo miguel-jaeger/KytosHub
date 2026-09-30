@@ -278,7 +278,7 @@ function sanitizeConfig(key: string, config: Record<string, unknown>): Record<st
   }
   if (key === 'parking_control' && cfg.layout && typeof cfg.layout === 'object') {
     const layout = cfg.layout as Record<string, unknown>;
-    const rows = Math.max(1, Math.min(50, Math.round(Number(layout.rows) || 1)));
+    const rows = Math.max(1, Math.round(Number(layout.rows) || 1));
     const names: string[] = Array.isArray(layout.row_names)
       ? (layout.row_names as unknown[]).map(v => String(v ?? '').trim().slice(0, 60))
       : [];
