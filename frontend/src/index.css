@@ -748,6 +748,59 @@ table {
   overflow-x: hidden;
 }
 
+.users-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  background: #eef2ff;
+  border: 1px solid #dfe3f8;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.bulk-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  font-weight: 600;
+  color: #0b1c30;
+}
+
+.users-bulk-count { color: #45464d; font-weight: 600; }
+.users-bulk-delete { border-color: #e0b4b4; color: #b00020; background: #fff5f5; }
+.users-bulk-delete:hover:not(:disabled) { background: #ffe3e3; border-color: #b00020; color: #b00020; }
+
+.users-check-cell { width: 40px; text-align: center; padding: 0.4rem 0.3rem; }
+.users-check-cell input[type='checkbox'] { width: 1rem; height: 1rem; cursor: pointer; accent-color: #646cff; }
+
+.user-row-selected td { background: #eef2ff; }
+
+.user-card-check {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: inline-flex;
+  cursor: pointer;
+  color: #c6c6cd;
+}
+
+.user-card-check input { position: absolute; opacity: 0; width: 0; height: 0; }
+.user-card-check .material-symbols-outlined { font-size: 1.3rem; }
+.user-card-selected { border-color: #646cff; box-shadow: 0 0 0 1px #646cff; }
+.user-card-selected .user-card-check,
+.user-card-check:has(input:checked) { color: #646cff; }
+
+html.dark .users-bulk-bar { background: #27313c; border-color: #333; color: #e5e7eb; }
+html.dark .bulk-select-all, html.dark .users-bulk-count { color: #e5e7eb; }
+html.dark .users-bulk-delete { border-color: #7a4444; color: #ff8a8a; background: #2f1c1c; }
+html.dark .users-bulk-delete:hover:not(:disabled) { background: #3a2222; border-color: #ff8a8a; color: #ff8a8a; }
+html.dark .user-row-selected td { background: #24314a; }
+html.dark .user-card-selected { border-color: #646cff; box-shadow: 0 0 0 1px #646cff; }
+
 .users-card-grid {
   display: none;
   gap: 0.75rem;
@@ -762,6 +815,7 @@ table {
   display: flex;
   gap: 0.75rem;
   align-items: flex-start;
+  position: relative;
 }
 
 .user-card-avatar {

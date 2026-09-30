@@ -67,6 +67,10 @@ interface ImportRowError {
   reason: string;
 }
 
+function usersKey(u: TenantUser): string {
+  return `${u.id}||${u.user_id || ''}`;
+}
+
 function parseCSV(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -174,6 +178,8 @@ export function CondominioAdminDashboard() {
   const { condominiums } = useCondominiums();
   const isSuperAdmin = user?.email === 'miguel.jaeger@gmail.com';
   const [users, setUsers] = useState<TenantUser[]>([]);
+  const [selectedUserKeys, setSelectedUserKeys] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterRole, setFilterRole] = useState<string>('');
@@ -448,6 +454,57 @@ export function CondominioAdminDashboard() {
       fetchUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error de conexión');
+    }
+  };
+
+  const selectedUsers = users.filter(u => selectedUserKeys.has(usersKey(u)));
+  const allVisibleSelected = users.length > 0 && filteredUsers.every(u => selectedUserKeys.has(usersKey(u)));
+
+  const toggleSelectUser = (u: TenantUser) => {
+    setSelectedUserKeys(prev => {
+      const next = new Set(prev);
+      const k = usersKey(u);
+      if (next.has(k)) next.delete(k); else next.add(k);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedUserKeys(prev => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        for (const u of filteredUsers) next.delete(usersKey(u));
+      } else {
+        for (const u of filteredUsers) next.add(usersKey(u));
+      }
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    const sel = selectedUsers;
+    if (sel.length === 0) return;
+    if (!confirm(`¿Eliminar ${sel.length} usuario(s) seleccionado(s)? Esta acción no se puede deshacer.`)) return;
+    setBulkDeleting(true);
+    setError(null);
+    try {
+      const items = sel.map(u => ({
+        id: u.id,
+        source: u.source || 'tenant_user',
+        ...(u.source === 'resident' ? { schema_name: condominium?.schema_name || '' } : {})
+      }));
+      const { data, error: fnError } = await invokeFunction<{ success: boolean; data: { deleted: number } | null; error: { message: string } | null }>('list-condominium-users', {
+        method: 'POST',
+        body: { action: 'bulk-delete', items }
+      });
+      if (fnError) throw fnError;
+      if (!data?.success) throw new Error(data?.error?.message || 'Error al eliminar los usuarios');
+      setSelectedUserKeys(new Set());
+      fetchUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error de conexión');
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -1123,9 +1180,39 @@ const results: ImportResult = { created: 0, skipped: 0, existing: 0, failed: 0, 
         <div className="empty-state"><p>No hay usuarios registrados en este condominio.</p></div>
       ) : (
         <div className="users-table-wrap">
+          <div className="users-bulk-bar">
+            <label className="bulk-select-all">
+              <input
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={toggleSelectAll}
+                title={allVisibleSelected ? 'Quitar selección de todos' : 'Seleccionar todos los usuarios visibles'}
+              />
+              <span>Seleccionar todos</span>
+            </label>
+            <span className="users-bulk-count">
+              {selectedUsers.length === 0 ? 'Ningún usuario seleccionado' : `${selectedUsers.length} usuario(s) seleccionado(s)`}
+            </span>
+            {selectedUsers.length > 0 && (
+              <button className="btn-cancel users-bulk-delete" onClick={handleBulkDelete} disabled={bulkDeleting}>
+                <span className="material-symbols-outlined">delete_sweep</span>
+                {bulkDeleting ? 'Eliminando...' : 'Eliminar seleccionados'}
+              </button>
+            )}
+            {selectedUsers.length > 0 && (
+              <button className="btn-cancel" onClick={() => setSelectedUserKeys(new Set())}>
+                <span className="material-symbols-outlined">deselect</span> Limpiar selección
+              </button>
+            )}
+          </div>
+
           <div className="users-card-grid">
             {pagedUsers.map(u => (
-              <div key={`${u.id}-${u.user_id}`} className="user-card">
+              <div key={`${u.id}-${u.user_id}`} className={`user-card${selectedUserKeys.has(usersKey(u)) ? ' user-card-selected' : ''}`}>
+                <label className="user-card-check">
+                  <input type="checkbox" checked={selectedUserKeys.has(usersKey(u))} onChange={() => toggleSelectUser(u)} title="Seleccionar" />
+                  <span className="material-symbols-outlined">check_box</span>
+                </label>
                 <div className="user-card-avatar">
                   <span className="material-symbols-outlined">person</span>
                 </div>
@@ -1156,6 +1243,14 @@ const results: ImportResult = { created: 0, skipped: 0, existing: 0, failed: 0, 
           <table>
             <thead>
               <tr>
+                <th className="users-check-cell">
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={toggleSelectAll}
+                    title={allVisibleSelected ? 'Quitar selección de todos' : 'Seleccionar todos los usuarios visibles'}
+                  />
+                </th>
                 {viewAllCondos && <th>Condominio</th>}
                 <th>Nombre</th>
                 <th className="users-email-cell">Email</th>
@@ -1166,7 +1261,10 @@ const results: ImportResult = { created: 0, skipped: 0, existing: 0, failed: 0, 
             </thead>
             <tbody>
               {pagedUsers.map(u => (
-                <tr key={`${u.id}-${u.user_id}`}>
+                <tr key={`${u.id}-${u.user_id}`} className={selectedUserKeys.has(usersKey(u)) ? 'user-row-selected' : undefined}>
+                  <td className="users-check-cell">
+                    <input type="checkbox" checked={selectedUserKeys.has(usersKey(u))} onChange={() => toggleSelectUser(u)} title="Seleccionar" />
+                  </td>
                   {viewAllCondos && <td>{u.tenant_name || '-'}</td>}
                   <td>{u.name || '-'}</td>
                   <td className="users-email-cell">{u.email || u.users_global?.email || '-'}</td>

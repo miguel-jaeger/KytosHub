@@ -65,6 +65,8 @@ export default async function(req: Request): Promise<Response> {
         if (tenantsError) throw tenantsError;
 
         const allUsers: Array<Record<string, unknown>> = [];
+        const rawUsers: Array<{ tu: Record<string, unknown>; tenantId: string; tenantName: string }> = [];
+
         for (const t of tenants || []) {
           const tenantIdForQuery = (t as { id: string }).id;
           const schemaNameForQuery = (t as { schema_name?: string })?.schema_name;
@@ -82,21 +84,7 @@ export default async function(req: Request): Promise<Response> {
           if (error) throw error;
 
           for (const u of users || []) {
-            let email = '';
-            let name = '';
-            let document_type: string | null = null;
-            let document_number: string | null = null;
-            let phone: string | null = null;
-            try {
-              const { data: ug } = await client.database.from('users_global').select('email, name, document_type, document_number, phone').eq('id', u.user_id).single();
-              const ugRow = ug as Record<string, unknown> | null;
-              email = (ug as { email?: string })?.email || '';
-              name = (ug as { name?: string })?.name || '';
-              document_type = (ugRow?.document_type as string) || null;
-              document_number = (ugRow?.document_number as string) || null;
-              phone = (ugRow?.phone as string) || null;
-            } catch {}
-            allUsers.push({ ...u, tenant_id: tenantIdForQuery, tenant_name: (t as { name: string }).name, email, name, document_type, document_number, phone, source: 'tenant_user' });
+            rawUsers.push({ tu: u, tenantId: tenantIdForQuery, tenantName: (t as { name: string }).name });
           }
 
           if (!role || role === 'RESIDENT') {
@@ -107,27 +95,51 @@ export default async function(req: Request): Promise<Response> {
                 const { data: resData, error: resError } = await rq.order('created_at');
                 if (!resError) {
                   for (const r of (resData || []) as Array<Record<string, unknown>>) {
-                    const rEmail = String((r as { email?: string })?.email || '').toLowerCase();
-                    if (!rEmail) continue;
-                    const exists = allUsers.some((u: { email?: string }) => String(u.email || '').toLowerCase() === rEmail);
-                    if (!exists) {
-                      allUsers.push({
-                        id: r.id,
-                        user_id: (r as { user_id?: string })?.user_id || null,
-                        tenant_id: tenantIdForQuery,
-                        tenant_name: (t as { name: string }).name,
-                        role: 'RESIDENT',
-                        status: 'ACTIVE',
-                        created_at: r.created_at,
-                        email: (r as { email?: string })?.email || '',
-                        name: (r as { full_name?: string })?.full_name || '',
-                        source: 'resident'
-                      });
-                    }
+                    allUsers.push({
+                      id: r.id,
+                      user_id: (r as { user_id?: string })?.user_id || null,
+                      tenant_id: tenantIdForQuery,
+                      tenant_name: (t as { name: string }).name,
+                      role: 'RESIDENT',
+                      status: 'ACTIVE',
+                      created_at: r.created_at,
+                      email: (r as { email?: string })?.email || '',
+                      name: (r as { full_name?: string })?.full_name || '',
+                      source: 'resident'
+                    });
                   }
                 }
               }
             } catch {}
+          }
+        }
+
+        // Batch load every global profile in a few queries instead of one per user.
+        const userIds = rawUsers.map(({ tu }) => String((tu as { user_id?: string }).user_id || '')).filter(Boolean);
+        const ugMap = await batchLoadUsersGlobal(client, userIds);
+
+        const existingEmails = new Set(
+          allUsers.map((u: { email?: string }) => String(u.email || '').toLowerCase()).filter(Boolean)
+        );
+
+        for (const { tu, tenantId, tenantName } of rawUsers) {
+          const uid = String((tu as { user_id?: string }).user_id || '');
+          const ug = uid ? (ugMap.get(uid) as Record<string, unknown> | undefined) : undefined;
+          const uEntry: Record<string, unknown> = {
+            ...tu,
+            tenant_id: tenantId,
+            tenant_name: tenantName,
+            email: (ug?.email as string) || '',
+            name: (ug?.name as string) || '',
+            document_type: (ug?.document_type as string) || null,
+            document_number: (ug?.document_number as string) || null,
+            phone: (ug?.phone as string) || null,
+            source: 'tenant_user'
+          };
+          const em = String(uEntry.email || '').toLowerCase();
+          if (!em || !existingEmails.has(em)) {
+            if (em) existingEmails.add(em);
+            allUsers.push(uEntry);
           }
         }
 
@@ -158,28 +170,24 @@ export default async function(req: Request): Promise<Response> {
 
         if (error) throw error;
 
-        const enrichedUsers = [];
-        for (const u of users || []) {
-          let email = '';
-          let name = '';
-          let document_type: string | null = null;
-          let document_number: string | null = null;
-          let phone: string | null = null;
-          try {
-            const { data: ug } = await client.database.from('users_global').select('email, name, document_type, document_number, phone').eq('id', u.user_id).single();
-            const ugRow = ug as Record<string, unknown> | null;
-            email = (ug as { email?: string })?.email || '';
-            name = (ug as { name?: string })?.name || '';
-            document_type = (ugRow?.document_type as string) || null;
-            document_number = (ugRow?.document_number as string) || null;
-            phone = (ugRow?.phone as string) || null;
-          } catch {}
-          try {
-            const { data: prof } = await client.auth.getProfile(u.user_id);
-            if (!name) name = (prof as { name?: string } | null)?.name || '';
-          } catch {}
-          enrichedUsers.push({ ...u, email, name, document_type, document_number, phone, source: 'tenant_user' });
-        }
+        // Batch load the global profile for every user in ONE query instead of
+        // one per user (the previous N+1 loop plus an auth.getProfile per user was
+        // what made the list so slow).
+        const userIds = (users || []).map((u: { user_id: string }) => u.user_id).filter(Boolean);
+        const ugMap = await batchLoadUsersGlobal(client, userIds);
+
+        const enrichedUsers = (users || []).map((u) => {
+          const ug = ugMap.get(u.user_id) as Record<string, unknown> | undefined;
+          return {
+            ...u,
+            email: (ug?.email as string) || '',
+            name: (ug?.name as string) || '',
+            document_type: (ug?.document_type as string) || null,
+            document_number: (ug?.document_number as string) || null,
+            phone: (ug?.phone as string) || null,
+            source: 'tenant_user'
+          };
+        });
 
         // Include residents from the tenant schema so the users view is populated
         if (!role || role === 'RESIDENT') {
@@ -195,22 +203,23 @@ export default async function(req: Request): Promise<Response> {
             }
           } catch {}
 
+          const existingEmails = new Set(
+            enrichedUsers.map((u: { email?: string }) => String(u.email || '').toLowerCase()).filter(Boolean)
+          );
           for (const r of residents) {
             const rEmail = String((r as { email?: string })?.email || '').toLowerCase();
-            if (!rEmail) continue;
-            const exists = enrichedUsers.some((u: { email?: string }) => String(u.email || '').toLowerCase() === rEmail);
-            if (!exists) {
-              enrichedUsers.push({
-                id: r.id,
-                user_id: (r as { user_id?: string })?.user_id || null,
-                role: 'RESIDENT',
-                status: 'ACTIVE',
-                created_at: r.created_at,
-                email: (r as { email?: string })?.email || '',
-                name: (r as { full_name?: string })?.full_name || '',
-                source: 'resident'
-              });
-            }
+            if (!rEmail || existingEmails.has(rEmail)) continue;
+            existingEmails.add(rEmail);
+            enrichedUsers.push({
+              id: r.id,
+              user_id: (r as { user_id?: string })?.user_id || null,
+              role: 'RESIDENT',
+              status: 'ACTIVE',
+              created_at: r.created_at,
+              email: (r as { email?: string })?.email || '',
+              name: (r as { full_name?: string })?.full_name || '',
+              source: 'resident'
+            });
           }
         }
 
@@ -747,6 +756,54 @@ export default async function(req: Request): Promise<Response> {
         );
       }
 
+      case 'bulk-delete': {
+        const items = (Array.isArray(body.items) ? body.items : []) as Array<{ id?: string; source?: string; schema_name?: string }>;
+        if (items.length === 0) {
+          return new Response(
+            JSON.stringify({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'No se recibieron usuarios para eliminar' } }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const tenantIds: string[] = [];
+        const residentsBySchema: Record<string, string[]> = {};
+        for (const it of items) {
+          const id = String(it.id || '').trim();
+          if (!id) continue;
+          if (it.source === 'resident') {
+            const schema = String(it.schema_name || '').trim();
+            if (!schema) continue;
+            if (!residentsBySchema[schema]) residentsBySchema[schema] = [];
+            residentsBySchema[schema].push(id);
+          } else {
+            tenantIds.push(id);
+          }
+        }
+
+        let deleted = 0;
+        if (tenantIds.length > 0) {
+          try {
+            const { error } = await client.database.from('tenant_users').delete().in('id', tenantIds);
+            if (error) throw error;
+            deleted += tenantIds.length;
+          } catch (e) {
+            console.error('bulk-delete tenant_users error:', e);
+          }
+        }
+        for (const schema of Object.keys(residentsBySchema)) {
+          try {
+            const { error } = await client.database.schema(schema).from('residents').delete().in('id', residentsBySchema[schema]);
+            if (error) throw error;
+            deleted += residentsBySchema[schema].length;
+          } catch (e) { console.error('bulk-delete residents error:', e); }
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, data: { deleted }, error: null }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       case 'reset-password': {
         const userId = body.user_id as string;
 
@@ -820,6 +877,27 @@ async function findUserGlobalByEmail(client: ReturnType<typeof createAdminClient
     const { data } = await client.database.from('users_global').select('id').eq('email', normalized).single();
     return data || null;
   } catch { return null; }
+}
+
+// Batches the users_global lookups for many user ids into a handful of queries,
+// avoiding the N+1 per-user round trips that made user listing/search slow.
+async function batchLoadUsersGlobal(
+  client: ReturnType<typeof createAdminClient>,
+  userIds: string[]
+): Promise<Map<string, Record<string, unknown>>> {
+  const map = new Map<string, Record<string, unknown>>();
+  const ids = Array.from(new Set(userIds.map((v: string) => String(v || '')).filter(Boolean)));
+  for (let i = 0; i < ids.length; i += 200) {
+    const chunk = ids.slice(i, i + 200);
+    if (chunk.length === 0) continue;
+    try {
+      const { data } = await client.database.from('users_global').select('id, email, name, document_type, document_number, phone').in('id', chunk);
+      for (const u of (data || []) as Array<{ id?: string } & Record<string, unknown>>) {
+        if (u.id) map.set(String(u.id), u);
+      }
+    } catch (e) { console.error('batch users_global lookup error:', e); }
+  }
+  return map;
 }
 
 async function syncAuthEmail(client: ReturnType<typeof createAdminClient>, userId: string, email: string) {
