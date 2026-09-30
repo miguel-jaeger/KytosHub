@@ -190,7 +190,10 @@ export interface ParkingSpot {
   departments?: {
     department_number: string;
     owner_name?: string;
-    towers?: { name: string; code: string };
+    tower_id?: string;
+    floor_id?: string;
+    floor_number?: number;
+    towers?: { id: string; name: string; code: string };
   };
   inside?: boolean;
 }

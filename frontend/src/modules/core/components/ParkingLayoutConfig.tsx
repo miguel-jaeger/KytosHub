@@ -93,6 +93,24 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
     setSpotDeptId(s.department_id || '');
     setSpotFloors([]);
     setSpotDepartments([]);
+
+    // Si la cochera ya está asignada a un departamento, precarga la torre, el
+    // piso y el departamento para que el modal los muestre.
+    const assigned = s.departments;
+    if (s.department_id && assigned && assigned.towers?.id) {
+      const towerId = assigned.towers.id;
+      const floorId = assigned.floor_id || '';
+      const deptId = s.department_id;
+      setSpotTowerId(towerId);
+      void loadSpotFloors(towerId).then(() => {
+        if (floorId) {
+          setSpotFloorId(floorId);
+          void loadSpotDepartments(floorId).then(() => setSpotDeptId(deptId));
+        } else {
+          setSpotDeptId(deptId);
+        }
+      });
+    }
   };
 
   const selectSpotTower = (id: string) => {
@@ -342,7 +360,15 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
             <div className="modal-header">
               <div>
                 <h3>Configurar plaza {editingSpot.spot_number}</h3>
-                <p className="text-on-surface-variant">Asigna el tipo y el departamento de la plaza.</p>
+                {editingSpot.department_id && editingSpot.departments ? (
+                  <p className="text-on-surface-variant">
+                    Asignada a: Torre {editingSpot.departments.towers?.name || editingSpot.departments.towers?.code || '-'}
+                    {editingSpot.departments.floor_number != null ? ` · Piso ${editingSpot.departments.floor_number}` : ''}
+                    {' · Dpto '}{editingSpot.departments.department_number}
+                  </p>
+                ) : (
+                  <p className="text-on-surface-variant">Asigna el tipo y el departamento de la plaza.</p>
+                )}
               </div>
               <button className="modal-close" onClick={() => setEditingSpot(null)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
             </div>
