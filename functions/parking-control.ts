@@ -1017,6 +1017,21 @@ async function enrichVehicles(db: { from(t: string): any }, vehicles: Array<Reco
   const deptMap = new Map((deptRows as Array<{ id: string; department_number: string; tower_id: string; floor_id: string }>).map(d => [d.id, d]));
   const towerMap = new Map((towerRows as Array<{ id: string; name: string; code: string }>).map(t => [t.id, t]));
   const floorMap = new Map((floorRows as Array<{ id: string; floor_number: number }>).map(f => [f.id, f]));
+
+  // Parking spots (cocheras) assigned to each department, so the vehicles list
+  // can show which plaza the vehicle is assigned to.
+  const spotByDept = new Map<string, string[]>();
+  if (deptIds.length) {
+    try {
+      const { data: spotRows } = await db.from('parking_spots').select('department_id, spot_number').in('department_id', deptIds);
+      for (const sp of (spotRows || []) as Array<{ department_id: string; spot_number: string }>) {
+        const arr = spotByDept.get(sp.department_id) || [];
+        arr.push(sp.spot_number);
+        spotByDept.set(sp.department_id, arr);
+      }
+    } catch {}
+  }
+
   return vehicles.map(v => {
     const dept = deptMap.get(v.department_id as string);
     const tower = dept ? towerMap.get(dept.tower_id) : undefined;
@@ -1027,7 +1042,8 @@ async function enrichVehicles(db: { from(t: string): any }, vehicles: Array<Reco
         ? {
             department_number: dept.department_number,
             floor_number: floor?.floor_number ?? null,
-            towers: tower ? { id: tower.id, name: tower.name, code: tower.code } : undefined
+            towers: tower ? { id: tower.id, name: tower.name, code: tower.code } : undefined,
+            spots: (spotByDept.get(dept.id) || []).slice().sort()
           }
         : undefined
     };

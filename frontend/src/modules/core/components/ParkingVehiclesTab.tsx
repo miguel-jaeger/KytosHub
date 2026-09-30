@@ -403,6 +403,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
               <th>Conductor</th>
               <th>Color</th>
               <th>Departamento</th>
+              <th>Plaza</th>
               <th>Estado</th>
               <th></th>
             </tr>
@@ -415,6 +416,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
                 <td>{v.driver_name || <span className="text-muted">Sin conductor</span>}</td>
                 <td>{v.color || '-'}</td>
                 <td>{v.departments ? `${v.departments.department_number} (T${v.departments.towers?.code || '-'} · P${v.departments.floor_number ?? '-'})` : '-'}</td>
+                <td>{v.departments?.spots?.length ? v.departments.spots.map(s => `Cochera ${s}`).join(', ') : '-'}</td>
                 <td><span className={`status-badge ${v.is_active ? 'status-occupied' : 'status-vacant'}`}>{v.is_active ? 'Activo' : 'Inactivo'}</span></td>
                 <td>
                   <div className="resident-row-actions">

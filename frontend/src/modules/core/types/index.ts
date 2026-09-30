@@ -222,6 +222,7 @@ export interface Vehicle {
     department_number: string;
     floor_number?: number | null;
     towers?: { id: string; name: string; code: string };
+    spots?: string[];
   };
 }
 
