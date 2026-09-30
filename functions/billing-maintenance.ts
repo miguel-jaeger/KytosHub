@@ -398,7 +398,7 @@ async function generateInvoicesForCycle(
   const { data: existingInvoices } = await db.from('invoices').select('department_id').eq('cycle_id', periodId);
   const done = new Set((existingInvoices || []).map((i: { department_id: string }) => i.department_id));
 
-  const defaultAmount = defaultAmountOverride ?? conceptImporteTotal(cfg) || (Number(cfg.default_fee) || 0);
+  const defaultAmount = defaultAmountOverride ?? (conceptImporteTotal(cfg) || (Number(cfg.default_fee) || 0));
   const { data: fees } = await db.from('department_fees').select('department_id, amount, is_exempt').in('department_id', deptIds);
   const feeMap = new Map((fees || []).map((f: Record<string, unknown>) => [f.department_id, f]));
 
