@@ -3158,10 +3158,12 @@ html.dark .parking-spot-number { color: #e5e7eb; }
 .plaza-row-label { font-size: 0.78rem; font-weight: 700; color: #76777d; min-width: 48px; padding-top: 0.62rem; text-transform: uppercase; }
 .plaza-row-spots { display: flex; flex-wrap: wrap; gap: 0.55rem; }
 .plaza-row-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(92px, 100%), 1fr)); flex: 1; gap: 0.55rem; overflow-x: auto; }
-.plaza-map-vertical { flex-direction: row; align-items: flex-start; justify-content: center; justify-content: safe center; overflow-x: auto; }
-.plaza-map-vertical .plaza-row { flex: 0 1 auto; min-width: 0; flex-direction: column; align-items: center; }
-.plaza-map-vertical .plaza-row-label { min-width: 0; padding-top: 0; margin-bottom: 0.5rem; white-space: nowrap; }
+.plaza-map-vertical { flex-direction: row; align-items: flex-start; justify-content: center; justify-content: safe center; overflow-x: auto; gap: 1.5rem; }
+.plaza-map-vertical .plaza-row { flex: 0 1 auto; min-width: 0; flex-direction: column; align-items: center; gap: 0.55rem; background: #f7f8fb; border: 1px solid #e4e6eb; border-radius: 14px; padding: 0.85rem 0.9rem 1rem; box-shadow: 0 1px 3px rgba(11, 28, 48, 0.08); }
+.plaza-map-vertical .plaza-row-label { min-width: 0; padding: 0.3rem 0.75rem; margin-bottom: 0.15rem; background: #006c49; color: #fff; border-radius: 999px; text-transform: uppercase; font-size: 0.8rem; }
 .plaza-map-vertical .plaza-row-vertical-spots { grid-template-columns: minmax(100px, 1fr); overflow-x: visible; }
+html.dark .plaza-map-vertical .plaza-row { background: #202830; border-color: #3a414d; }
+html.dark .plaza-map-vertical .plaza-row-label { background: #2e7d5b; color: #eef7f2; }
 .plaza-cell {
   min-width: 92px;
   min-height: 70px;

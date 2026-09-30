@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import { useParking } from '../hooks/useParking';
-import { ParkingMap, SPOT_TYPE_LABELS } from './ParkingMap';
+import { ParkingMap, deptLabel, SPOT_TYPE_LABELS } from './ParkingMap';
 import type { CocheraType, Department, Floor, ParkingLayout, ParkingOrientation, ParkingSpot, ParkingSpotType, Tower } from '../types';
 
 const emptySpotForm = { type: 'PROPIO' as ParkingSpotType, cochera_type: 'MULTIPLE' as CocheraType, department_id: '' };
@@ -364,7 +364,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
                   <p className="text-on-surface-variant">
                     Asignada a: Torre {editingSpot.departments.towers?.name || editingSpot.departments.towers?.code || '-'}
                     {editingSpot.departments.floor_number != null ? ` · Piso ${editingSpot.departments.floor_number}` : ''}
-                    {' · Dpto '}{editingSpot.departments.towers?.code ? `T${editingSpot.departments.towers.code}-${editingSpot.departments.department_number}` : editingSpot.departments.department_number}
+                    {' · Dpto '}{deptLabel(editingSpot.departments)}
                   </p>
                 ) : (
                   <p className="text-on-surface-variant">Asigna el tipo y el departamento de la plaza.</p>

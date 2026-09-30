@@ -42,7 +42,11 @@ function spotStateLabel(spot: ParkingSpot): string {
 
 export function deptLabel(departments?: { department_number?: string; towers?: { code?: string } }): string {
   if (!departments?.department_number) return 'depto';
-  return departments.towers?.code ? `T${departments.towers.code}-${departments.department_number}` : departments.department_number;
+  const towerCode = departments.towers?.code;
+  if (!towerCode) return departments.department_number;
+  // El código de torre ya incluye el prefijo "T" (p. ej. T1); evita "TT1".
+  const towerNum = /^T/i.test(towerCode) ? towerCode : `T${towerCode}`;
+  return `${towerNum}-${departments.department_number}`;
 }
 
 export function ParkingMap({ spots, layout, onSpotClick, showLegend }: Props) {
