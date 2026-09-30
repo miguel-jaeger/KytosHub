@@ -1036,12 +1036,33 @@ async function enrichVehicles(db: { from(t: string): any }, vehicles: Array<Reco
     } catch {}
   }
 
+  // Plaza que cada vehículo está ocupando actualmente (acceso abierto sin salida).
+  const occupiedByPlate = new Map<string, string>();
+  const plates = vehicles.map(v => String(v.license_plate || '').toUpperCase()).filter(Boolean);
+  if (plates.length) {
+    try {
+      const { data: openLogs } = await db.from('parking_access_logs').select('license_plate, spot_id').is('exit_time', null).in('license_plate', plates);
+      const logSpotIds = [...new Set((openLogs || []).map(l => l.spot_id).filter(Boolean))];
+      const logSpotMap = new Map<string, string>();
+      if (logSpotIds.length) {
+        const { data: logSpots } = await db.from('parking_spots').select('id, spot_number').in('id', logSpotIds);
+        for (const sp of (logSpots || []) as Array<{ id: string; spot_number: string }>) logSpotMap.set(sp.id, sp.spot_number);
+      }
+      for (const l of (openLogs || []) as Array<{ license_plate: string; spot_id?: string }>) {
+        const num = l.spot_id ? logSpotMap.get(l.spot_id) : undefined;
+        if (num) occupiedByPlate.set(String(l.license_plate).toUpperCase(), num);
+      }
+    } catch {}
+  }
+
   return vehicles.map(v => {
     const dept = deptMap.get(v.department_id as string);
     const tower = dept ? towerMap.get(dept.tower_id) : undefined;
     const floor = dept ? floorMap.get(dept.floor_id) : undefined;
+    const plateKey = String(v.license_plate || '').toUpperCase();
     return {
       ...v,
+      occupied_spot: plateKey && occupiedByPlate.has(plateKey) ? (occupiedByPlate.get(plateKey) || null) : null,
       departments: dept
         ? {
             department_number: dept.department_number,

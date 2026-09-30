@@ -211,6 +211,7 @@ export interface Vehicle {
   department_id: string;
   license_plate: string;
   vehicle_type: VehicleType;
+  occupied_spot?: string | null;
   driver_name: string | null;
   brand: string | null;
   model: string | null;
