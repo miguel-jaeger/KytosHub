@@ -2340,6 +2340,13 @@ html.dark .member-search-sublabel { color: #9aa0a6; }
   flex-wrap: wrap;
 }
 
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .pagination-size {
   display: flex;
   align-items: center;
