@@ -60,6 +60,12 @@ interface ImportResult {
   errors: Array<{ email: string; reason: string }>;
 }
 
+interface ImportRowError {
+  row: number;
+  email: string;
+  reason: string;
+}
+
 function parseCSV(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -120,13 +126,14 @@ function normalizeDocumentType(value: string): string | null {
   return null;
 }
 
-function mapImportRows(dataRows: string[][], idx: ImportColumnIndexes): { rows: ImportRow[]; invalid: number } {
+function mapImportRows(dataRows: string[][], idx: ImportColumnIndexes): { rows: ImportRow[]; errors: ImportRowError[]; invalid: number } {
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const rows: ImportRow[] = [];
+  const errors: ImportRowError[] = [];
   const seen = new Set<string>();
-  let invalid = 0;
   const hasDocTypeColumn = idx.docType !== undefined;
-  for (const cells of dataRows) {
+  dataRows.forEach((cells, i) => {
+    const fileRow = i + 2; // fila 1 = encabezado
     const at = (i?: number) => (i === undefined ? '' : (cells[i] ?? '')).trim();
     const name = at(idx.name);
     const email = at(idx.email).toLowerCase();
@@ -136,14 +143,28 @@ function mapImportRows(dataRows: string[][], idx: ImportColumnIndexes): { rows: 
     if (hasDocTypeColumn) {
       const t = normalizeDocumentType(at(idx.docType));
       if (t) document_type = t;
-      else if (document_number) { invalid++; continue; }
+      else if (document_number) {
+        errors.push({ row: fileRow, email, reason: 'Tipo de documento no válido (use DNI, CE o PASAPORTE)' });
+        return;
+      }
     }
-    if (!name || !email || !EMAIL_RE.test(email)) { invalid++; continue; }
-    if (seen.has(email)) { invalid++; continue; }
+    if (!name || !email || !EMAIL_RE.test(email)) {
+      let reason = 'Faltan campos obligatorios (nombre y correo)';
+      if (name && email) reason = 'Correo electrónico no válido';
+      else if (!name && !email) reason = 'Faltan nombre y correo';
+      else if (!name) reason = 'Falta el nombre';
+      else reason = 'Falta el correo';
+      errors.push({ row: fileRow, email, reason });
+      return;
+    }
+    if (seen.has(email)) {
+      errors.push({ row: fileRow, email, reason: 'Correo duplicado en el archivo' });
+      return;
+    }
     seen.add(email);
     rows.push({ name, email, document_type, document_number, phone });
-  }
-  return { rows, invalid };
+  });
+  return { rows, errors, invalid: errors.length };
 }
 
 export function CondominioAdminDashboard() {
@@ -223,7 +244,9 @@ export function CondominioAdminDashboard() {
   const [importFileName, setImportFileName] = useState('');
   const [importPreview, setImportPreview] = useState<ImportRow[]>([]);
   const [importInvalidCount, setImportInvalidCount] = useState(0);
+  const [importPreviewErrors, setImportPreviewErrors] = useState<ImportRowError[]>([]);
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [importParseError, setImportParseError] = useState<string | null>(null);
   const importFileInputRef = useRef<HTMLInputElement>(null);
@@ -509,7 +532,9 @@ export function CondominioAdminDashboard() {
     setImportFileName('');
     setImportPreview([]);
     setImportInvalidCount(0);
+    setImportPreviewErrors([]);
     setImportResult(null);
+    setImportProgress(null);
     setImportParseError(null);
     setImporting(false);
     if (importFileInputRef.current) importFileInputRef.current.value = '';
@@ -518,6 +543,7 @@ export function CondominioAdminDashboard() {
 
   const handleImportFileChange = async (file: File | null) => {
     setImportResult(null);
+    setImportProgress(null);
     setImportParseError(null);
     if (!file) return;
     setImportFileName(file.name);
@@ -527,6 +553,7 @@ export function CondominioAdminDashboard() {
       if (parsed.length < 2) {
         setImportPreview([]);
         setImportInvalidCount(0);
+        setImportPreviewErrors([]);
         setImportParseError('El CSV no contiene filas de datos. Asegúrate de incluir una fila de encabezado.');
         return;
       }
@@ -535,12 +562,14 @@ export function CondominioAdminDashboard() {
       if (idx.name === undefined || idx.email === undefined) {
         setImportPreview([]);
         setImportInvalidCount(0);
+        setImportPreviewErrors([]);
         setImportParseError('No se encontraron las columnas "Nombre" y "Correo". Verifica la fila de encabezado del CSV.');
         return;
       }
-      const { rows, invalid } = mapImportRows(parsed.slice(1), idx);
+      const { rows, errors } = mapImportRows(parsed.slice(1), idx);
       setImportPreview(rows);
-      setImportInvalidCount(invalid);
+      setImportInvalidCount(errors.length);
+      setImportPreviewErrors(errors);
     } catch (err) {
       setImportParseError(err instanceof Error ? err.message : 'No se pudo leer el archivo CSV.');
     }
@@ -551,22 +580,36 @@ export function CondominioAdminDashboard() {
     if (importPreview.length === 0) { setImportParseError('No hay filas válidas para importar.'); return; }
     setImporting(true);
     setImportParseError(null);
+    setImportResult(null);
+    const results: ImportResult = { created: 0, skipped: 0, failed: 0, errors: [] };
     try {
-      const { data, error: fnError } = await invokeFunction<{ success: boolean; data: ImportResult | null; error: { message: string } | null }>('list-condominium-users', {
-        method: 'POST',
-        body: { action: 'import', tenant_id: importTargetTenant, users: importPreview }
-      });
-      if (fnError) throw fnError;
-      if (data?.success && data.data) {
-        setImportResult(data.data);
-        fetchUsers();
-      } else {
-        setImportParseError(data?.error?.message || 'Error al importar usuarios');
+      // Envío por lotes para que ninguna llamada exceda el límite de 30s de la
+      // función; cada lote completa se acumula en el resumen final.
+      const CHUNK = 50;
+      for (let i = 0; i < importPreview.length; i += CHUNK) {
+        const chunk = importPreview.slice(i, i + CHUNK);
+        setImportProgress({ current: i, total: importPreview.length });
+        const { data, error: fnError } = await invokeFunction<{ success: boolean; data: ImportResult | null; error: { message: string } | null }>('list-condominium-users', {
+          method: 'POST',
+          body: { action: 'import', tenant_id: importTargetTenant, users: chunk }
+        });
+        if (fnError) throw fnError;
+        if (!data?.success || !data.data) throw new Error(data?.error?.message || 'Error al importar usuarios');
+        const r = data.data;
+        results.created += r.created;
+        results.skipped += r.skipped;
+        results.failed += r.failed;
+        results.errors.push(...r.errors);
+        setImportProgress({ current: Math.min(i + CHUNK, importPreview.length), total: importPreview.length });
+        setImportResult({ ...results });
       }
+      setImportResult(results);
+      fetchUsers();
     } catch (err) {
       setImportParseError(err instanceof Error ? err.message : 'Error de conexión');
     } finally {
       setImporting(false);
+      setImportProgress(null);
     }
   };
 
@@ -958,6 +1001,25 @@ export function CondominioAdminDashboard() {
             </div>
           )}
 
+          {importPreviewErrors.length > 0 && (
+            <div className="import-invalid-details">
+              <div className="import-invalid-title">
+                <span className="material-symbols-outlined">warning</span>
+                <strong>Filas omitidas al cargar el archivo ({importPreviewErrors.length})</strong>
+              </div>
+              <ul>
+                {importPreviewErrors.slice(0, 15).map((e, i) => (
+                  <li key={i}>
+                    <code>Fila {e.row}</code>
+                    {e.email ? <span className="import-invalid-email">{e.email}</span> : <span className="import-invalid-email">(sin correo)</span>}
+                    <span>— {e.reason}</span>
+                  </li>
+                ))}
+                {importPreviewErrors.length > 15 && <li>… y {importPreviewErrors.length - 15} más</li>}
+              </ul>
+            </div>
+          )}
+
           {importPreview.length > 0 && (
             <div className="import-preview">
               <table>
@@ -995,6 +1057,7 @@ export function CondominioAdminDashboard() {
                 <div className="import-result-count"><span className="material-symbols-outlined">skip_next</span><span><strong>{importResult.skipped}</strong> omitido(s) (ya existían)</span></div>
                 <div className="import-result-count"><span className="material-symbols-outlined">error</span><span><strong>{importResult.failed}</strong> con error</span></div>
               </div>
+              <small className="import-result-total">Total procesado: {importResult.created + importResult.skipped + importResult.failed} fila(s)</small>
               {importResult.errors.length > 0 && (
                 <ul className="import-result-errors">
                   {importResult.errors.slice(0, 10).map((e, i) => (
@@ -1010,7 +1073,10 @@ export function CondominioAdminDashboard() {
           <div className="form-actions">
             <button className="btn-cancel" onClick={() => setShowImportForm(false)}><span className="material-symbols-outlined">close</span> Cerrar</button>
             <button onClick={handleImportUsers} disabled={importing || importPreview.length === 0}>
-              <span className="material-symbols-outlined">upload_file</span> {importing ? 'Importando...' : 'Importar'}
+              <span className="material-symbols-outlined">upload_file</span>
+              {importing
+                ? (importProgress ? `Importando ${importProgress.current}/${importProgress.total}...` : 'Importando...')
+                : 'Importar'}
             </button>
           </div>
             </div>

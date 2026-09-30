@@ -241,95 +241,155 @@ export default async function(req: Request): Promise<Response> {
         };
         const defaultPassword = '12345678';
 
+        // Normalize rows once so validation and lookups are cheap.
+        const normalizedRows: Array<{
+          email: string;
+          name: string;
+          documentType: string | null;
+          documentNumber: string;
+          phone: string;
+        }> = [];
+        const seenEmails = new Set<string>();
         for (const row of rows) {
           const email = String(row.email ?? '').trim().toLowerCase();
           const name = String(row.name ?? '').trim();
-          const documentType = normalizeDocumentType(String(row.document_type ?? ''));
           const documentNumber = String(row.document_number ?? '').trim();
-          const phone = String(row.phone ?? '').trim();
-
-          if (!email || !name) {
+          const normalizedRow = {
+            email,
+            name,
+            documentType: normalizeDocumentType(String(row.document_type ?? '')),
+            documentNumber,
+            phone: String(row.phone ?? '').trim()
+          };
+          if (!email && !name) continue;
+          if (seenEmails.has(email)) {
             results.failed++;
-            results.errors.push({ email: email || '(sin correo)', reason: 'Faltan campos obligatorios (nombre y correo)' });
+            results.errors.push({ email: email || '(sin correo)', reason: 'Correo duplicado en el archivo' });
             continue;
           }
+          if (email) seenEmails.add(email);
+          normalizedRows.push(normalizedRow);
+        }
 
-          if (documentNumber && !documentType) {
-            results.failed++;
-            results.errors.push({ email, reason: 'Tipo de documento no válido (use DNI, CE o PASAPORTE)' });
-            continue;
-          }
-
-          const effectiveDocType = documentType || 'DNI';
-
+        if (normalizedRows.length > 0) {
+          // 1) Bulk pre-load: map of emails already registered globally and the set
+          //    of users already linked to this tenant. This avoids one auth lookup
+          //    (and one signUp) per row, which previously made large imports time out.
+          const existingGlobalByEmail = new Map<string, string>();
+          const userEmails = Array.from(seenEmails);
           try {
-            let userId = await resolveUserIdByEmail(email);
+            for (let i = 0; i < userEmails.length; i += 100) {
+              const chunk = userEmails.slice(i, i + 100);
+              if (chunk.length === 0) continue;
+              const { data } = await client.database.from('users_global').select('id, email').in('email', chunk);
+              for (const u of (data || []) as Array<{ id: string; email: string }>) {
+                existingGlobalByEmail.set(String(u.email).toLowerCase(), String(u.id));
+              }
+            }
+          } catch (e) { console.error('bulk users_global lookup error:', e); }
 
-            if (!userId) {
-              const { data: signUpData, error: signUpError } = await client.auth.signUp({
-                email,
-                password: defaultPassword,
-                name,
-                redirectTo: 'https://kytos-hub.vercel.app',
-                autoConfirm: true
-              });
-              userId = signUpData?.user?.id || null;
+          const linkedUserIdSet = new Set<string>();
+          try {
+            const { data } = await client.database.from('tenant_users').select('user_id').eq('tenant_id', importTenantId);
+            for (const u of (data || []) as Array<{ user_id: string }>) linkedUserIdSet.add(String(u.user_id));
+          } catch (e) { console.error('bulk tenant_users lookup error:', e); }
+
+          const processRow = async (row: { email: string; name: string; documentType: string | null; documentNumber: string; phone: string }) => {
+            const { email, name, documentType, documentNumber, phone } = row;
+            if (!email || !name) {
+              results.failed++;
+              results.errors.push({ email: email || '(sin correo)', reason: 'Faltan campos obligatorios (nombre y correo)' });
+              return;
+            }
+            if (documentNumber && !documentType) {
+              results.failed++;
+              results.errors.push({ email, reason: 'Tipo de documento no válido (use DNI, CE o PASAPORTE)' });
+              return;
+            }
+            const effectiveDocType = documentType || 'DNI';
+
+            try {
+              let userId = existingGlobalByEmail.get(email) || null;
+              const isNewAccount = !userId;
+
               if (!userId) {
-                userId = await resolveUserIdByEmail(email);
+                const { data: signUpData, error: signUpError } = await client.auth.signUp({
+                  email,
+                  password: defaultPassword,
+                  name,
+                  redirectTo: 'https://kytos-hub.vercel.app',
+                  autoConfirm: true
+                });
+                userId = signUpData?.user?.id || null;
+                if (!userId) {
+                  userId = await resolveUserIdByEmail(email);
+                }
+                if (!userId) {
+                  throw new Error(signUpError ? signUpError.message : 'No se pudo crear la cuenta');
+                }
               }
-              if (!userId) {
-                throw new Error(signUpError ? signUpError.message : 'No se pudo crear la cuenta');
+
+              if (linkedUserIdSet.has(userId)) {
+                results.skipped++;
+                return;
               }
-            }
 
-            const { data: existing } = await client.database
-              .from('tenant_users')
-              .select('id')
-              .eq('user_id', userId)
-              .eq('tenant_id', importTenantId)
-              .single();
+              if (isNewAccount) {
+                const ugPayload: Record<string, unknown> = {
+                  id: userId,
+                  email,
+                  name,
+                  password_hash: defaultPassword,
+                  is_superadmin: false
+                };
+                if (documentNumber) {
+                  ugPayload.document_type = effectiveDocType;
+                  ugPayload.document_number = documentNumber;
+                }
+                if (phone) ugPayload.phone = phone;
 
-            if (existing) {
-              results.skipped++;
-              continue;
-            }
-
-            const ugPayload: Record<string, unknown> = {
-              id: userId,
-              email,
-              name,
-              password_hash: defaultPassword,
-              is_superadmin: false
-            };
-            if (documentNumber) {
-              ugPayload.document_type = effectiveDocType;
-              ugPayload.document_number = documentNumber;
-            }
-            if (phone) ugPayload.phone = phone;
-
-            const { error: ugError } = await client.database.from('users_global').insert([ugPayload]);
-            if (ugError) {
-              const ugUpdate: Record<string, unknown> = { name };
-              if (documentNumber) {
-                ugUpdate.document_type = effectiveDocType;
-                ugUpdate.document_number = documentNumber;
+                const { error: ugError } = await client.database.from('users_global').insert([ugPayload]);
+                if (ugError) {
+                  const ugUpdate: Record<string, unknown> = { name };
+                  if (documentNumber) {
+                    ugUpdate.document_type = effectiveDocType;
+                    ugUpdate.document_number = documentNumber;
+                  }
+                  if (phone) ugUpdate.phone = phone;
+                  try {
+                    await client.database.from('users_global').update(ugUpdate).eq('id', userId);
+                  } catch (e) { console.error('users_global update error:', e); }
+                }
               }
-              if (phone) ugUpdate.phone = phone;
-              await client.database.from('users_global').update(ugUpdate).eq('id', userId);
+
+              await client.database.from('tenant_users').insert([{
+                tenant_id: importTenantId,
+                user_id: userId,
+                role: 'RESIDENT',
+                status: 'ACTIVE'
+              }]);
+              linkedUserIdSet.add(userId);
+              existingGlobalByEmail.set(email, userId);
+              results.created++;
+            } catch (err) {
+              results.failed++;
+              results.errors.push({ email, reason: err instanceof Error ? err.message : 'Error interno' });
             }
+          };
 
-            await client.database.from('tenant_users').insert([{
-              tenant_id: importTenantId,
-              user_id: userId,
-              role: 'RESIDENT',
-              status: 'ACTIVE'
-            }]);
-
-            results.created++;
-          } catch (err) {
-            results.failed++;
-            results.errors.push({ email, reason: err instanceof Error ? err.message : 'Error interno' });
-          }
+          // 2) Process rows with limited concurrency so large files finish
+          //    before the function timeout.
+          const CONCURRENCY = 6;
+          let cursor = 0;
+          const workers: Promise<void>[] = [];
+          const worker = async () => {
+            while (cursor < normalizedRows.length) {
+              const i = cursor++;
+              await processRow(normalizedRows[i]);
+            }
+          };
+          for (let w = 0; w < Math.min(CONCURRENCY, normalizedRows.length); w++) workers.push(worker());
+          await Promise.all(workers);
         }
 
         return new Response(

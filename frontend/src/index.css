@@ -629,6 +629,49 @@ button:disabled {
   font-size: 0.85rem;
 }
 
+.import-invalid-details {
+  background: #fff8f0;
+  border: 1px solid #f5d49a;
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.9rem;
+  font-size: 0.85rem;
+}
+
+.import-invalid-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #874d00;
+  margin-bottom: 0.35rem;
+}
+
+.import-invalid-title .material-symbols-outlined { font-size: 1.1rem; }
+
+.import-invalid-details ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: #5f4421;
+}
+
+.import-invalid-details li { margin-bottom: 0.2rem; }
+
+.import-invalid-details code {
+  background: #f5ece0;
+  border-radius: 4px;
+  padding: 0.05rem 0.35rem;
+  font-size: 0.8rem;
+}
+
+.import-invalid-email { font-weight: 600; margin: 0 0.35rem; }
+.import-result-total { display: block; margin-top: 0.45rem; color: #45464d; }
+
+html.dark .import-invalid-details { background: #2b2418; border-color: #7a5a22; color: #e5d7bd; }
+html.dark .import-invalid-title { color: #f0c674; }
+html.dark .import-invalid-details ul { color: #d8c4a0; }
+html.dark .import-invalid-details code { background: #3a2f20; color: #e5d7bd; }
+html.dark .import-result-total { color: #c8cad1; }
+
 html.dark .import-summary { background: #333d48; border-color: #333; color: #e5e7eb; }
 html.dark .import-preview thead th { background: #333d48; color: #e5e7eb; }
 html.dark .import-preview th, html.dark .import-preview td { border-color: #333; }
