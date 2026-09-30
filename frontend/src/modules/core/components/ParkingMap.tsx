@@ -19,6 +19,11 @@ export const SPOT_TYPE_SHORT: Record<ParkingSpotType, string> = {
   ALQUILADO: 'A'
 };
 
+export const COCHERA_TYPE_SHORT: Record<'INDIVIDUAL' | 'MULTIPLE', string> = {
+  INDIVIDUAL: 'I',
+  MULTIPLE: 'M'
+};
+
 function spotClass(spot: ParkingSpot): string {
   if (spot.inside || spot.status === 'OCUPADO') return 'plaza-occupied';
   if (spot.type === 'VISITA') return 'plaza-visita';
@@ -114,8 +119,8 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend }: Props) {
                     title={`Plaza ${s.spot_number} · ${SPOT_TYPE_LABELS[s.type] || s.type} · ${spotStateLabel(s)}${s.departments ? ` · ${deptLabel(s.departments)}` : ''}`}
                   >
                     <strong>{s.spot_number}</strong>
-                    {onSpotClick && <small>{SPOT_TYPE_SHORT[s.type] || '·'}</small>}
-                    {s.cochera_type === 'MULTIPLE' && <small className="plaza-cell-multi">Múltiple</small>}
+                    {onSpotClick && <small>{COCHERA_TYPE_SHORT[s.cochera_type || 'MULTIPLE'] ?? 'M'}</small>}
+                    {s.cochera_type === 'INDIVIDUAL' && <small className="plaza-cell-multi">Individual</small>}
                     {s.departments && <small className="plaza-cell-dept">{deptLabel(s.departments)}</small>}
                   </button>
                 ) : (
@@ -129,6 +134,7 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend }: Props) {
 
       {showLegend && (
         <div className="plaza-legend">
+          <span className="plaza-legend-item"><span className="material-symbols-outlined">local_parking</span>M: Múltiple · I: Individual</span>
           <span className="plaza-legend-item plaza-free"><span className="material-symbols-outlined">check_circle</span>Asignada · libre</span>
           <span className="plaza-legend-item plaza-unassigned"><span className="material-symbols-outlined">local_parking</span>Sin asignar</span>
           <span className="plaza-legend-item plaza-occupied"><span className="material-symbols-outlined">directions_car_filled</span>Ocupada</span>
