@@ -56,6 +56,32 @@ export default async function(req: Request): Promise<Response> {
       return json({ success: true, data: stats, error: null }, 200);
     }
 
+    if (action === 'reset') {
+      // Only the global super admin can clear the statistics.
+      if (!(await isGlobalSuperAdmin(req, client))) return forbidden();
+      const db = client.database.schema(schemaName);
+      const area = String(body.area || 'all');
+
+      const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (area === 'parking' || area === 'all') {
+        // Actividad del estacionamiento (accesos, ocupación, préstamos). No toca
+        // spots_total ni vehicles_total, que son datos de registro/config.
+        for (const k of ['access_total', 'access_inside', 'access_entry_today', 'access_exit_total', 'access_exit_today', 'spots_occupied', 'parking_loans_total', 'parking_loans_active']) {
+          update[k] = 0;
+        }
+      }
+      if (area === 'carts' || area === 'all') {
+        for (const k of ['carts_total', 'carts_disponible', 'carts_prestado', 'carts_mantenimiento', 'cart_loans_total', 'cart_loans_active']) {
+          update[k] = 0;
+        }
+      }
+
+      const { error } = await db.from('condo_stats').update(update).eq('id', 1);
+      if (error) throw error;
+      const { data } = await db.from('condo_stats').select('*').eq('id', 1).maybeSingle();
+      return json({ success: true, data: data ? { ...DEFAULT_STATS, ...data } : DEFAULT_STATS, error: null }, 200);
+    }
+
     return json({ success: false, data: null, error: { code: 'METHOD_NOT_ALLOWED', message: 'Acción desconocida' } }, 405);
   } catch (error) {
     console.error('Error in condo-stats:', error);
@@ -81,6 +107,19 @@ async function isAdminForSchema(req: Request, client: ReturnType<typeof createAd
 
     const { data: tu } = await client.database.from('tenant_users').select('id').eq('user_id', uid).eq('tenant_id', tenantId).eq('status', 'ACTIVE').in('role', ['SUPER_ADMIN', 'ADMIN']).single();
     return Boolean(tu);
+  } catch { return false; }
+}
+
+async function isGlobalSuperAdmin(req: Request, client: ReturnType<typeof createAdminClient>): Promise<boolean> {
+  const auth = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
+  if (!auth) return false;
+  try {
+    const userClient = createClient({ baseUrl: Deno.env.get('INSFORGE_BASE_URL'), accessToken: auth });
+    const { data } = await userClient.auth.getCurrentUser();
+    const uid = data?.user?.id;
+    if (!uid) return false;
+    const { data: ug } = await client.database.from('users_global').select('is_superadmin').eq('id', uid).single();
+    return Boolean(ug && (ug as { is_superadmin: boolean }).is_superadmin);
   } catch { return false; }
 }
 

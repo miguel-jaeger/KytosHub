@@ -1,9 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../../../contexts/AuthContext';
+import { SUPER_ADMIN_EMAIL } from '../../../hooks/useUserRole';
 import { useCondoStats } from '../hooks/useCondoStats';
 import { ParkingLogsTab } from './ParkingLogsTab';
 
 export function ParkingStatsTab({ schemaName }: { schemaName?: string }) {
-  const { getStats } = useCondoStats();
+  const { getStats, resetStats } = useCondoStats();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
   const [stats, setStats] = useState<{
     access_total: number;
     access_inside: number;
@@ -15,6 +19,8 @@ export function ParkingStatsTab({ schemaName }: { schemaName?: string }) {
     parking_loans_active: number;
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [resetting, setResetting] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!schemaName) { setLoading(false); return; }
@@ -40,12 +46,45 @@ export function ParkingStatsTab({ schemaName }: { schemaName?: string }) {
 
   useEffect(() => { void load(); }, [load]);
 
+  const handleResetStats = async () => {
+    if (!schemaName) return;
+    if (!confirm('¿Limpiar las estadísticas del estacionamiento y de los carritos? Se pondrán los contadores en cero (accesos, ocupación, préstamos y carritos). Esta acción no se puede deshacer.')) return;
+    setResetting(true);
+    setMessage(null);
+    try {
+      const s = await resetStats(schemaName, 'all');
+      setStats({
+        access_total: s.access_total,
+        access_inside: s.access_inside,
+        access_entry_today: s.access_entry_today,
+        access_exit_total: s.access_exit_total,
+        vehicles_total: s.vehicles_total,
+        spots_total: s.spots_total,
+        spots_occupied: s.spots_occupied,
+        parking_loans_active: s.parking_loans_active
+      });
+      setMessage('Estadísticas limpiadas.');
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'No se pudieron limpiar las estadísticas');
+    } finally {
+      setResetting(false);
+    }
+  };
+
   return (
     <div className="parking-stats">
       <div className="modules-header">
         <h3>Estadísticas del Estacionamiento</h3>
         <small>Solo para administración. Resumen de accesos, padrón de vehículos y préstamos vigentes.</small>
+        {isSuperAdmin && (
+          <button className="btn-cancel users-bulk-delete" onClick={handleResetStats} disabled={resetting}>
+            {resetting ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">delete_sweep</span>}
+            {resetting ? 'Limpiando...' : 'Limpiar estadísticas'}
+          </button>
+        )}
       </div>
+
+      {message && <div className="success-message" onClick={() => setMessage(null)}>{message} — clic para cerrar</div>}
 
       {loading || !stats ? (
         <div className="loading-message">Cargando estadísticas...</div>

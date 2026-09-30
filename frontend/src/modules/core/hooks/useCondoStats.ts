@@ -13,5 +13,15 @@ export function useCondoStats() {
     return data.data;
   }, []);
 
-  return { getStats };
+  const resetStats = useCallback(async (schemaName: string, area: 'parking' | 'carts' | 'all'): Promise<CondoStats> => {
+    const { data, error } = await invokeFunction<{ success: boolean; data: CondoStats | null; error: { message: string } | null }>('condo-stats', {
+      method: 'POST',
+      body: { action: 'reset', schema_name: schemaName, area }
+    });
+    if (error) throw error;
+    if (!data?.success || !data.data) throw new Error(data?.error?.message || 'No se pudieron limpiar las estadísticas');
+    return data.data;
+  }, []);
+
+  return { getStats, resetStats };
 }

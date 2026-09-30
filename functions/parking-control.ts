@@ -58,12 +58,16 @@ export default async function(req: Request): Promise<Response> {
 
       case 'get-layout': {
         const layout = await getLayoutConfig(db);
-        const { count } = await db.from('parking_spots').select('*', { count: 'exact', head: true });
-        // Return null when there is no persisted layout so the frontend does not
-        // mistake a "no layout" response for a valid one and corrupt the form.
+        // Total reflect the configured layout (sum of spots per row), not the raw
+        // parking_spots row count (which includes leftovers from older layouts).
+        const spotsTotal = layout
+          ? (Array.isArray(layout.spots_per_row)
+              ? layout.spots_per_row.reduce((a, b) => a + b, 0)
+              : layout.spots_per_row * layout.rows)
+          : 0;
         return json({
           success: true,
-          data: layout ? { ...layout, total_spots: (count || 0) } : null,
+          data: layout ? { ...layout, total_spots: spotsTotal } : null,
           error: null
         }, 200);
       }
