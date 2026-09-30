@@ -136,6 +136,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
   while (perRowCounts.length < rows) perRowCounts.push(1);
   const effectiveCounts = perRowCounts.slice(0, rows);
   const totalExpected = effectiveCounts.reduce((a, b) => a + b, 0);
+  const previewLayout = layout ? { ...layout, orientation } : null;
 
   const handleRowsChange = (value: string) => {
     setRowsInput(value);
@@ -292,7 +293,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
             <h4>Mapa de plazas</h4>
             <small>Haz clic en una plaza para asignar su tipo o departamento (plazas propias).</small>
           </div>
-          <ParkingMap spots={spots} layout={layout} onSpotClick={startSpotEdit} showLegend />
+          <ParkingMap spots={spots} layout={previewLayout} onSpotClick={startSpotEdit} showLegend />
         </div>
       )}
       {spots.length === 0 && (

@@ -147,7 +147,9 @@ export default async function(req: Request): Promise<Response> {
           spot_number: spotNumber,
           type,
           department_id: body.department_id || null,
-          status: body.status === 'OCUPADO' ? 'OCUPADO' : 'DISPONIBLE'
+          status: body.status === 'OCUPADO' ? 'OCUPADO' : 'DISPONIBLE',
+          spot_row: Number.isInteger(Number(body.spot_row)) ? Number(body.spot_row) : null,
+          spot_index: Number.isInteger(Number(body.spot_index)) ? Number(body.spot_index) : null
         }]).select().single();
         if (error) throw error;
         const enriched = (await enrichSpots(db, [data]))[0];

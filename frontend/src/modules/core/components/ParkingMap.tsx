@@ -51,31 +51,45 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend }: Props) {
     return layout.spots_per_row;
   };
 
-  // If we have a persisted layout, render rows x columns map
+  // Trust the persisted layout (rows + counts) as the source of truth for the map,
+  // regardless of whether individual spots carry spot_row/spot_index.
   const hasLayout = Boolean(
     layout && layout.rows > 0 &&
-    (Array.isArray(layout.spots_per_row) ? layout.spots_per_row.length > 0 : layout.spots_per_row > 0) &&
-    (spots[0]?.spot_row != null || spots[0]?.spot_index != null)
+    (Array.isArray(layout.spots_per_row) ? layout.spots_per_row.length > 0 : layout.spots_per_row > 0)
   );
   const spotByPos = new Map<string, ParkingSpot>();
+  const unpositioned: ParkingSpot[] = [];
   for (const s of spots) {
     if (s.spot_row != null && s.spot_index != null) spotByPos.set(`${s.spot_row}-${s.spot_index}`, s);
+    else unpositioned.push(s);
   }
 
   const rows = hasLayout ? layout!.rows : 1;
   const rowNames = hasLayout && Array.isArray(layout!.row_names) ? layout!.row_names! : [];
-  const vertical = hasLayout && layout!.orientation === 'VERTICAL';
+  const vertical = hasLayout && (layout as ParkingLayout).orientation === 'VERTICAL';
 
-  const placed = [...Array(rows)].map((_, r) => {
-    const row = r + 1;
-    const cols = hasLayout ? countsForRow(row) : (spots.filter(s => s.spot_row === row).length || spots.length);
-    const rowSpots: (ParkingSpot | null)[] = [];
-    for (let c = 1; c <= cols; c++) {
-      const s = hasLayout ? spotByPos.get(`${row}-${c}`) : spots.find(x => x.spot_index === c || x.spot_row === row);
-      rowSpots.push(s || null);
+  let placed: (ParkingSpot | null)[][];
+  if (hasLayout) {
+    placed = [...Array(rows)].map((_, r) => {
+      const row = r + 1;
+      const cols = countsForRow(row);
+      const rowSpots: (ParkingSpot | null)[] = [];
+      for (let c = 1; c <= cols; c++) {
+        rowSpots.push(spotByPos.get(`${row}-${c}`) || null);
+      }
+      return rowSpots;
+    });
+    // Fill spots without a persisted row/index (created manually) into empty cells
+    // sequentially, so the saved layout is always respected.
+    let ui = 0;
+    for (const rowSpots of placed) {
+      for (let c = 0; c < rowSpots.length && ui < unpositioned.length; c++) {
+        if (!rowSpots[c]) rowSpots[c] = unpositioned[ui++];
+      }
     }
-    return rowSpots;
-  });
+  } else {
+    placed = [spots.map(s => s)];
+  }
 
   return (
     <div className="plaza-map">
