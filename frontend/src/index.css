@@ -3198,7 +3198,7 @@ html.dark .plaza-cell-highlight { outline-color: #f0c674; box-shadow: 0 0 0 5px 
 .plaza-occupied { background: #c62828; }
 .plaza-visita { background: #2f80ed; }
 .plaza-rented { background: #e8890c; }
-.plaza-unassigned { background: #9aa0aa; }
+.plaza-unassigned { background: #f2a007; }
 .plaza-legend {
   display: flex;
   flex-wrap: wrap;
@@ -3226,9 +3226,9 @@ html.dark .plaza-cell-highlight { outline-color: #f0c674; box-shadow: 0 0 0 5px 
 .plaza-legend-item.plaza-free::before { background: #2e9e63; }
 .plaza-legend-item.plaza-free .material-symbols-outlined { color: #2e9e63; }
 .plaza-legend-item.plaza-free { border-color: #a7dcbf; background: #f1faf4; }
-.plaza-legend-item.plaza-unassigned::before { background: #8d959f; }
-.plaza-legend-item.plaza-unassigned .material-symbols-outlined { color: #8d959f; }
-.plaza-legend-item.plaza-unassigned { border-color: #c9ced6; background: #f2f4f6; }
+.plaza-legend-item.plaza-unassigned::before { background: #f2a007; }
+.plaza-legend-item.plaza-unassigned .material-symbols-outlined { color: #b87700; }
+.plaza-legend-item.plaza-unassigned { border-color: #f0d9a8; background: #fff8ec; }
 .plaza-legend-item.plaza-occupied::before { background: #c62828; }
 .plaza-legend-item.plaza-occupied .material-symbols-outlined { color: #c62828; }
 .plaza-legend-item.plaza-occupied { border-color: #efb0ad; background: #fdf2f1; }
@@ -3249,9 +3249,17 @@ html.dark .plaza-legend-item.plaza-rented { background: #2b2212; border-color: #
 .plaza-total-preview { display: flex; align-items: center; font-size: 0.9rem; color: #45464d; }
 .plaza-total-preview strong { font-size: 1.2rem; color: #006c49; margin: 0 0.35rem; }
 .plaza-assign-stats { display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem; margin-top: 0.4rem; font-size: 0.82rem; color: #45464d; }
+.plaza-assign-stats span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.plaza-assign-stats i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
 .plaza-assign-stats strong { color: #0b1c30; }
+.plaza-stat-assigned i { background: #2e9e63; }
+.plaza-stat-assigned strong { color: #1f7a4a; }
+.plaza-stat-available i { background: #f2a007; }
+.plaza-stat-available strong { color: #b87700; }
 html.dark .plaza-assign-stats { color: #9ca3af; }
 html.dark .plaza-assign-stats strong { color: #e5e7eb; }
+html.dark .plaza-stat-assigned strong { color: #69db7c; }
+html.dark .plaza-stat-available strong { color: #f0c674; }
 .parking-layout-config .form-actions { flex-wrap: wrap; gap: 0.5rem; }
 .parking-layout-config .form-actions small { width: 100%; }
 .plaza-per-row-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr)); gap: 0.6rem; margin-bottom: 0.75rem; }

@@ -331,8 +331,8 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
             <div className="plaza-total-preview"><strong>{totalExpected}</strong> plazas · numeración 01…{String(totalExpected).padStart(Math.max(2, String(totalExpected).length), '0')}</div>
             {spots.length > 0 && (
               <div className="plaza-assign-stats">
-                <span>Asignadas: <strong>{assignedCount}</strong></span>
-                <span>Disponibles: <strong>{availableCount}</strong></span>
+                <span className="plaza-stat-assigned"><i />Asignadas: <strong>{assignedCount}</strong></span>
+                <span className="plaza-stat-available"><i />Disponibles: <strong>{availableCount}</strong></span>
               </div>
             )}
           </div>
