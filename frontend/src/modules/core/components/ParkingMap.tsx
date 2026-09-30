@@ -120,7 +120,6 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend }: Props) {
                   >
                     <strong>{s.spot_number}</strong>
                     {onSpotClick && <small>{COCHERA_TYPE_SHORT[s.cochera_type || 'MULTIPLE'] ?? 'M'}</small>}
-                    {s.cochera_type === 'INDIVIDUAL' && <small className="plaza-cell-multi">Individual</small>}
                     {s.departments && <small className="plaza-cell-dept">{deptLabel(s.departments)}</small>}
                   </button>
                 ) : (
