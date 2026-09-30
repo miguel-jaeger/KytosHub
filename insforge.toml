@@ -1,5 +1,5 @@
 [auth]
-allowed_redirect_urls = ["https://kytos-hub.vercel.app", "http://localhost:3000", "http://localhost:5173"]
+allowed_redirect_urls = ["https://kytos-hub.vercel.app", "https://5vvsyy6z.insforge.site", "http://localhost:3000", "http://localhost:5173"]
 require_email_verification = true
 verify_email_method = "code"
 reset_password_method = "code"
