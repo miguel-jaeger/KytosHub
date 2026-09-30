@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import { useParking } from '../hooks/useParking';
 import { PaginationBar, paginate } from '../../../components/Pagination';
@@ -22,6 +22,19 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
 
   const [spotId, setSpotId] = useState('');
   const [deptId, setDeptId] = useState('');
+  const [spotSearch, setSpotSearch] = useState('');
+  const [spotDropdownOpen, setSpotDropdownOpen] = useState(false);
+  const spotPickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (spotPickerRef.current && !spotPickerRef.current.contains(e.target as Node)) {
+        setSpotDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const [towers, setTowers] = useState<Tower[]>([]);
 
@@ -72,10 +85,15 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
     setSpotId(id);
     const sp = spots.find(s => s.id === id);
     setDeptId(sp?.department_id || '');
-    if (sp?.departments?.owner_name) {
-      setVehicleForm(prev => prev.driver_name.trim() ? prev : { ...prev, driver_name: sp.departments!.owner_name! });
-    }
+    setSpotSearch(sp ? `Cochera ${sp.spot_number}` : '');
+    setSpotDropdownOpen(false);
   };
+
+  const assignedSpots = spots.filter(s => s.department_id);
+  const spotQuery = spotSearch.trim().toLowerCase();
+  const filteredSpots = spotQuery
+    ? assignedSpots.filter(s => s.spot_number.toLowerCase().includes(spotQuery) || String(s.spot_row ?? '').includes(spotQuery))
+    : assignedSpots;
 
   const loadFilterFloors = async (tid: string) => {
     if (!schemaName) return;
@@ -239,23 +257,35 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
             <p className="cart-checkout-hint">Vehículo de : {editingVehicle.departments ? `${editingVehicle.departments.department_number} (T ${editingVehicle.departments.towers?.code || '-'})` : '-'} — solo editas los datos del vehículo.</p>
           ) : (
             <>
-              <p className="cart-checkout-hint">Selecciona la cochera del vehículo: el departamento se toma de la cochera configurada y el nombre del conductor se carga del dueño de la cochera (puedes completarlo o corregirlo).</p>
+              <p className="cart-checkout-hint">Busca y selecciona la cochera del vehículo. El departamento se toma de la cochera configurada y el conductor lo completas en el campo Conductor.</p>
 
               <div className="form-group">
                 <label>Cochera del vehículo</label>
-                <select value={spotId} onChange={e => selectSpot(e.target.value)} autoFocus>
-                  <option value="">Selecciona una cochera...</option>
-                  {spots.filter(s => s.department_id).map(s => {
-                    const assigned = s.departments?.department_number;
-                    const owner = s.departments?.owner_name;
-                    return (
-                      <option key={s.id} value={s.id}>
-                        Cochera {s.spot_number}{assigned ? ` · Dpto ${assigned}${s.departments?.towers?.code ? ` (T${s.departments.towers.code})` : ''}` : ''}{owner ? ` · ${owner}` : ''}
-                      </option>
-                    );
-                  })}
-                </select>
-                {spots.filter(s => s.department_id).length === 0 && (
+                <div className="search-bar condo-picker" ref={spotPickerRef}>
+                  <input
+                    type="text"
+                    value={spotSearch}
+                    placeholder="Buscar cochera (ej. 01, 3)..."
+                    autoFocus
+                    onFocus={() => setSpotDropdownOpen(true)}
+                    onChange={e => { setSpotSearch(e.target.value); setSpotDropdownOpen(true); }}
+                  />
+                  {spotDropdownOpen && (
+                    <div className="condo-picker-dropdown">
+                      {filteredSpots.length === 0 ? (
+                        <div className="condo-picker-empty">Sin resultados</div>
+                      ) : (
+                        filteredSpots.map(s => (
+                          <button key={s.id} type="button" className={`condo-picker-item ${spotId === s.id ? 'selected' : ''}`} onClick={() => selectSpot(s.id)}>
+                            <span className="material-symbols-outlined">local_parking</span>
+                            <span>Cochera {s.spot_number}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+                {assignedSpots.length === 0 && (
                   <small className="text-muted">No hay cocheras asignadas a departamentos. Primero asigna la cochera a un departamento en la configuración del estacionamiento.</small>
                 )}
               </div>
@@ -263,9 +293,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
               {spotId && (() => {
                 const sp = spots.find(s => s.id === spotId);
                 return sp?.department_id ? (
-                  <span className="checkout-hint-inline">
-                    Cochera {sp.spot_number} · Dpto {sp.departments?.department_number || ''} · {sp.departments?.owner_name || 'sin dueño registrado'}
-                  </span>
+                  <span className="checkout-hint-inline">Cochera {sp.spot_number} seleccionada.</span>
                 ) : (
                   <span className="checkout-hint-inline">Cochera sin departamento asignado.</span>
                 );
@@ -273,18 +301,16 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
             </>
           )}
 
-          <div className="form-row">
-            <div className="form-group">
-              <label>Placa</label>
-              <input type="text" value={vehicleForm.license_plate} onChange={e => setVehicleForm({ ...vehicleForm, license_plate: e.target.value })} placeholder="ABC-123" autoFocus />
-            </div>
-            <div className="form-group">
+          <div className="form-group">
               <label>Tipo de vehículo</label>
               <select value={vehicleForm.vehicle_type} onChange={e => setVehicleForm({ ...vehicleForm, vehicle_type: e.target.value as VehicleType })}>
                 {Object.entries(VEHICLE_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
-          </div>
+            <div className="form-group">
+              <label>Placa</label>
+              <input type="text" value={vehicleForm.license_plate} onChange={e => setVehicleForm({ ...vehicleForm, license_plate: e.target.value })} placeholder="ABC-123" />
+            </div>
           <div className="form-row">
             <div className="form-group">
               <label>Conductor (dueño o responsable)</label>
