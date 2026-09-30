@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
-import { useAuth } from '../../../contexts/AuthContext';
-import { SUPER_ADMIN_EMAIL } from '../../../hooks/useUserRole';
 import { useCartLending } from '../hooks/useCartLending';
 import { useCondoGates } from '../hooks/useCondoGates';
 import { useCondoStats } from '../hooks/useCondoStats';
@@ -52,9 +50,7 @@ interface FinesFilters {
 const emptyFilters: FinesFilters = { start_date: '', end_date: '', tower_id: '', floor_id: '', department_id: '' };
 
 export function CartLendingManager({ schemaName }: { schemaName?: string }) {
-  const { user } = useAuth();
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const { getStats, clearHistory } = useCondoStats();
+  const { clearHistory } = useCondoStats();
   const { listCarts, createCart, updateCart, deleteCart, listLoans, finesSummary, updateFineStatus } = useCartLending();
   const { list: listGates } = useCondoGates();
   const [carts, setCarts] = useState<Cart[]>([]);
@@ -111,10 +107,6 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
       try {
         await loadCarts();
         await loadLoans();
-        try {
-          const st = await getStats(schemaName);
-          setIsSuperAdmin(st.is_superadmin === true || user?.email === SUPER_ADMIN_EMAIL);
-        } catch { setIsSuperAdmin(user?.email === SUPER_ADMIN_EMAIL); }
         setGates(await listGates(schemaName));
         const towerRes = await invokeFunction<{ success: boolean; data: Tower[] | null }>('towers', { method: 'POST', body: { action: 'list', schema_name: schemaName } });
         if (cancelled) return;
@@ -441,24 +433,20 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
 
       {tab === 'stats' && (
         <div className="cart-estado">
-          {isSuperAdmin && (
-            <>
-              {cartMsg && <div className="success-message" onClick={() => setCartMsg(null)}>{cartMsg} — clic para cerrar</div>}
-              <div className="history-tools">
-                <div className="history-tools-title">
-                  <span className="material-symbols-outlined">delete_forever</span>
-                  <strong>Registros de carritos (solo super admin)</strong>
-                </div>
-                <div className="history-tools-actions">
-                  <button className="btn-cancel users-bulk-delete" onClick={handleClearCartHistory} disabled={deletingCarts}>
-                    {deletingCarts ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">luggage</span>}
-                    {deletingCarts ? 'Eliminando...' : 'Eliminar registros de carritos'}
-                  </button>
-                </div>
-                <small className="text-muted">Borra préstamos y multas de carritos y libera los carritos. No se puede deshacer.</small>
-              </div>
-            </>
-          )}
+          {cartMsg && <div className="success-message" onClick={() => setCartMsg(null)}>{cartMsg} — clic para cerrar</div>}
+          <div className="history-tools">
+            <div className="history-tools-title">
+              <span className="material-symbols-outlined">delete_forever</span>
+              <strong>Registros de carritos (solo disponible para super admin)</strong>
+            </div>
+            <div className="history-tools-actions">
+              <button className="btn-cancel users-bulk-delete" onClick={handleClearCartHistory} disabled={deletingCarts}>
+                {deletingCarts ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">luggage</span>}
+                {deletingCarts ? 'Eliminando...' : 'Eliminar registros de carritos'}
+              </button>
+            </div>
+            <small className="text-muted">Borra préstamos y multas de carritos y libera los carritos. Solo el super admin puede ejecutarlo. No se puede deshacer.</small>
+          </div>
           <div className="cart-kpi-row">
             <div className="cart-kpi"><span className="material-symbols-outlined">shopping_cart</span><strong>{carts.length}</strong> carritos</div>
             <div className="cart-kpi cart-kpi-dispo"><span className="material-symbols-outlined">check_circle</span><strong>{disponibles}</strong> disponibles</div>
