@@ -94,17 +94,40 @@ export default async function(req: Request): Promise<Response> {
           const existingEmails = new Set(
             (residents as Array<{ email?: string | null }>).map(r => String(r.email || '').toLowerCase()).filter(Boolean)
           );
+          // The document (DNI / CE / Pasaporte) is the unique identity, so a global
+          // user whose document already belongs to a resident must NOT be listed again.
+          const existingDocs = new Set(
+            (residents as Array<{ document_type?: string | null; document_number?: string | null }>)
+              .filter(r => r.document_number)
+              .map(r => `${String(r.document_type || 'DNI').trim().toUpperCase()}:${String(r.document_number).trim().toLowerCase()}`)
+          );
+          const existingUserIds = new Set(
+            (residents as Array<{ user_id?: string | null }>).map(r => String(r.user_id || '')).filter(Boolean)
+          );
+
+          const userDocKey = (docType?: string | null, docNumber?: string | null): string | null => {
+            if (!docNumber) return null;
+            return `${String(docType || 'DNI').trim().toUpperCase()}:${String(docNumber).trim().toLowerCase()}`;
+          };
+          const skipOrTrack = (ug: { user_id?: string | null; email?: string | null; document_type?: string | null; document_number?: string | null }): boolean => {
+            if (ug.user_id && existingUserIds.has(String(ug.user_id))) return true;
+            const dk = userDocKey(ug.document_type, ug.document_number);
+            if (dk && existingDocs.has(dk)) return true;
+            const email = String(ug.email || '').toLowerCase();
+            if (email && existingEmails.has(email)) return true;
+            if (email) existingEmails.add(email);
+            if (dk) existingDocs.add(dk);
+            if (ug.user_id) existingUserIds.add(String(ug.user_id));
+            return false;
+          };
 
           if (body.all_users) {
             // Super admin: search across ALL global users (users_global), not only this condominium's
             try {
               const { data: allUsers } = await client.database.from('users_global').select('id, email, name, document_type, document_number, phone');
               for (const ug of (allUsers || []) as Array<{ id: string; email?: string; name?: string; document_type?: string; document_number?: string; phone?: string }>) {
-                const existing = residents.find((r: Record<string, unknown>) => r.user_id === ug.id);
-                if (existing) continue;
+                if (skipOrTrack(ug)) continue;
                 const email = String(ug.email || '').toLowerCase();
-                if (email && existingEmails.has(email)) continue;
-                if (email) existingEmails.add(email);
                 found.push({
                   id: null,
                   user_id: ug.id,
@@ -126,8 +149,6 @@ export default async function(req: Request): Promise<Response> {
             const tenantId = body.tenant_id as string;
             const { data: tuRows } = await client.database.from('tenant_users').select('user_id, role').eq('tenant_id', tenantId).eq('status', 'ACTIVE');
             for (const tu of (tuRows || []) as Array<{ user_id: string; role: string }>) {
-              const existing = residents.find((r: Record<string, unknown>) => r.user_id === tu.user_id);
-              if (existing) continue;
               let email = '';
               let name = '';
               let docType = '';
@@ -141,8 +162,7 @@ export default async function(req: Request): Promise<Response> {
                 docNumber = String((ug as { document_number?: string } | null)?.document_number || '');
                 phone = String((ug as { phone?: string } | null)?.phone || '');
               } catch {}
-              if (email && existingEmails.has(email.toLowerCase())) continue;
-              if (email) existingEmails.add(email.toLowerCase());
+              if (skipOrTrack({ user_id: tu.user_id, email, document_type: docType || null, document_number: docNumber || null })) continue;
               found.push({
                 id: null,
                 user_id: tu.user_id,
