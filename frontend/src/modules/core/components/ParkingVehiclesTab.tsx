@@ -7,6 +7,14 @@ import type { Department, Floor, ParkingSpot, Tower, Vehicle, VehicleType } from
 const emptyVehicleForm = { license_plate: '', vehicle_type: 'AUTO' as VehicleType, driver_name: '', brand: '', model: '', color: '' };
 const VEHICLE_TYPE_LABELS: Record<VehicleType, string> = { AUTO: 'Auto', MOTO: 'Moto' };
 
+// Formato del departamento: T<torre>-<departamento> (el piso ya va en el número).
+function deptLabelV(departments?: { department_number?: string; towers?: { code?: string } }): string {
+  if (!departments?.department_number) return '-';
+  const code = departments.towers?.code;
+  if (!code) return departments.department_number;
+  return `${/^T/i.test(code) ? code : `T${code}`}-${departments.department_number}`;
+}
+
 export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
   const { listVehicles, createVehicle, updateVehicle, deleteVehicle, listSpots } = useParking();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -264,7 +272,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
             <div className="modal-body">
 
           {editingVehicle ? (
-            <p className="cart-checkout-hint">Vehículo de : {editingVehicle.departments ? `${editingVehicle.departments.department_number} (T ${editingVehicle.departments.towers?.code || '-'})` : '-'} — solo editas los datos del vehículo.</p>
+            <p className="cart-checkout-hint">Vehículo de : {deptLabelV(editingVehicle.departments)} — solo editas los datos del vehículo.</p>
           ) : (
             <>
               <p className="cart-checkout-hint">Busca y selecciona la cochera del vehículo. El departamento se toma de la cochera y el nombre del conductor se rellena por defecto con el propietario de la cochera (puedes cambiarlo).</p>
@@ -415,7 +423,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
                 <td>{(VEHICLE_TYPE_LABELS[v.vehicle_type] || v.vehicle_type)}{(v.model || v.brand) ? ` · ${v.model || v.brand}` : ''}</td>
                 <td>{v.driver_name || <span className="text-muted">Sin conductor</span>}</td>
                 <td>{v.color || '-'}</td>
-                <td>{v.departments ? `${v.departments.department_number} (T${v.departments.towers?.code || '-'} · P${v.departments.floor_number ?? '-'})` : '-'}</td>
+                <td>{deptLabelV(v.departments)}</td>
                 <td>{v.occupied_spot ? `Cochera ${v.occupied_spot}` : (v.departments?.spots?.length ? v.departments.spots.map(s => `Cochera ${s}`).join(', ') : '-')}</td>
                 <td><span className={`status-badge ${v.is_active ? 'status-occupied' : 'status-vacant'}`}>{v.is_active ? 'Activo' : 'Inactivo'}</span></td>
                 <td>
