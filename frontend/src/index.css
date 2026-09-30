@@ -745,8 +745,12 @@ html.dark .import-result-total { color: #c8cad1; }
 html.dark .import-summary { background: #333d48; border-color: #333; color: #e5e7eb; }
 html.dark .import-preview thead th { background: #333d48; color: #e5e7eb; }
 html.dark .import-preview th, html.dark .import-preview td { border-color: #333; }
-html.dark .import-result { background: #1a2e1a; border-color: #2f4a2f; }
+html.dark .import-preview td { color: #c8cad1; }
+html.dark .import-preview-more { color: #9ca3af; }
+html.dark .import-result { background: #1a2e1a; border-color: #2f4a2f; color: #e5e7eb; }
 html.dark .import-result-count { color: #e5e7eb; }
+html.dark .import-result-errors { color: #ff8a8a; }
+html.dark .import-result .text-muted { color: #9ca3af; }
 
 table {
   width: 100%;
