@@ -244,6 +244,7 @@ export default async function(req: Request): Promise<Response> {
 
         const results = {
           created: 0,
+          linked: 0,
           skipped: 0,
           existing: 0,
           failed: 0,
@@ -339,15 +340,17 @@ export default async function(req: Request): Promise<Response> {
             }
             const effectiveDocType = documentType || 'DNI';
 
-            // Uniqueness checks: the document (DNI / CE / Pasaporte) is unique, so if
-            // someone already holds it (or the email already exists), the user already
-            // exists and we just notify it at the end instead of creating a duplicate.
+            // Identity resolution: a person is identified by email and by the unique
+            // document (DNI / CE / Pasaporte). If someone already registered the
+            // document under a different account it is a duplicate; otherwise the
+            // existing global account gets linked to this condominium when it is not
+            // already linked, so re-importing after deleting a user works again.
             const existingDoc = documentNumber
               ? existingGlobalByDoc.get(documentKey(effectiveDocType, documentNumber))
               : undefined;
             const existingEmailId = existingGlobalByEmail.get(email);
 
-            if (existingDoc && existingDoc.email !== email) {
+            if (existingDoc && existingDoc.email !== email && existingEmailId !== existingDoc.userId) {
               results.existing++;
               results.errors.push({
                 email,
@@ -355,32 +358,47 @@ export default async function(req: Request): Promise<Response> {
               });
               return;
             }
-            if (existingDoc || existingEmailId) {
-              results.existing++;
-              results.errors.push({ email, reason: existingDoc ? 'Ya existe un usuario con ese documento' : 'Ya existe un usuario con ese correo' });
-              return;
-            }
+
+            let targetUserId = existingEmailId || null;
+            if (!targetUserId && existingDoc) targetUserId = existingDoc.userId;
 
             try {
-              let userId = existingGlobalByEmail.get(email) || null;
-
-              if (!userId) {
-                const { data: signUpData, error: signUpError } = await client.auth.signUp({
-                  email,
-                  password: defaultPassword,
-                  name,
-                  redirectTo: 'https://kytos-hub.vercel.app',
-                  autoConfirm: true
-                });
-                userId = signUpData?.user?.id || null;
-                if (!userId) {
-                  userId = await resolveUserIdByEmail(email);
+              // 1) The person already has a global account -> link it to this
+              //    condominium (or notify if it is already linked).
+              if (targetUserId) {
+                if (linkedUserIdSet.has(targetUserId)) {
+                  results.existing++;
+                  results.errors.push({ email, reason: 'Ya existe un usuario con ese correo en este condominio' });
+                  return;
                 }
-                if (!userId) {
-                  throw new Error(signUpError ? signUpError.message : 'No se pudo crear la cuenta');
-                }
+                await client.database.from('tenant_users').insert([{
+                  tenant_id: importTenantId,
+                  user_id: targetUserId,
+                  role: 'RESIDENT',
+                  status: 'ACTIVE'
+                }]);
+                linkedUserIdSet.add(targetUserId);
+                existingGlobalByEmail.set(email, targetUserId);
+                if (documentNumber) existingGlobalByDoc.set(documentKey(effectiveDocType, documentNumber), { userId: targetUserId, email });
+                results.linked++;
+                return;
               }
 
+              // 2) Brand new account.
+              const { data: signUpData, error: signUpError } = await client.auth.signUp({
+                email,
+                password: defaultPassword,
+                name,
+                redirectTo: 'https://kytos-hub.vercel.app',
+                autoConfirm: true
+              });
+              let userId = signUpData?.user?.id || null;
+              if (!userId) {
+                userId = await resolveUserIdByEmail(email);
+              }
+              if (!userId) {
+                throw new Error(signUpError ? signUpError.message : 'No se pudo crear la cuenta');
+              }
               if (linkedUserIdSet.has(userId)) {
                 results.existing++;
                 results.errors.push({ email, reason: 'Ya existe un usuario con ese correo en este condominio' });

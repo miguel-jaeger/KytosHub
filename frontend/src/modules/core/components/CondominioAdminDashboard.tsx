@@ -55,6 +55,7 @@ interface ImportColumnIndexes {
 
 interface ImportResult {
   created: number;
+  linked?: number;
   skipped: number;
   existing?: number;
   failed: number;
@@ -647,7 +648,7 @@ export function CondominioAdminDashboard() {
     setImporting(true);
     setImportParseError(null);
     setImportResult(null);
-const results: ImportResult = { created: 0, skipped: 0, existing: 0, failed: 0, errors: [] };
+const results: ImportResult = { created: 0, linked: 0, skipped: 0, existing: 0, failed: 0, errors: [] };
     try {
       // Envío por lotes para que ninguna llamada exceda el límite de 30s de la
       // función; cada lote completo se acumula en el resumen final.
@@ -663,6 +664,7 @@ const results: ImportResult = { created: 0, skipped: 0, existing: 0, failed: 0, 
         if (!data?.success || !data.data) throw new Error(data?.error?.message || 'Error al importar usuarios');
         const r = data.data;
         results.created += r.created;
+        results.linked = (results.linked || 0) + (r.linked || 0);
         results.skipped += r.skipped;
         results.existing = (results.existing || 0) + (r.existing || 0);
         results.failed += r.failed;
@@ -1143,6 +1145,9 @@ const results: ImportResult = { created: 0, skipped: 0, existing: 0, failed: 0, 
             <div className="import-result">
               <div className="import-result-summary">
                 <div className="import-result-count"><span className="material-symbols-outlined">check_circle</span><span><strong>{importResult.created}</strong> importado(s)</span></div>
+                {(importResult.linked || 0) > 0 && (
+                  <div className="import-result-count"><span className="material-symbols-outlined">link</span><span><strong>{importResult.linked}</strong> vinculado(s) (ya tenían cuenta)</span></div>
+                )}
                 {(importResult.existing || 0) > 0 && (
                   <div className="import-result-count"><span className="material-symbols-outlined">person_off</span><span><strong>{importResult.existing}</strong> ya existía(n)</span></div>
                 )}
@@ -1153,7 +1158,7 @@ const results: ImportResult = { created: 0, skipped: 0, existing: 0, failed: 0, 
                   <div className="import-result-count"><span className="material-symbols-outlined">error</span><span><strong>{importResult.failed}</strong> con error</span></div>
                 )}
               </div>
-              <small className="import-result-total">Total procesado: {importResult.created + importResult.skipped + (importResult.existing || 0) + importResult.failed} fila(s)</small>
+              <small className="import-result-total">Total procesado: {importResult.created + (importResult.linked || 0) + importResult.skipped + (importResult.existing || 0) + importResult.failed} fila(s)</small>
               {importResult.errors.length > 0 && (
                 <ul className="import-result-errors">
                   {importResult.errors.slice(0, 10).map((e, i) => (
