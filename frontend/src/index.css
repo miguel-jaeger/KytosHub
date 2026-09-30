@@ -1657,6 +1657,11 @@ html.dark .theme-switch input:checked + .theme-switch-track { background: #006c4
 .cart-config-form input[type='number'] { width: 100%; box-sizing: border-box; min-width: 0; }
 .cart-config-form input[type='number'], .module-json { padding: 0.4rem 0.5rem; border: 1px solid #c6c6cd; border-radius: 6px; background: #f8f9ff; color: #0b1c30; font-size: 0.85rem; }
 .cart-config-form input[type='checkbox'] { width: 1.1rem; height: 1.1rem; }
+.parking-module-row-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; border: 1px solid #e2e4e9; border-radius: 0.5rem; padding: 0.5rem; background: #f7f8fa; }
+.parking-module-row-fields .cart-config-form,
+.parking-module-row-fields input[type='text'] { width: 100%; box-sizing: border-box; min-width: 0; padding: 0.4rem 0.5rem; border: 1px solid #c6c6cd; border-radius: 6px; background: #f8f9ff; color: #0b1c30; font-size: 0.85rem; }
+html.dark .parking-module-row-fields { border-color: #3a414d; background: #232a33; }
+html.dark .parking-module-row-fields input[type='text'] { background: #1a2027; border-color: #3a414d; color: #e5e7eb; }
 .module-json { width: 100%; font-family: monospace; resize: vertical; }
 
 /* Module configuration opens in a modal, not inside the card */
@@ -3053,12 +3058,18 @@ html.dark .plaza-legend-item.plaza-rented { background: #2b2212; border-color: #
 .parking-layout-config .form-actions { flex-wrap: wrap; gap: 0.5rem; }
 .parking-layout-config .form-actions small { width: 100%; }
 .plaza-per-row-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr)); gap: 0.6rem; margin-bottom: 0.75rem; }
+.parking-row-config { border: 1px solid #e2e4e9; border-radius: 0.5rem; padding: 0.6rem; background: #f7f8fa; }
+.parking-row-config .form-group-label,
+.parking-row-config label { font-weight: 700; }
+.parking-row-config input[type="text"] { margin-bottom: 0.6rem; }
+.parking-row-config .parking-row-config-count { margin-top: 0.15rem; }
 html.dark .plaza-map-title { color: #e5e7eb; }
 html.dark .plaza-row-label { color: #888; }
 html.dark .plaza-cell-empty { border-color: #333; }
 html.dark .plaza-legend-item { color: #c8cad1; }
 html.dark .plaza-total-preview { color: #c8cad1; }
 html.dark .plaza-total-preview strong { color: #69db7c; }
+html.dark .parking-row-config { border-color: #3a414d; background: #232a33; }
 
 /* ---- Card hover: text & icons follow the theme (black light / white dark) ---- */
 .action-card:hover, .action-card:hover h3, .action-card:hover p,

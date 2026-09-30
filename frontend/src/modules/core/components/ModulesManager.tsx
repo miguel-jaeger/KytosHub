@@ -94,24 +94,29 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
     setConfigDrafts(prev => ({ ...prev, [m.module_key]: JSON.stringify(next, null, 2) }));
   };
 
-  const updateParkingLayoutField = (m: ModuleInfo, value: { rows: number; spots_per_row: number[] }) => {
+  const updateParkingLayoutField = (m: ModuleInfo, value: { rows: number; spots_per_row: number[]; row_names: string[] }) => {
     const current = configDrafts[m.module_key] || '{}';
     const parsed = parseDraft(current);
     parsed.layout = value;
     setConfigDrafts(prev => ({ ...prev, [m.module_key]: JSON.stringify(parsed, null, 2) }));
   };
 
-  const parkingLayoutOf = (m: ModuleInfo): { rows: number; spots_per_row: number[] } => {
+  const parkingLayoutOf = (m: ModuleInfo): { rows: number; spots_per_row: number[]; row_names: string[] } => {
     const cfg = parseDraft(configDrafts[m.module_key] || '{}');
     const layout = cfg.layout && typeof cfg.layout === 'object' ? cfg.layout as Record<string, unknown> : {};
     const rows = Number(layout.rows) || 2;
+    const names: string[] = Array.isArray(layout.row_names)
+      ? (layout.row_names as unknown[]).map(v => String(v ?? ''))
+      : [];
+    while (names.length < rows) names.push('');
+    const normNames = names.slice(0, rows);
     if (Array.isArray(layout.spots_per_row)) {
       const counts = (layout.spots_per_row as unknown[]).map(v => Math.max(1, Math.round(Number(v) || 1)));
       while (counts.length < rows) counts.push(counts[counts.length - 1] || 1);
-      return { rows, spots_per_row: counts.slice(0, rows) };
+      return { rows, spots_per_row: counts.slice(0, rows), row_names: normNames };
     }
     const per = Math.max(1, Number(layout.spots_per_row) || 4);
-    return { rows, spots_per_row: Array.from({ length: rows }, () => per) };
+    return { rows, spots_per_row: Array.from({ length: rows }, () => per), row_names: normNames };
   };
 
   const renderModuleConfig = (m: ModuleInfo) => {
@@ -153,6 +158,7 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
       );
     }
     if (parkingConfig) {
+      const parkingLayout = parkingLayoutOf(m);
       return (
         <>
           <div className="cart-config-form">
@@ -163,39 +169,59 @@ export function ModulesManager({ schemaName, onModulesUpdated }: { schemaName?: 
                 min={1}
                 max={50}
                 disabled={!canEdit}
-                value={String(parkingLayoutOf(m).rows)}
+                value={String(parkingLayout.rows)}
                 onChange={e => {
                   const n = Math.max(1, Math.min(50, Number(e.target.value) || 1));
                   const current = parkingLayoutOf(m);
                   const counts = [...current.spots_per_row];
                   while (counts.length < n) counts.push(counts[counts.length - 1] || 1);
-                  updateParkingLayoutField(m, { rows: n, spots_per_row: counts.slice(0, n) });
+                  const names = [...current.row_names];
+                  while (names.length < n) names.push('');
+                  updateParkingLayoutField(m, { rows: n, spots_per_row: counts.slice(0, n), row_names: names.slice(0, n) });
                 }}
               />
             </label>
-            {Array.from({ length: parkingLayoutOf(m).rows }, (_, i) => (
-              <label key={i}>
-                Plazas en fila {i + 1}
-                <input
-                  type="number"
-                  min={1}
-                  max={50}
-                  disabled={!canEdit}
-                  value={String(parkingLayoutOf(m).spots_per_row[i] ?? 1)}
-                  onChange={e => {
-                    const current = parkingLayoutOf(m);
-                    const counts = [...current.spots_per_row];
-                    counts[i] = Math.max(1, Math.min(50, Number(e.target.value) || 1));
-                    updateParkingLayoutField(m, { rows: current.rows, spots_per_row: counts });
-                  }}
-                />
-              </label>
+            {Array.from({ length: parkingLayout.rows }, (_, i) => (
+              <div key={i} className="parking-module-row-fields">
+                <label>
+                  Nombre de fila {i + 1}
+                  <input
+                    type="text"
+                    maxLength={60}
+                    disabled={!canEdit}
+                    placeholder={`Fila ${i + 1}`}
+                    value={parkingLayout.row_names[i] ?? ''}
+                    onChange={e => {
+                      const current = parkingLayoutOf(m);
+                      const names = [...current.row_names];
+                      names[i] = e.target.value;
+                      updateParkingLayoutField(m, { rows: current.rows, spots_per_row: [...current.spots_per_row], row_names: names });
+                    }}
+                  />
+                </label>
+                <label>
+                  Plazas en fila {i + 1}
+                  <input
+                    type="number"
+                    min={1}
+                    max={50}
+                    disabled={!canEdit}
+                    value={String(parkingLayout.spots_per_row[i] ?? 1)}
+                    onChange={e => {
+                      const current = parkingLayoutOf(m);
+                      const counts = [...current.spots_per_row];
+                      counts[i] = Math.max(1, Math.min(50, Number(e.target.value) || 1));
+                      updateParkingLayoutField(m, { rows: current.rows, spots_per_row: counts, row_names: [...current.row_names] });
+                    }}
+                  />
+                </label>
+              </div>
             ))}
           </div>
           <div className="module-example">
             <span className="material-symbols-outlined">info</span>
             <span>
-              El layout visual (filas × plazas por fila, distintas por fila) y el mapa de plazas se administran en la pestaña <strong>Estacionamiento</strong>. Guardado aquí solo persiste el layout indicado.
+              El layout visual (filas con nombre editable × plazas por fila, distintas por fila) y el mapa de plazas se administran en la pestaña <strong>Estacionamiento</strong>. Guardado aquí solo persiste el layout indicado.
             </span>
           </div>
         </>

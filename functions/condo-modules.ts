@@ -279,13 +279,17 @@ function sanitizeConfig(key: string, config: Record<string, unknown>): Record<st
   if (key === 'parking_control' && cfg.layout && typeof cfg.layout === 'object') {
     const layout = cfg.layout as Record<string, unknown>;
     const rows = Math.max(1, Math.min(50, Math.round(Number(layout.rows) || 1)));
+    const names: string[] = Array.isArray(layout.row_names)
+      ? (layout.row_names as unknown[]).map(v => String(v ?? '').trim().slice(0, 60))
+      : [];
+    while (names.length < rows) names.push(`Fila ${names.length + 1}`);
     if (Array.isArray(layout.spots_per_row)) {
       const counts: number[] = (layout.spots_per_row as unknown[]).map(v => Math.max(1, Math.min(50, Math.round(Number(v) || 1))));
       while (counts.length < rows) counts.push(counts[counts.length - 1] || 1);
-      cfg.layout = { rows, spots_per_row: counts.slice(0, rows) };
+      cfg.layout = { rows, spots_per_row: counts.slice(0, rows), row_names: names.slice(0, rows) };
     } else {
       const per = Math.max(1, Math.min(50, Math.round(Number(layout.spots_per_row) || 1)));
-      cfg.layout = { rows, spots_per_row: per };
+      cfg.layout = { rows, spots_per_row: per, row_names: names.slice(0, rows) };
     }
   }
   if (key === 'billing_maintenance') {

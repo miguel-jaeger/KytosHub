@@ -16,6 +16,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
 
   const [rowsInput, setRowsInput] = useState('2');
   const [perRowInputs, setPerRowInputs] = useState<string[]>(['4', '4']);
+  const [rowNameInputs, setRowNameInputs] = useState<string[]>(['', '']);
   const [generating, setGenerating] = useState(false);
 
   const [editingSpot, setEditingSpot] = useState<ParkingSpot | null>(null);
@@ -114,6 +115,10 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
           ? ly.spots_per_row.map(v => String(v))
           : Array.from({ length: ly.rows }, () => String(ly.spots_per_row));
         setPerRowInputs(counts);
+        const names = Array.isArray(ly.row_names)
+          ? ly.row_names.slice(0, ly.rows)
+          : Array.from({ length: ly.rows }, () => '');
+        setRowNameInputs(names);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar');
@@ -138,10 +143,19 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
       while (next.length < n) next.push('1');
       return next.slice(0, n);
     });
+    setRowNameInputs(prev => {
+      const next = [...prev];
+      while (next.length < n) next.push('');
+      return next.slice(0, n);
+    });
   };
 
   const handleRowColsChange = (idx: number, value: string) => {
     setPerRowInputs(prev => prev.map((v, i) => i === idx ? value : v));
+  };
+
+  const handleRowNameChange = (idx: number, value: string) => {
+    setRowNameInputs(prev => prev.map((v, i) => i === idx ? value : v));
   };
 
   const handleProvision = async () => {
@@ -150,12 +164,15 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
     setError(null);
     setMessage(null);
     try {
-      const res = await provisionLayout(schemaName, rows, effectiveCounts);
+      const res = await provisionLayout(schemaName, rows, effectiveCounts, rowNameInputs);
       setLayout(res.layout);
       setSpots(res.spots);
       setPerRowInputs(Array.isArray(res.result.spots_per_row)
         ? (res.result.spots_per_row as number[]).map(v => String(v))
         : effectiveCounts.map(v => String(v)));
+      setRowNameInputs(Array.isArray(res.layout.row_names)
+        ? res.layout.row_names
+        : effectiveCounts.map((_, i) => rowNameInputs[i] || `Fila ${i + 1}`));
       setMessage(`Layout generado: ${res.result.total ?? totalExpected} plazas en ${res.result.rows ?? rows} fila(s). Creadas: ${res.result.created ?? 0}, actualizadas: ${res.result.updated ?? 0}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al generar layout');
@@ -197,7 +214,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
       <div className="header">
         <div>
           <h3>Configuración del estacionamiento</h3>
-          <small>Define cuántas filas tendrá el estacionamiento y cuántas plazas en cada fila (pueden variar). Las plazas se numeran automáticamente (01, 02, 03...).</small>
+          <small>Define cuántas filas tendrá el estacionamiento, un nombre para cada fila y cuántas plazas en cada fila (pueden variar). Las plazas se numeran automáticamente en orden consecutivo comenzando por la fila 1 (01, 02, 03...).</small>
         </div>
       </div>
 
@@ -218,8 +235,16 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
         </div>
         <div className="plaza-per-row-grid">
           {effectiveCounts.map((_, idx) => (
-            <div key={idx} className="form-group">
-              <label>Plazas en fila {idx + 1}</label>
+            <div key={idx} className="form-group parking-row-config">
+              <label>Fila {idx + 1}</label>
+              <input
+                type="text"
+                maxLength={60}
+                placeholder={`Nombre de la fila ${idx + 1}`}
+                value={rowNameInputs[idx] ?? ''}
+                onChange={e => handleRowNameChange(idx, e.target.value)}
+              />
+              <label className="parking-row-config-count">Plazas</label>
               <input
                 type="number"
                 min={1}

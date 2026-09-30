@@ -151,9 +151,10 @@ Modela la jerarquía: **Condominio → Torres → Pisos → Departamentos**.
   - `guard_gate_sessions` (`id`, `user_id`, `gate_id`, `started_at`, `ended_at`) — persiste en qué puerta está autenticado cada agente de seguridad.
 - **Layout del estacionamiento (configuración visual):**
   - El administrador/super admin configura en una vista propia cuántas **filas** tendrá el estacionamiento y **cuántas plazas en cada fila** (la cantidad puede variar por fila) (`provisionParkingLayout` / RPC `provision_parking_layout`).
-  - Cada plaza se numera automáticamente de forma **secuencial global** (01, 02, 03 ...) y se guardan `spot_row`/`spot_index`.
-  - El layout se persiste en `condo_settings.config_json` (`parking_control.layout = { rows, spots_per_row: [...] }` con `spots_per_row` como array) y la generación es **upsert por número**: conserva plazas existentes y agrega las que falten (no borra nada).
-  - `parking-control` expone `get-layout` y `provision-layout` (acepta `spots_per_row` como número uniforme o array por fila). Los roles admin/super la generan desde la pestaña "Estacionamiento" (configuración visual con mapa), pudiendo hacer clic en cada plaza para asignar tipo/departamento.
+  - **Cada fila tiene un nombre editable** (`row_names`, array de strings; si se deja vacío se usa "Fila N") que se muestra como etiqueta de fila en el mapa.
+  - Cada plaza se numera automáticamente de forma **secuencial global en orden consecutivo comenzando por la fila 1** (01, 02, 03 ...) y se guardan `spot_row`/`spot_index`.
+  - El layout se persiste en `condo_settings.config_json` (`parking_control.layout = { rows, spots_per_row: [...], row_names: [...] }` con `spots_per_row` y `row_names` como arrays) y la generación es **upsert por número**: conserva plazas existentes y agrega las que falten (no borra nada).
+  - `parking-control` expone `get-layout` y `provision-layout` (acepta `spots_per_row` como número uniforme o array por fila, y `row_names` como array opcional con los nombres de cada fila). Los roles admin/super la generan desde la pestaña "Estacionamiento" (configuración visual con mapa), pudiendo hacer clic en cada plaza para asignar tipo/departamento.
   - **El mapa diferencia visualmente** las plazas: PROPIO **asignada a departamento** (verde), PROPIO **sin asignar** (gris), **ocupada** (rojo), **visita** (azul) y **alquilada** (naranja). El guardia lo ve en su panel de garita.
 - **Reglas de Negocio:**
   - **Tipos de plaza:** `PROPIO` (pertenece a un departamento), `VISITA` (uso temporal en garita), `ALQUILADO` (se cede a un tercero por un período).

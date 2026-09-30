@@ -63,6 +63,7 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend }: Props) {
   }
 
   const rows = hasLayout ? layout!.rows : 1;
+  const rowNames = hasLayout && Array.isArray(layout!.row_names) ? layout!.row_names! : [];
 
   const placed = [...Array(rows)].map((_, r) => {
     const row = r + 1;
@@ -82,7 +83,7 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend }: Props) {
       <div className="plaza-map-grid">
         {placed.map((rowSpots, r) => (
           <div key={r} className="plaza-row">
-            {hasLayout && <span className="plaza-row-label">Fila {r + 1}</span>}
+            {hasLayout && <span className="plaza-row-label">{rowNames[r]?.trim() || `Fila ${r + 1}`}</span>}
             <div className={`plaza-row-spots${hasLayout ? ' plaza-row-grid' : ''}`}>
               {rowSpots.map((s, c) => (
                 s ? (
