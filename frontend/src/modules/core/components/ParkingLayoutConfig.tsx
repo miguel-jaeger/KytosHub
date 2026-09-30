@@ -364,7 +364,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
                   <p className="text-on-surface-variant">
                     Asignada a: Torre {editingSpot.departments.towers?.name || editingSpot.departments.towers?.code || '-'}
                     {editingSpot.departments.floor_number != null ? ` · Piso ${editingSpot.departments.floor_number}` : ''}
-                    {' · Dpto '}{editingSpot.departments.department_number}
+                    {' · Dpto '}{editingSpot.departments.towers?.code ? `T${editingSpot.departments.towers.code}-${editingSpot.departments.department_number}` : editingSpot.departments.department_number}
                   </p>
                 ) : (
                   <p className="text-on-surface-variant">Asigna el tipo y el departamento de la plaza.</p>

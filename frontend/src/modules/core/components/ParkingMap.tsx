@@ -32,7 +32,12 @@ function spotStateLabel(spot: ParkingSpot): string {
   if (spot.type === 'VISITA') return 'Visita disponible';
   if (spot.type === 'ALQUILADO') return 'Alquilada disponible';
   if (!spot.department_id) return 'Sin asignar a un departamento';
-  return `Asignada a ${spot.departments?.department_number || 'depto'} · disponible`;
+  return `Asignada a ${deptLabel(spot.departments)} · disponible`;
+}
+
+export function deptLabel(departments?: { department_number?: string; towers?: { code?: string } }): string {
+  if (!departments?.department_number) return 'depto';
+  return departments.towers?.code ? `T${departments.towers.code}-${departments.department_number}` : departments.department_number;
 }
 
 export function ParkingMap({ spots, layout, onSpotClick, showLegend }: Props) {
@@ -106,12 +111,12 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend }: Props) {
                     key={`${r}-${c}`}
                     className={`plaza-cell ${spotClass(s)}${onSpotClick ? ' plaza-cell-clickable' : ''}`}
                     onClick={onSpotClick ? () => onSpotClick(s) : undefined}
-                    title={`Plaza ${s.spot_number} · ${SPOT_TYPE_LABELS[s.type] || s.type} · ${spotStateLabel(s)}${s.departments ? ` · Dpto ${s.departments.department_number}` : ''}`}
+                    title={`Plaza ${s.spot_number} · ${SPOT_TYPE_LABELS[s.type] || s.type} · ${spotStateLabel(s)}${s.departments ? ` · ${deptLabel(s.departments)}` : ''}`}
                   >
                     <strong>{s.spot_number}</strong>
                     {onSpotClick && <small>{SPOT_TYPE_SHORT[s.type] || '·'}</small>}
                     {s.cochera_type === 'MULTIPLE' && <small className="plaza-cell-multi">Múltiple</small>}
-                    {s.departments && <small className="plaza-cell-dept">{s.departments.department_number}</small>}
+                    {s.departments && <small className="plaza-cell-dept">{deptLabel(s.departments)}</small>}
                   </button>
                 ) : (
                   <span key={`${r}-${c}`} className="plaza-cell plaza-cell-empty" />
