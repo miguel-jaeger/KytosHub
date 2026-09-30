@@ -5,6 +5,7 @@ interface Props {
   layout: ParkingLayout | null;
   onSpotClick?: (spot: ParkingSpot) => void;
   showLegend?: boolean;
+  highlightSpotId?: string;
 }
 
 export const SPOT_TYPE_LABELS: Record<ParkingSpotType, string> = {
@@ -50,7 +51,7 @@ export function deptLabel(departments?: { department_number?: string; towers?: {
   return `${towerNum}-${departments.department_number}`;
 }
 
-export function ParkingMap({ spots, layout, onSpotClick, showLegend }: Props) {
+export function ParkingMap({ spots, layout, onSpotClick, showLegend, highlightSpotId }: Props) {
   if (spots.length === 0) {
     return (
       <div className="plaza-empty">
@@ -125,7 +126,8 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend }: Props) {
                 s ? (
                   <button
                     key={`${r}-${c}`}
-                    className={`plaza-cell ${spotClass(s)}${onSpotClick ? ' plaza-cell-clickable' : ''}`}
+                    id={`plaza-cell-${s.id}`}
+                    className={`plaza-cell ${spotClass(s)}${onSpotClick ? ' plaza-cell-clickable' : ''}${s.id === highlightSpotId ? ' plaza-cell-highlight' : ''}`}
                     onClick={onSpotClick ? () => onSpotClick(s) : undefined}
                     title={`Plaza ${s.spot_number} · ${SPOT_TYPE_LABELS[s.type] || s.type} · ${spotStateLabel(s)}`}
                   >

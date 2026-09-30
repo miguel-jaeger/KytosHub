@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import { useParking } from '../hooks/useParking';
 import { ParkingMap, deptLabel, SPOT_TYPE_LABELS } from './ParkingMap';
@@ -29,6 +29,22 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
   const [editingSpot, setEditingSpot] = useState<ParkingSpot | null>(null);
   const [spotForm, setSpotForm] = useState(emptySpotForm);
   const [savingSpot, setSavingSpot] = useState(false);
+
+  // Búsqueda rápida de plazas para asignarlas más rápido.
+  const [spotQuickSearch, setSpotQuickSearch] = useState('');
+  const [spotQuickOpen, setSpotQuickOpen] = useState(false);
+  const [flashSpotId, setFlashSpotId] = useState('');
+  const spotQuickRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (spotQuickRef.current && !spotQuickRef.current.contains(e.target as Node)) {
+        setSpotQuickOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // Stepper torre -> piso -> departamento for the assigned department
   const [towers, setTowers] = useState<Tower[]>([]);
@@ -167,6 +183,31 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
   const assignedCount = spots.filter(s => Boolean(s.department_id)).length;
   const availableCount = spots.length - assignedCount;
   const previewLayout = layout ? { ...layout, orientation } : null;
+
+  const quickQuery = spotQuickSearch.trim().toLowerCase();
+  const quickMatches = quickQuery
+    ? spots.filter(s =>
+        s.spot_number.toLowerCase().includes(quickQuery) ||
+        (s.departments ? deptLabel(s.departments).toLowerCase().includes(quickQuery) : false) ||
+        (s.departments?.owner_name || '').toLowerCase().includes(quickQuery)
+      )
+    : [];
+
+  const selectQuickSpot = (s: ParkingSpot) => {
+    setSpotQuickSearch(`Cochera ${s.spot_number}`);
+    setSpotQuickOpen(false);
+    setFlashSpotId(s.id);
+    window.setTimeout(() => {
+      document.getElementById(`plaza-cell-${s.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 80);
+    startSpotEdit(s);
+  };
+
+  useEffect(() => {
+    if (!flashSpotId) return;
+    const t = window.setTimeout(() => setFlashSpotId(''), 3000);
+    return () => window.clearTimeout(t);
+  }, [flashSpotId]);
 
   const handleRowsChange = (value: string) => {
     setRowsInput(value);
@@ -355,7 +396,36 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
             <h4>Mapa de plazas</h4>
             <small>Haz clic en una plaza para asignar su tipo o departamento (plazas propias).</small>
           </div>
-          <ParkingMap spots={spots} layout={previewLayout} onSpotClick={startSpotEdit} showLegend />
+
+          <div className="form-group parking-spot-quick-search">
+            <label>Buscar plaza para asignar</label>
+            <div className="search-bar condo-picker" ref={spotQuickRef}>
+              <input
+                type="text"
+                value={spotQuickSearch}
+                placeholder="Buscar por número (01), departamento (T1-1305) o propietario..."
+                onFocus={() => setSpotQuickOpen(true)}
+                onChange={e => { setSpotQuickSearch(e.target.value); setSpotQuickOpen(true); }}
+              />
+              {spotQuickOpen && quickMatches.length > 0 && (
+                <div className="condo-picker-dropdown">
+                  {quickMatches.slice(0, 30).map(s => (
+                    <button key={s.id} type="button" className="condo-picker-item" onClick={() => selectQuickSpot(s)}>
+                      <span className="material-symbols-outlined">local_parking</span>
+                      <span>
+                        Cochera {s.spot_number}
+                        {s.departments ? ` · ${deptLabel(s.departments)}` : ' · Sin asignar'}
+                        {s.departments?.owner_name ? ` · ${s.departments.owner_name}` : ''}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <small className="text-muted">El resultado se ubica en el mapa y abre la asignación de la plaza.</small>
+          </div>
+
+          <ParkingMap spots={spots} layout={previewLayout} onSpotClick={startSpotEdit} showLegend highlightSpotId={flashSpotId} />
         </div>
       )}
       {spots.length === 0 && (

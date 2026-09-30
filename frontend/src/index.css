@@ -3191,6 +3191,8 @@ html.dark .plaza-map-vertical .plaza-row-count { color: #9ca3af; }
 html.dark .plaza-cell-multi { color: #f0c674; }
 .plaza-cell-clickable { cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
 .plaza-cell-clickable:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(11, 28, 48, 0.2); }
+.plaza-cell-highlight { outline: 3px solid #fff200; outline-offset: 2px; box-shadow: 0 0 0 5px rgba(255, 210, 0, 0.55); }
+html.dark .plaza-cell-highlight { outline-color: #f0c674; box-shadow: 0 0 0 5px rgba(240, 198, 116, 0.4); }
 .plaza-cell-empty { background: transparent; border: 1px dashed #e2e3e7; color: transparent; min-width: 92px; min-height: 74px; box-shadow: none; }
 .plaza-free { background: #2e9e63; }
 .plaza-occupied { background: #c62828; }
