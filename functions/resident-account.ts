@@ -1,4 +1,4 @@
-import { createAdminClient } from 'npm:@insforge/sdk';
+import { createAdminClient, createClient } from 'npm:@insforge/sdk';
 
 const DEFAULT_PASSWORD = '12345678';
 
@@ -121,7 +121,8 @@ export default async function(req: Request): Promise<Response> {
 
         const userClient = createClient({
           baseUrl: Deno.env.get('INSFORGE_BASE_URL'),
-          anonKey: Deno.env.get('ANON_KEY')
+          anonKey: Deno.env.get('ANON_KEY'),
+          accessToken: userToken
         });
 
         const { data: current } = await userClient.auth.getCurrentUser();
@@ -160,6 +161,91 @@ export default async function(req: Request): Promise<Response> {
 
         return new Response(
           JSON.stringify({ success: true, data: null, error: null }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'update-profile': {
+        const authHeader = req.headers.get('Authorization');
+        const userToken = authHeader?.replace(/^Bearer\s+/i, '');
+        if (!userToken) return bad(corsHeaders, 'Usuario no autenticado');
+
+        const baseUrl = Deno.env.get('INSFORGE_BASE_URL');
+        const anonKey = Deno.env.get('ANON_KEY');
+        const userClient = createClient({ baseUrl, anonKey, accessToken: userToken });
+        const { data: current, error: authError } = await userClient.auth.getCurrentUser();
+        if (authError || !current?.user?.id || !current.user.email) return bad(corsHeaders, 'Usuario no autenticado');
+
+        const name = String(body.name || '').trim();
+        const email = String(body.email || '').trim().toLowerCase();
+        const currentPassword = String(body.current_password || '');
+        if (!name || name.length > 200) return bad(corsHeaders, 'El nombre es obligatorio y no puede superar 200 caracteres');
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return bad(corsHeaders, 'Ingresa un correo válido');
+
+        const emailChanged = email !== current.user.email.toLowerCase();
+        if (emailChanged) {
+          if (!currentPassword) return bad(corsHeaders, 'Ingresa tu contraseña actual para cambiar el correo');
+          const verifyClient = createClient({ baseUrl, anonKey });
+          const { error: verifyError } = await verifyClient.auth.signInWithPassword({
+            email: current.user.email,
+            password: currentPassword
+          });
+          if (verifyError) return bad(corsHeaders, 'La contraseña actual es incorrecta');
+
+          const { data: authDuplicate, error: authLookupError } = await client.database
+            .from('auth.users')
+            .select('id')
+            .eq('email', email)
+            .neq('id', current.user.id)
+            .maybeSingle();
+          if (authLookupError) throw authLookupError;
+          if (authDuplicate) return bad(corsHeaders, 'Ese correo ya está asociado a otra cuenta');
+
+          const { data: globalDuplicate, error: globalLookupError } = await client.database
+            .from('users_global')
+            .select('id')
+            .eq('email', email)
+            .neq('id', current.user.id)
+            .maybeSingle();
+          if (globalLookupError) throw globalLookupError;
+          if (globalDuplicate) return bad(corsHeaders, 'Ese correo ya está asociado a otra cuenta');
+        }
+
+        const { error: authProfileError } = await userClient.auth.setProfile({ name });
+        if (authProfileError) throw authProfileError;
+
+        const { error: globalUpdateError } = await client.database
+          .from('users_global')
+          .update({ name, email })
+          .eq('id', current.user.id);
+        if (globalUpdateError) throw globalUpdateError;
+
+        if (emailChanged) {
+          const { error: emailSyncError } = await client.database.rpc('sync_auth_email', {
+            p_user_id: current.user.id,
+            p_email: email
+          });
+          if (emailSyncError) {
+            await client.database.from('users_global').update({ email: current.user.email }).eq('id', current.user.id);
+            throw emailSyncError;
+          }
+        }
+
+        const { data: tenants, error: tenantsError } = await client.database.from('tenants').select('schema_name');
+        if (tenantsError) throw tenantsError;
+        for (const tenant of (tenants || []) as Array<{ schema_name?: string }>) {
+          if (!tenant.schema_name) continue;
+          const { error: residentUpdateError } = await client.database.schema(tenant.schema_name)
+            .from('residents')
+            .update({ full_name: name, email })
+            .eq('user_id', current.user.id);
+          if (residentUpdateError) {
+            console.error(`resident profile sync failed for ${tenant.schema_name}:`, residentUpdateError);
+          }
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, data: { name, email }, error: null }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }

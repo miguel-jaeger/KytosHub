@@ -6,10 +6,51 @@ const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '';
 
 export function useProfile() {
-  const { user, updateAvatar } = useAuth() as ReturnType<typeof useAuth> & { updateAvatar: (url: string) => void };
+  const { user, updateAvatar, updateProfile: applyProfile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
+
+  const saveProfile = useCallback(async (name: string, email: string, currentPassword: string): Promise<boolean> => {
+    const normalizedName = name.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+    const emailChanged = normalizedEmail !== user?.email.toLowerCase();
+    setLoading(true);
+    setProfileError(null);
+    setProfileSuccess(null);
+    try {
+      if (!normalizedName) throw new Error('El nombre es obligatorio');
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) throw new Error('Ingresa un correo válido');
+      if (emailChanged && !currentPassword) throw new Error('Ingresa tu contraseña actual para cambiar el correo');
+
+      const { data, error: fnError } = await invokeFunction<{
+        success: boolean;
+        data?: { name: string; email: string };
+        error?: { message?: string };
+      }>('resident-account', {
+        method: 'POST',
+        body: {
+          action: 'update-profile',
+          name: normalizedName,
+          email: normalizedEmail,
+          current_password: currentPassword
+        }
+      });
+      if (fnError) throw fnError;
+      if (!data?.success || !data.data) throw new Error(data?.error?.message || 'No se pudo actualizar el perfil');
+
+      applyProfile(data.data);
+      setProfileSuccess('Nombre y correo actualizados correctamente');
+      return true;
+    } catch (err) {
+      setProfileError(err instanceof Error ? err.message : 'Error de conexión');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.email, applyProfile]);
 
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     setLoading(true);
@@ -63,6 +104,9 @@ export function useProfile() {
     loading,
     error,
     success,
+    profileError,
+    profileSuccess,
+    saveProfile,
     changePassword,
     uploadAvatar,
     clearError: () => setError(null),

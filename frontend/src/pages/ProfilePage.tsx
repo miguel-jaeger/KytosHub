@@ -4,7 +4,7 @@ import { useTheme } from '../hooks/useTheme';
 import { useUserRole, useRoleLabel } from '../hooks/useUserRole';
 
 export function ProfilePage() {
-  const { user, loading, error, success, changePassword, uploadAvatar } = useProfile();
+  const { user, loading, error, success, profileError, profileSuccess, saveProfile, changePassword, uploadAvatar } = useProfile();
   const { theme, toggleTheme } = useTheme();
   const role = useUserRole();
 
@@ -13,11 +13,22 @@ export function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passError, setPassError] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [profileName, setProfileName] = useState('');
+  const [profileEmail, setProfileEmail] = useState('');
+  const [profileCurrentPassword, setProfileCurrentPassword] = useState('');
 
   useEffect(() => {
     const url = (user as { avatar_url?: string } | null)?.avatar_url || null;
     if (url) setAvatarPreview(url);
+    setProfileName(user?.name || '');
+    setProfileEmail(user?.email || '');
   }, [user]);
+
+  const handleProfile = async (e: FormEvent) => {
+    e.preventDefault();
+    const saved = await saveProfile(profileName, profileEmail, profileCurrentPassword);
+    if (saved) setProfileCurrentPassword('');
+  };
 
   const handlePassword = async (e: FormEvent) => {
     e.preventDefault();
@@ -71,6 +82,31 @@ export function ProfilePage() {
           <p>{user?.email}</p>
           {role !== 'loading' && role !== 'none' && <span className={`profile-role-badge role-${role}`}>{useRoleLabel(role)}</span>}
         </div>
+      </div>
+
+      <div className="password-card">
+        <h3>Datos personales</h3>
+        {profileError && <div className="error-message">{profileError}</div>}
+        {profileSuccess && <div className="success-message">{profileSuccess}</div>}
+        <form onSubmit={handleProfile}>
+          <div className="form-group">
+            <label htmlFor="profile-name">Nombre</label>
+            <input id="profile-name" type="text" value={profileName} onChange={e => setProfileName(e.target.value)} autoComplete="name" required />
+          </div>
+          <div className="form-group">
+            <label htmlFor="profile-email">Correo electrónico</label>
+            <input id="profile-email" type="email" value={profileEmail} onChange={e => setProfileEmail(e.target.value)} autoComplete="email" required />
+          </div>
+          {profileEmail.trim().toLowerCase() !== user?.email.toLowerCase() && (
+            <div className="form-group">
+              <label htmlFor="profile-current-password">Contraseña actual para confirmar el cambio de correo</label>
+              <input id="profile-current-password" type="password" value={profileCurrentPassword} onChange={e => setProfileCurrentPassword(e.target.value)} autoComplete="current-password" required />
+            </div>
+          )}
+          <button type="submit" disabled={loading}>
+            <span className="material-symbols-outlined">save</span> {loading ? 'Guardando...' : 'Guardar datos'}
+          </button>
+        </form>
       </div>
 
       <div className="theme-card">

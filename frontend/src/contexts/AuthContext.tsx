@@ -17,6 +17,7 @@ interface AuthContextValue {
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   updateAvatar: (url: string) => void;
+  updateProfile: (profile: { name: string; email: string }) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -29,6 +30,22 @@ function mapUser(raw: Record<string, unknown>): AuthUser {
     name: profile?.name as string | undefined,
     avatar_url: profile?.avatar_url as string | undefined
   };
+}
+
+async function mapUserWithGlobalName(raw: Record<string, unknown>): Promise<AuthUser> {
+  const user = mapUser(raw);
+  if (!user.id) return user;
+  try {
+    const { data, error } = await insforge.database
+      .from('users_global')
+      .select('name')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (!error && typeof data?.name === 'string' && data.name.trim()) {
+      user.name = data.name.trim();
+    }
+  } catch {}
+  return user;
 }
 
 // The SDK keeps the session (access token + user) in memory. There is a public
@@ -81,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { data, error } = await insforge.auth.getCurrentUser();
         if (error) return;
-        const u = data?.user ? mapUser(data.user) : null;
+        const u = data?.user ? await mapUserWithGlobalName(data.user as unknown as Record<string, unknown>) : null;
         if (u?.id) {
           if (!userRef.current) applyUser(u);
           void persistSession(u);
@@ -103,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (isOAuthCallback) {
         const { data, error } = await insforge.auth.getCurrentUser();
         if (!cancelled && !error && data?.user) {
-          const u = mapUser(data.user);
+          const u = await mapUserWithGlobalName(data.user as unknown as Record<string, unknown>);
           applyUser(u);
           persistSession(u);
         }
@@ -116,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // cache from a previous/other account.
       const { data: current, error: currentError } = await insforge.auth.getCurrentUser();
       if (!cancelled && !currentError && current?.user) {
-        const u = mapUser(current.user);
+        const u = await mapUserWithGlobalName(current.user as unknown as Record<string, unknown>);
         applyUser(u);
         persistSession(u);
         return;
@@ -135,7 +152,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           body: { action: 'list-by-user', user_id: cached.user.id }
         });
         if (!cancelled && !res.error && res.data?.success) {
-          const restoredUser = { id: cached.user.id, email: cached.user.email, name: cached.user.name, avatar_url: cached.user.avatar_url };
+          const restoredUser = await mapUserWithGlobalName({
+            id: cached.user.id,
+            email: cached.user.email,
+            profile: { name: cached.user.name, avatar_url: cached.user.avatar_url }
+          });
           applyUser(restoredUser);
           // Sync the stored token in case the SDK rotated it during validation.
           persistSession(restoredUser);
@@ -146,7 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // the session (refresh/CSRF cookies) before giving up.
           const { data: viaRefresh, error: viaRefreshError } = await insforge.auth.getCurrentUser();
           if (!viaRefreshError && viaRefresh?.user) {
-            const u = mapUser(viaRefresh.user);
+            const u = await mapUserWithGlobalName(viaRefresh.user as unknown as Record<string, unknown>);
             applyUser(u);
             persistSession(u);
             return;
@@ -172,7 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: error.message };
     }
     if (data?.user) {
-      const u = mapUser(data.user as unknown as Record<string, unknown>);
+      const u = await mapUserWithGlobalName(data.user as unknown as Record<string, unknown>);
       applyUser(u);
       const sessionData = data as { accessToken?: string; refreshToken?: string };
       const stored = loadAuth();
@@ -195,7 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (data?.accessToken) {
       if (data.user) {
-        const u = mapUser(data.user as unknown as Record<string, unknown>);
+        const u = await mapUserWithGlobalName(data.user as unknown as Record<string, unknown>);
         applyUser(u);
         const sessionData = data as { refreshToken?: string };
         const stored = loadAuth();
@@ -243,8 +264,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const updateProfile = useCallback((profile: { name: string; email: string }) => {
+    const current = userRef.current;
+    if (!current) return;
+    const updated = { ...current, name: profile.name, email: profile.email };
+    userRef.current = updated;
+    setUser(updated);
+    const stored = loadAuth();
+    if (stored) saveAuth(stored.token, updated, stored.refreshToken);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithPassword, signUp, signInWithGoogle, signOut, updateAvatar }}>
+    <AuthContext.Provider value={{ user, loading, signInWithPassword, signUp, signInWithGoogle, signOut, updateAvatar, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );
