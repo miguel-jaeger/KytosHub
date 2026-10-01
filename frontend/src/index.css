@@ -674,6 +674,17 @@ button:disabled {
   border: 1px solid #efb0ad;
   border-radius: 12px;
 }
+
+/* Garita de visitantes: registro de entrada/salida más compacto y legible */
+.cart-form.visitor-garita { padding: 0.6rem 0.75rem; }
+.cart-form.visitor-garita .modules-header { margin-bottom: 0.4rem; gap: 0.2rem; }
+.cart-form.visitor-garita .modules-header h4 { font-size: 1.05rem; margin: 0; }
+.cart-form.visitor-garita .modules-header small { font-size: 0.86rem; }
+.cart-form.visitor-garita .filter-bar { margin: 0; padding: 0; border: none; background: transparent; gap: 0.5rem; }
+.cart-form.visitor-garita .form-group { margin: 0; }
+.cart-form.visitor-garita .form-group label { font-size: 0.92rem; }
+.cart-form.visitor-garita input { padding: 0.55rem 0.7rem; font-size: 1rem; }
+.cart-form.visitor-garita .filter-actions button { padding: 0.5rem 0.9rem; font-size: 0.95rem; }
 .history-tools-title { display: flex; align-items: center; gap: 0.4rem; color: #b00020; font-size: 0.9rem; margin-bottom: 0.6rem; }
 .history-tools-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 html.dark .history-tools { background: #2b1c1c; border-color: #7a4444; }

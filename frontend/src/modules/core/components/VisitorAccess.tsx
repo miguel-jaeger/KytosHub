@@ -49,7 +49,7 @@ function toLocal(iso: string): string {
 export function VisitorAccess({ schemaName }: { schemaName?: string }) {
   const role = useUserRole();
   const isOperator = role === 'admin' || role === 'super' || role === 'security';
-  const { listVisits, createVisit, updateVisitStatus, listPackages, createPackage, updatePackage } = useVisitorAccess();
+  const { listVisits, createVisit, updateVisitStatus, listPackages, createPackage, updatePackage, clearHistory } = useVisitorAccess();
 
   const [visits, setVisits] = useState<VisitorVisit[]>([]);
   const [packages, setPackages] = useState<VisitorPackage[]>([]);
@@ -68,6 +68,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
   const [toDate, setToDate] = useState('');
   const [historyPage, setHistoryPage] = useState(1);
   const [historyPerPage, setHistoryPerPage] = useState<number | 'all'>(10);
+  const [clearingHistory, setClearingHistory] = useState(false);
 
   const [showVisitForm, setShowVisitForm] = useState(false);
   const [visitForm, setVisitForm] = useState({
@@ -259,6 +260,24 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
     }
   };
 
+  const handleClearHistory = async () => {
+    if (!schemaName) return;
+    if (!confirm('¿Eliminar completamente el historial de visitas? Se borrarán todas las visitas que ya registraron su salida. Solo el super admin puede ejecutarlo. Esta acción no se puede deshacer.')) return;
+    setClearingHistory(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await clearHistory(schemaName);
+      setHistoryPage(1);
+      setMessage('Historial de visitas eliminado.');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo eliminar el historial');
+    } finally {
+      setClearingHistory(false);
+    }
+  };
+
   if (loading) return <div className="loading-message">Cargando visitantes...</div>;
 
   const q = search.trim().toLowerCase();
@@ -446,6 +465,20 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
             <div className="filter-actions">
               <button className="btn-cancel" onClick={() => { setHistorySearch(''); setFromDate(''); setToDate(''); setHistoryPage(1); }}>Limpiar</button>
             </div>
+          </div>
+
+          <div className="history-tools">
+            <div className="history-tools-title">
+              <span className="material-symbols-outlined">delete_forever</span>
+              <strong>Historial de visitas (solo disponible para super admin)</strong>
+            </div>
+            <div className="history-tools-actions">
+              <button className="btn-cancel users-bulk-delete" onClick={handleClearHistory} disabled={clearingHistory}>
+                {clearingHistory ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">person_off</span>}
+                {clearingHistory ? 'Eliminando...' : 'Eliminar historial de visitas'}
+              </button>
+            </div>
+            <small className="text-muted">Borra todas las visitas que ya registraron su salida. Solo el super admin puede ejecutarlo. No se puede deshacer.</small>
           </div>
 
           {filteredHistory.length === 0 ? (

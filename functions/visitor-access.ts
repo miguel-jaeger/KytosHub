@@ -138,6 +138,23 @@ export default async function(req: Request): Promise<Response> {
       return json({ success: true, data: enriched, error: null }, 200);
     }
 
+    if (action === 'clear-history') {
+      // Solo el super admin global puede borrar el historial de visitas.
+      if (!(await isGlobalSuperAdmin(req, client))) {
+        return json({ success: false, data: null, error: { code: 'FORBIDDEN', message: 'No tienes permisos para esta acción' } }, 403);
+      }
+      const NEUTRAL_ID = '00000000-0000-0000-0000-000000000000';
+      try {
+        // Historial = visitas que ya registraron su salida (completadas).
+        const { error } = await db.from('visits').delete().not('exit_time', 'is', null);
+        if (error) throw error;
+      } catch (e) {
+        console.error('clear visit history:', e);
+        return json({ success: false, data: null, error: { code: 'INTERNAL_ERROR', message: 'No se pudo eliminar el historial' } }, 500);
+      }
+      return json({ success: true, data: { cleared: true }, error: null }, 200);
+    }
+
     if (action === 'list-packages') {
       let q = db.from('visitor_packages').select('*');
       if (!isOperator) {
@@ -285,7 +302,7 @@ async function departmentOfUser(
   return null;
 }
 
-async function isAdminForSchema(req: Request, client: ReturnType<typeof createAdminClient>, schemaName: string): Promise<boolean> {
+async function isGlobalSuperAdmin(req: Request, client: ReturnType<typeof createAdminClient>): Promise<boolean> {
   const auth = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
   if (!auth) return false;
   try {
@@ -294,10 +311,26 @@ async function isAdminForSchema(req: Request, client: ReturnType<typeof createAd
     const uid = data?.user?.id;
     if (!uid) return false;
     const { data: ug } = await client.database.from('users_global').select('is_superadmin').eq('id', uid).single();
+    return Boolean(ug && (ug as { is_superadmin: boolean }).is_superadmin);
+  } catch { return false; }
+}
+
+async function isAdminForSchema(req: Request, client: ReturnType<typeof createAdminClient>, schemaName: string): Promise<boolean> {
+  const auth = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
+  if (!auth) return false;
+  try {
+    const userClient = createClient({ baseUrl: Deno.env.get('INSFORGE_BASE_URL'), accessToken: auth });
+    const { data } = await userClient.auth.getCurrentUser();
+    const uid = data?.user?.id;
+    if (!uid) return false;
+
+    const { data: ug } = await client.database.from('users_global').select('is_superadmin').eq('id', uid).single();
     if (ug && (ug as { is_superadmin: boolean }).is_superadmin) return true;
+
     const { data: t } = await client.database.from('tenants').select('id').eq('schema_name', schemaName).single();
     const tenantId = t?.id;
     if (!tenantId) return false;
+
     const { data: tu } = await client.database.from('tenant_users').select('id').eq('user_id', uid).eq('tenant_id', tenantId).eq('status', 'ACTIVE').in('role', ['SUPER_ADMIN', 'ADMIN']).single();
     return Boolean(tu);
   } catch { return false; }
