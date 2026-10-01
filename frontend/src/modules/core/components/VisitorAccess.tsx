@@ -11,7 +11,7 @@ function visitStatusInfo(v: VisitorVisit): { label: string; cls: string } {
     ? 'EXPIRADO'
     : v.status;
   if (effective === 'ACTIVO') {
-    if (v.exit_time) return { label: 'Finalizada', cls: 'status-vacant' };
+    if (v.exit_time) return { label: 'Finalizada', cls: 'status-finished' };
     return { label: 'Dentro', cls: 'status-occupied' };
   }
   if (effective === 'PENDIENTE') return { label: 'Pendiente', cls: 'status-warn' };

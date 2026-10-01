@@ -1207,8 +1207,14 @@ html.dark .status-cart-mantenimiento { background: rgba(255, 193, 7, 0.18); colo
   color: #e63946;
 }
 
+.status-finished {
+  background: rgba(185, 28, 28, 0.14);
+  color: #b91c1c;
+}
+
 html.dark .status-warn { background: rgba(255, 193, 7, 0.18); color: #ffd43b; }
 html.dark .status-late { background: rgba(230, 57, 70, 0.2); color: #ff8a8a; }
+html.dark .status-finished { background: rgba(220, 38, 38, 0.22); color: #ff9a9a; }
 
 .empty-state {
   text-align: center;
