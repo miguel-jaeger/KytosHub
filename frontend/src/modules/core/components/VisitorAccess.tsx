@@ -34,10 +34,13 @@ function vehicleLabel(v: VisitorVisit): string {
 function fmtDT(iso: string | null): string {
   if (!iso) return '-';
   const d = new Date(iso);
+  if (isNaN(d.getTime())) return '-';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
   const hh = d.getHours() % 12 || 12;
-  const mm = String(d.getMinutes()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
   const ap = d.getHours() >= 12 ? 'PM' : 'AM';
-  return `${d.toLocaleDateString('es-PE')} ${hh}:${mm} ${ap}`;
+  return `${dd}/${mm}/${d.getFullYear()} · ${hh}:${mi} ${ap}`;
 }
 
 function toLocal(iso: string): string {
@@ -49,7 +52,7 @@ function toLocal(iso: string): string {
 export function VisitorAccess({ schemaName }: { schemaName?: string }) {
   const role = useUserRole();
   const isOperator = role === 'admin' || role === 'super' || role === 'security';
-  const { listVisits, createVisit, updateVisitStatus, listPackages, createPackage, updatePackage, clearHistory, clearAllVisits } = useVisitorAccess();
+  const { listVisits, createVisit, updateVisitStatus, listPackages, createPackage, updatePackage, clearHistory, clearAllVisits, clearPackages } = useVisitorAccess();
 
   const [visits, setVisits] = useState<VisitorVisit[]>([]);
   const [packages, setPackages] = useState<VisitorPackage[]>([]);
@@ -70,6 +73,15 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
   const [historyPerPage, setHistoryPerPage] = useState<number | 'all'>(10);
   const [clearingHistory, setClearingHistory] = useState(false);
   const [clearingAll, setClearingAll] = useState(false);
+  const [clearingPackages, setClearingPackages] = useState(false);
+
+  // Paginación de listados
+  const [visitsPage, setVisitsPage] = useState(1);
+  const [visitsPerPage, setVisitsPerPage] = useState<number | 'all'>(10);
+  const [openPage, setOpenPage] = useState(1);
+  const [openPerPage, setOpenPerPage] = useState<number | 'all'>(10);
+  const [deliveredPage, setDeliveredPage] = useState(1);
+  const [deliveredPerPage, setDeliveredPerPage] = useState<number | 'all'>(10);
 
   const [showVisitForm, setShowVisitForm] = useState(false);
   const [visitForm, setVisitForm] = useState({
@@ -297,6 +309,23 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
     }
   };
 
+  const handleClearPackages = async () => {
+    if (!schemaName) return;
+    if (!confirm('¿Eliminar TODOS los datos de paquetería y delivery (recibidos, notificados y entregados)? Solo el super admin puede ejecutarlo. Esta acción no se puede deshacer.')) return;
+    setClearingPackages(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await clearPackages(schemaName);
+      setMessage('Todos los datos de paquetería eliminados.');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudieron eliminar los datos de paquetería');
+    } finally {
+      setClearingPackages(false);
+    }
+  };
+
   if (loading) return <div className="loading-message">Cargando visitantes...</div>;
 
   const q = search.trim().toLowerCase();
@@ -330,6 +359,10 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
 
   const openPackages = packages.filter(p => !p.delivered_at);
   const deliveredPackages = packages.filter(p => p.delivered_at);
+
+  const { slice: visitsItems } = paginate(filteredVisits, visitsPage, visitsPerPage === 'all' ? filteredVisits.length : visitsPerPage);
+  const { slice: openItems } = paginate(openPackages, openPage, openPerPage === 'all' ? openPackages.length : openPerPage);
+  const { slice: deliveredItems } = paginate(deliveredPackages, deliveredPage, deliveredPerPage === 'all' ? deliveredPackages.length : deliveredPerPage);
 
   return (
     <div className="visitor-access">
@@ -376,11 +409,11 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
           <div className="filter-bar">
             <div className="form-group">
               <label>Buscar</label>
-              <input type="text" value={search} onChange={e => { setSearch(e.target.value); }} placeholder="Nombre, documento o placa..." />
+              <input type="text" value={search} onChange={e => { setSearch(e.target.value); setVisitsPage(1); }} placeholder="Nombre, documento o placa..." />
             </div>
             <div className="form-group">
               <label>Estado</label>
-              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+              <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setVisitsPage(1); }}>
                 <option value="">Todos</option>
                 <option value="PENDIENTE">Pendiente</option>
                 <option value="ACTIVO">Activo</option>
@@ -389,8 +422,22 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
               </select>
             </div>
             <div className="filter-actions">
-              <button className="btn-cancel" onClick={() => { setSearch(''); setStatusFilter(''); }}>Limpiar</button>
+              <button className="btn-cancel" onClick={() => { setSearch(''); setStatusFilter(''); setVisitsPage(1); }}>Limpiar</button>
             </div>
+          </div>
+
+          <div className="history-tools">
+            <div className="history-tools-title">
+              <span className="material-symbols-outlined">delete_forever</span>
+              <strong>Datos de visitas (solo disponible para super admin)</strong>
+            </div>
+            <div className="history-tools-actions">
+              <button className="btn-cancel users-bulk-delete" onClick={handleClearAllVisits} disabled={clearingHistory || clearingAll}>
+                {clearingAll ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">person_remove</span>}
+                {clearingAll ? 'Eliminando...' : 'Eliminar todos los datos de visitas'}
+              </button>
+            </div>
+            <small className="text-muted">Borra también las visitas pendientes, activas y canceladas. Solo el super admin puede ejecutarlo. No se puede deshacer.</small>
           </div>
 
           {filteredVisits.length === 0 ? (
@@ -407,7 +454,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredVisits.map(v => {
+                  {visitsItems.map(v => {
                     const canCancel = v.status === 'PENDIENTE' || v.status === 'ACTIVO';
                     return (
                       <tr key={v.id}>
@@ -435,7 +482,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
               </table>
 
               <div className="residents-mobile-grid">
-                {filteredVisits.map(v => (
+                {visitsItems.map(v => (
                   <div key={v.id} className="resident-grid-card">
                     <div className="resident-grid-main">
                       <span className="resident-grid-name">{v.full_name}</span>
@@ -454,6 +501,8 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
                   </div>
                 ))}
               </div>
+
+              <PaginationBar total={filteredVisits.length} page={visitsPage} perPage={visitsPerPage} onPageChange={setVisitsPage} onPerPageChange={(n) => { setVisitsPerPage(n); setVisitsPage(1); }} itemLabel="visita" />
             </>
           )}
         </>
@@ -489,19 +538,15 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
           <div className="history-tools">
             <div className="history-tools-title">
               <span className="material-symbols-outlined">delete_forever</span>
-              <strong>Datos de visitas (solo disponible para super admin)</strong>
+              <strong>Historial de visitas (solo disponible para super admin)</strong>
             </div>
             <div className="history-tools-actions">
               <button className="btn-cancel users-bulk-delete" onClick={handleClearHistory} disabled={clearingHistory || clearingAll}>
                 {clearingHistory ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">person_off</span>}
                 {clearingHistory ? 'Eliminando...' : 'Eliminar historial de visitas'}
               </button>
-              <button className="btn-cancel users-bulk-delete" onClick={handleClearAllVisits} disabled={clearingHistory || clearingAll}>
-                {clearingAll ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">person_remove</span>}
-                {clearingAll ? 'Eliminando...' : 'Eliminar todos los datos de visitas'}
-              </button>
             </div>
-            <small className="text-muted">Solo el super admin puede ejecutarlo. "Historial" borra las visitas completadas; "Todos los datos" borra también pendientes, activas y canceladas. No se puede deshacer.</small>
+            <small className="text-muted">Borra todas las visitas que ya registraron su salida. Solo el super admin puede ejecutarlo. No se puede deshacer.</small>
           </div>
 
           {filteredHistory.length === 0 ? (
@@ -574,28 +619,31 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
           {openPackages.length === 0 ? (
             <p className="text-muted">No hay paquetes sin entregar.</p>
           ) : (
-            <table className="residents-table residents-desktop">
-              <thead>
-                <tr><th>Departamento</th><th>Descripción</th><th>Mensajería</th><th>Recibido</th><th>Notificado</th><th></th></tr>
-              </thead>
-              <tbody>
-                {openPackages.map(p => (
-                  <tr key={p.id}>
-                    <td>{p.departments ? `${p.departments.department_number} (${p.departments.towers?.code || ''})` : 'General'}</td>
-                    <td>{p.description}</td>
-                    <td>{p.carrier || '-'}</td>
-                    <td>{fmtDT(p.received_at)}</td>
-                    <td>{p.notified ? 'Sí' : 'No'}</td>
-                    <td>
-                      <div className="resident-row-actions">
-                        {!p.notified && <button className="btn-edit" onClick={() => void handlePackageOp(p, 'notify')}>Notificar</button>}
-                        <button className="btn-primary" onClick={() => void handlePackageOp(p, 'deliver')}>Entregar</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <>
+              <table className="residents-table residents-desktop">
+                <thead>
+                  <tr><th>Departamento</th><th>Descripción</th><th>Mensajería</th><th>Recibido</th><th>Notificado</th><th></th></tr>
+                </thead>
+                <tbody>
+                  {openItems.map(p => (
+                    <tr key={p.id}>
+                      <td>{p.departments ? `${p.departments.department_number} (${p.departments.towers?.code || ''})` : 'General'}</td>
+                      <td>{p.description}</td>
+                      <td>{p.carrier || '-'}</td>
+                      <td>{fmtDT(p.received_at)}</td>
+                      <td>{p.notified ? 'Sí' : 'No'}</td>
+                      <td>
+                        <div className="resident-row-actions">
+                          {!p.notified && <button className="btn-edit" onClick={() => void handlePackageOp(p, 'notify')}>Notificar</button>}
+                          <button className="btn-primary" onClick={() => void handlePackageOp(p, 'deliver')}>Entregar</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <PaginationBar total={openPackages.length} page={openPage} perPage={openPerPage} onPageChange={setOpenPage} onPerPageChange={(n) => { setOpenPerPage(n); setOpenPage(1); }} itemLabel="paquete" />
+            </>
           )}
 
           {deliveredPackages.length > 0 && (
@@ -604,7 +652,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
               <table className="residents-table residents-desktop">
                 <thead><tr><th>Departamento</th><th>Descripción</th><th>Recibido</th><th>Entregado</th></tr></thead>
                 <tbody>
-                  {deliveredPackages.map(p => (
+                  {deliveredItems.map(p => (
                     <tr key={p.id}>
                       <td>{p.departments ? `${p.departments.department_number} (${p.departments.towers?.code || ''})` : 'General'}</td>
                       <td>{p.description}</td>
@@ -614,8 +662,23 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
                   ))}
                 </tbody>
               </table>
+              <PaginationBar total={deliveredPackages.length} page={deliveredPage} perPage={deliveredPerPage} onPageChange={setDeliveredPage} onPerPageChange={(n) => { setDeliveredPerPage(n); setDeliveredPage(1); }} itemLabel="paquete entregado" />
             </>
           )}
+
+          <div className="history-tools">
+            <div className="history-tools-title">
+              <span className="material-symbols-outlined">delete_forever</span>
+              <strong>Paquetería y delivery (solo disponible para super admin)</strong>
+            </div>
+            <div className="history-tools-actions">
+              <button className="btn-cancel users-bulk-delete" onClick={handleClearPackages} disabled={clearingPackages}>
+                {clearingPackages ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">inventory_2</span>}
+                {clearingPackages ? 'Eliminando...' : 'Eliminar todos los datos de paquetería'}
+              </button>
+            </div>
+            <small className="text-muted">Borra todos los paquetes/delivery recibidos, notificados y entregados. Solo el super admin puede ejecutarlo. No se puede deshacer.</small>
+          </div>
         </>
       )}
 

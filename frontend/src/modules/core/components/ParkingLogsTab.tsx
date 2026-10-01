@@ -6,10 +6,12 @@ import type { ParkingAccessLog } from '../types';
 function fmtDateTime(iso: string | null): string {
   if (!iso) return '-';
   const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
   const hh = d.getHours() % 12 || 12;
-  const mm = String(d.getMinutes()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
   const ap = d.getHours() >= 12 ? 'PM' : 'AM';
-  return `${d.toLocaleDateString('es-PE')}, ${hh}:${mm} ${ap}`;
+  return `${dd}/${mm}/${d.getFullYear()} · ${hh}:${mi} ${ap}`;
 }
 
 const VEHICLE_TYPE_LABELS: Record<string, string> = { AUTO: 'Auto', MOTO: 'Moto' };

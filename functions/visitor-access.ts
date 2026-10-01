@@ -171,6 +171,22 @@ export default async function(req: Request): Promise<Response> {
       return json({ success: true, data: { cleared: true }, error: null }, 200);
     }
 
+    if (action === 'clear-packages') {
+      // Solo el super admin global puede eliminar toda la paquetería.
+      if (!(await isGlobalSuperAdmin(req, client))) {
+        return json({ success: false, data: null, error: { code: 'FORBIDDEN', message: 'No tienes permisos para esta acción' } }, 403);
+      }
+      const NEUTRAL_ID = '00000000-0000-0000-0000-000000000000';
+      try {
+        const { error } = await db.from('visitor_packages').delete().neq('id', NEUTRAL_ID);
+        if (error) throw error;
+      } catch (e) {
+        console.error('clear packages:', e);
+        return json({ success: false, data: null, error: { code: 'INTERNAL_ERROR', message: 'No se pudieron eliminar los datos de paquetería' } }, 500);
+      }
+      return json({ success: true, data: { cleared: true }, error: null }, 200);
+    }
+
     if (action === 'list-packages') {
       let q = db.from('visitor_packages').select('*');
       if (!isOperator) {
