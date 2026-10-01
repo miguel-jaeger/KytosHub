@@ -12,9 +12,12 @@ export default async function(req: Request): Promise<Response> {
   }
 
   try {
+    const baseUrl = Deno.env.get('INSFORGE_BASE_URL');
+    const apiKey = Deno.env.get('INSFORGE_API_KEY');
+    if (!baseUrl || !apiKey) throw new Error('InsForge admin credentials are not configured');
     const client = createAdminClient({
-      baseUrl: Deno.env.get('INSFORGE_BASE_URL'),
-      apiKey: Deno.env.get('INSFORGE_API_KEY')
+      baseUrl,
+      apiKey
     });
 
     let body: Record<string, unknown> = {};
@@ -41,7 +44,8 @@ export default async function(req: Request): Promise<Response> {
       if (!userIds.length) return map;
       try {
         const { data: tenants } = await client.database.from('tenants').select('schema_name');
-        const schemas = [...new Set((tenants || []).map((t: { schema_name?: string }) => t.schema_name).filter(Boolean))];
+        const schemas = [...new Set((tenants || []).map((t: { schema_name?: string }) => t.schema_name)
+          .filter((schema): schema is string => typeof schema === 'string' && Boolean(schema)))];
         for (const s of schemas) {
           try {
             const { data: rows } = await client.database.schema(s)
@@ -75,7 +79,7 @@ export default async function(req: Request): Promise<Response> {
         if (error) throw error;
         const residents = (data || []) as Array<Record<string, unknown>>;
         if (residents.length === 0 && !body.include_users) return ok(corsHeaders, []);
-        const deptIds = [...new Set(residents.map((r: { department_id: string }) => r.department_id))];
+        const deptIds = [...new Set(residents.map(r => String(r.department_id || '')).filter(Boolean))];
         const { data: depts } = deptIds.length ? await db.from('departments').select('id, department_number, tower_id').in('id', deptIds) : { data: [] } as { data: { id: string; department_number: string; tower_id: string }[] };
         const towerIds = [...new Set((depts || []).map((d: { tower_id: string }) => d.tower_id))];
         const { data: towers } = towerIds.length ? await db.from('towers').select('id, name, code').in('id', towerIds) : { data: [] } as { data: { id: string; name: string; code: string }[] };
@@ -88,7 +92,7 @@ export default async function(req: Request): Promise<Response> {
         });
 
         // Include global condominium users (from tenant_users + users_global) that are not yet residents
-        let merged = enriched;
+        let merged: Array<Record<string, unknown>> = enriched;
         const found: Array<Record<string, unknown>> = [];
         if (body.include_users) {
           const existingEmails = new Set(
@@ -148,20 +152,30 @@ export default async function(req: Request): Promise<Response> {
           } else if (body.tenant_id) {
             const tenantId = body.tenant_id as string;
             const { data: tuRows } = await client.database.from('tenant_users').select('user_id, role').eq('tenant_id', tenantId).eq('status', 'ACTIVE');
-            for (const tu of (tuRows || []) as Array<{ user_id: string; role: string }>) {
-              let email = '';
-              let name = '';
-              let docType = '';
-              let docNumber = '';
-              let phone = '';
+            const tenantUsers = (tuRows || []) as Array<{ user_id: string; role: string }>;
+            const profiles = new Map<string, Record<string, unknown>>();
+            const userIds = [...new Set(tenantUsers.map(user => user.user_id).filter(Boolean))];
+            for (const batch of chunk(userIds, 50)) {
               try {
-                const { data: ug } = await client.database.from('users_global').select('email, name, document_type, document_number, phone').eq('id', tu.user_id).single();
-                email = String((ug as { email?: string } | null)?.email || '');
-                name = String((ug as { name?: string } | null)?.name || '');
-                docType = String((ug as { document_type?: string } | null)?.document_type || '');
-                docNumber = String((ug as { document_number?: string } | null)?.document_number || '');
-                phone = String((ug as { phone?: string } | null)?.phone || '');
-              } catch {}
+                const { data: batchProfiles, error: profilesError } = await client.database.from('users_global')
+                  .select('id, email, name, document_type, document_number, phone')
+                  .in('id', batch);
+                if (profilesError) throw profilesError;
+                for (const profile of (batchProfiles || []) as Array<Record<string, unknown> & { id: string }>) {
+                  profiles.set(profile.id, profile);
+                }
+              } catch (error) {
+                console.error('users_global batch lookup error:', error);
+              }
+            }
+
+            for (const tu of tenantUsers) {
+              const profile = profiles.get(tu.user_id);
+              const email = String(profile?.email || '');
+              const name = String(profile?.name || '');
+              const docType = String(profile?.document_type || '');
+              const docNumber = String(profile?.document_number || '');
+              const phone = String(profile?.phone || '');
               if (skipOrTrack({ user_id: tu.user_id, email, document_type: docType || null, document_number: docNumber || null })) continue;
               found.push({
                 id: null,
@@ -386,4 +400,12 @@ function ok(cors: Record<string, string>, data: unknown): Response {
 }
 function bad(cors: Record<string, string>, msg: string): Response {
   return new Response(JSON.stringify({ success: false, data: null, error: { code: 'BAD_REQUEST', message: msg } }), { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } });
+}
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
 }
