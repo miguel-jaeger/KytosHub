@@ -149,9 +149,16 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
     setLoading(true);
     setError(null);
     try {
-      const [sp, ly, capacity] = await Promise.all([listSpots(schemaName), getLayout(schemaName), getMultipleCapacity(schemaName)]);
+      // El layout y las plazas son la base del esquema: deben cargar siempre.
+      // Los cupos de cocheras múltiples se cargan aparte para que un fallo de esa
+      // llamada no deje el mapa vacío ni parezca que el esquema no se generó.
+      const [sp, ly] = await Promise.all([listSpots(schemaName), getLayout(schemaName)]);
       setSpots(sp);
-      setMultipleCapacity(capacity);
+      try {
+        setMultipleCapacity(await getMultipleCapacity(schemaName));
+      } catch {
+        // Se conservan los cupos por defecto (1 auto / 3 motos).
+      }
       // Only apply a real, persisted layout. get-layout returns null when there is
       // no saved configuration, so the form keeps its defaults instead of corrupting.
       if (ly && Number(ly.rows) >= 1) {
