@@ -2733,7 +2733,7 @@ html.dark .resident-search input { background: #333d48; border-color: #444; colo
 }
 
 .resident-grid-label {
-  color: #76777d;
+  color: #0b1c30;
   font-weight: 600;
   min-width: 70px;
 }
@@ -2742,7 +2742,7 @@ html.dark .resident-grid-card { background: #27313c; border-color: #333; }
 html.dark .resident-grid-name { color: #e5e7eb; }
 html.dark .resident-grid-meta { color: #aaa; }
 html.dark .resident-grid-line { color: #e5e7eb; }
-html.dark .resident-grid-label { color: #aaa; }
+html.dark .resident-grid-label { color: #b3bac2; }
 .resident-form .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 
 .modal-close:hover { background: #e8f5ec; border-color: #006c49; color: #006c49; }
