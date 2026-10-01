@@ -409,7 +409,6 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
               <th>Placa</th>
               <th>Vehículo</th>
               <th>Conductor</th>
-              <th>Color</th>
               <th>Departamento</th>
               <th>Estacionamiento</th>
               <th>Estado</th>
@@ -422,9 +421,8 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
                 <td><strong>{v.license_plate}</strong></td>
                 <td>{(VEHICLE_TYPE_LABELS[v.vehicle_type] || v.vehicle_type)}{(v.model || v.brand) ? ` · ${v.model || v.brand}` : ''}</td>
                 <td>{v.driver_name || <span className="text-muted">Sin conductor</span>}</td>
-                <td>{v.color || '-'}</td>
                 <td>{deptLabelV(v.departments)}</td>
-                <td>{v.occupied_spot ? `Cochera ${v.occupied_spot}` : (v.departments?.spots?.length ? v.departments.spots.map(s => `Cochera ${s}`).join(', ') : '-')}</td>
+                <td>{v.occupied_spot ? v.occupied_spot : (v.departments?.spots?.length ? v.departments.spots.join(', ') : '-')}</td>
                 <td><span className={`status-badge ${v.is_active ? 'status-occupied' : 'status-vacant'}`}>{v.is_active ? 'Activo' : 'Inactivo'}</span></td>
                 <td>
                   <div className="resident-row-actions">
