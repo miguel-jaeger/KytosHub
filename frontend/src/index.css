@@ -1794,17 +1794,28 @@ html.dark .theme-switch input:checked + .theme-switch-track { background: #006c4
 .modules-header small { color: #76777d; }
 
 /* Section header: title on the left, actions (Adicionar) always on the right,
-   separated from any filter bar below */
+   separated from the following box with 10px */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.header > button,
 .modules-header > button,
 .panel-header > button {
   width: fit-content;
   flex: 0 0 auto;
   margin-left: auto;
-  align-self: flex-start;
-  margin-bottom: 0.35rem; /* separación mínima (~5px) con lo que sigue */
+  margin-bottom: 10px; /* separación mínima con lo que sigue */
   white-space: nowrap;
   padding: 0.5rem 0.9rem;
   font-size: 0.9rem;
+}
+.header-actions {
+  margin-bottom: 10px;
 }
 .panel-header {
   display: flex;
