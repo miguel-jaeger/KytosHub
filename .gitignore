@@ -4,6 +4,9 @@ RESUMEN-FUNCIONALIDADES.md
 # Dependencias
 node_modules/
 
+# Lockfile vacío de la raíz (el real vive en frontend/)
+/package-lock.json
+
 # Compilación
 dist/
 
