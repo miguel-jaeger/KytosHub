@@ -300,7 +300,7 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
 
       <div className="setup-tabs">
         <button className={tab === 'carts' ? 'active' : ''} onClick={() => setTab('carts')}>Carritos</button>
-        <button className={tab === 'stats' ? 'active' : ''} onClick={() => { setTab('stats'); void openStats(); }}>Estadísticas y multas</button>
+        <button className={tab === 'stats' ? 'active' : ''} onClick={() => { setTab('stats'); void openStats(); }}>Registro</button>
       </div>
 
       {tab === 'carts' && (
@@ -433,6 +433,10 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
 
       {tab === 'stats' && (
         <div className="cart-estado">
+          <div className="modules-header">
+            <h3>Registro de Carritos</h3>
+            <small>Solo para administración. Resumen de estado de carritos, préstamos y multas.</small>
+          </div>
           {cartMsg && <div className="success-message" onClick={() => setCartMsg(null)}>{cartMsg} — clic para cerrar</div>}
           <div className="history-tools">
             <div className="history-tools-title">

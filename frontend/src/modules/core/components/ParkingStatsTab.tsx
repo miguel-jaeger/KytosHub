@@ -3,7 +3,7 @@ import { useCondoStats } from '../hooks/useCondoStats';
 import { ParkingLogsTab } from './ParkingLogsTab';
 
 export function ParkingStatsTab({ schemaName }: { schemaName?: string }) {
-  const { getStats, resetStats, clearHistory } = useCondoStats();
+  const { getStats, clearHistory } = useCondoStats();
   const [stats, setStats] = useState<{
     access_total: number;
     access_inside: number;
@@ -15,8 +15,7 @@ export function ParkingStatsTab({ schemaName }: { schemaName?: string }) {
     parking_loans_active: number;
   } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [resetting, setResetting] = useState(false);
-  const [deletingHistory, setDeletingHistory] = useState<'parking' | 'carts' | null>(null);
+  const [deletingHistory, setDeletingHistory] = useState<'parking' | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -43,32 +42,20 @@ export function ParkingStatsTab({ schemaName }: { schemaName?: string }) {
 
   useEffect(() => { void load(); }, [load]);
 
-  const handleResetStats = async () => {
-    if (!schemaName) return;
-    if (!confirm('¿Limpiar las estadísticas del estacionamiento y de los carritos? Se pondrán los contadores en cero (accesos, ocupación, préstamos y carritos). Esta acción no se puede deshacer.')) return;
-    setResetting(true);
-    setMessage(null);
-    try {
-      const s = await resetStats(schemaName, 'all');
-      setStats({
-        access_total: s.access_total,
-        access_inside: s.access_inside,
-        access_entry_today: s.access_entry_today,
-        access_exit_total: s.access_exit_total,
-        vehicles_total: s.vehicles_total,
-        spots_total: s.spots_total,
-        spots_occupied: s.spots_occupied,
-        parking_loans_active: s.parking_loans_active
-      });
-      setMessage('Estadísticas limpiadas.');
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'No se pudieron limpiar las estadísticas');
-    } finally {
-      setResetting(false);
-    }
+  const applyStats = (s: { access_total: number; access_inside: number; access_entry_today: number; access_exit_total: number; vehicles_total: number; spots_total: number; spots_occupied: number; parking_loans_active: number }) => {
+    setStats({
+      access_total: s.access_total,
+      access_inside: s.access_inside,
+      access_entry_today: s.access_entry_today,
+      access_exit_total: s.access_exit_total,
+      vehicles_total: s.vehicles_total,
+      spots_total: s.spots_total,
+      spots_occupied: s.spots_occupied,
+      parking_loans_active: s.parking_loans_active
+    });
   };
 
-  const handleClearHistory = async (area: 'parking' | 'carts') => {
+  const handleClearHistory = async (area: 'parking') => {
     if (!schemaName) return;
     const label = area === 'parking' ? 'el estacionamiento' : 'los carritos';
     if (!confirm(`¿Eliminar completamente el historial de ${label}? Se borrarán los registros de accesos/préstamos y se liberarán las plazas/carritos. Esta acción no se puede deshacer.`)) return;
@@ -76,16 +63,7 @@ export function ParkingStatsTab({ schemaName }: { schemaName?: string }) {
     setMessage(null);
     try {
       const s = await clearHistory(schemaName, area);
-      setStats({
-        access_total: s.access_total,
-        access_inside: s.access_inside,
-        access_entry_today: s.access_entry_today,
-        access_exit_total: s.access_exit_total,
-        vehicles_total: s.vehicles_total,
-        spots_total: s.spots_total,
-        spots_occupied: s.spots_occupied,
-        parking_loans_active: s.parking_loans_active
-      });
+      applyStats(s);
       setMessage(`Historial de ${label} eliminado.`);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'No se pudo eliminar el historial');
@@ -97,12 +75,8 @@ export function ParkingStatsTab({ schemaName }: { schemaName?: string }) {
   return (
     <div className="parking-stats">
       <div className="modules-header">
-        <h3>Estadísticas del Estacionamiento</h3>
+        <h3>Registro del Estacionamiento</h3>
         <small>Solo para administración. Resumen de accesos, padrón de vehículos y préstamos vigentes.</small>
-        <button className="btn-cancel users-bulk-delete" onClick={handleResetStats} disabled={resetting}>
-          {resetting ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">delete_sweep</span>}
-          {resetting ? 'Limpiando...' : 'Limpiar estadísticas'}
-        </button>
       </div>
 
       {message && <div className="success-message" onClick={() => setMessage(null)}>{message} — clic para cerrar</div>}
