@@ -17,24 +17,29 @@ SaaS modular para la administración, control operativo, reservas, estacionamien
 > Fuente única de instrucciones de trabajo. El usuario no repetirá estas reglas en cada
 > mensaje: leerlas desde este fichero y mantenerlas actualizadas cuando cambien flujos,
 > comandos o convenciones. Al terminar cada cambio, el agente lo entrega por su cuenta
-> (commit → merge hasta `main` → push) siguiendo la sección 0.3, sin que el usuario lo pida.
+> (commit → merge hasta `dev` → push) siguiendo la sección 0.3, sin que el usuario lo pida.
+> **No mezclar a `main` automáticamente**: el merge a `main` (que dispara el despliegue
+> automático de Vercel) solo se hace bajo petición explícita del usuario, para controlar y
+> no consumir los deploys gratuitos diarios de Vercel.
 
 ### 0.1. Ramas y Git (reglas obligatorias)
 - **Nunca trabajar sobre `main` directamente** y **nunca commitear/pushear commits de trabajo
   sobre `main`**.
 - **Siempre crear una rama nueva a partir de `dev`** con nombre descriptivo
   (`feature/<slug>` o `fix/<slug>`).
-- **`main` y `dev` deben mantenerse sincronizadas** en el mismo estado (mismo commit) al
-  finalizar cualquier entrega.
+- **`dev` es la rama de integración**: todas las entregas terminan en `dev`.
+- **`main` se sincroniza bajo demanda**: solo cuando el usuario lo pida (equivale a "desplegar
+  en producción"). Mientras tanto `dev` puede quedar por delante de `main`.
 
 Ciclo de entrega:
 1. `git fetch origin` y asegurarse de estar en `dev` actualizado.
 2. Crear la rama de trabajo: `git switch -c <feature|fix>/<slug> dev`.
-3. Hacer los cambios, **validar con el build** (ver 0.3) y commitear **solo en la rama**.
+3. Hacer los cambios, **validar con el build** (ver 0.4) y commitear **solo en la rama**.
 4. Pushear la rama: `git push -u origin <feature|fix>/<slug>`.
 5. Integrar a `dev`: `git switch dev` → `git merge --ff-only <rama>` → `git push origin dev`.
-6. Sincronizar `main`: `git switch main` → `git merge --ff-only <rama>` → `git push origin main`.
-7. Volver a `dev` como rama base de trabajo.
+6. Volver a `dev` como rama base de trabajo.
+7. **Solo bajo petición explícita** ("mezcla a main / despliega"): sincronizar `main` con
+   `git switch main` → `git merge --ff-only origin/dev` → `git push origin main`, y volver a `dev`.
 
 Si hay cambios sin commitear al cambiar de rama, trasladarlos con `git stash push`
 y `git stash pop` (no perder trabajo en el checkout).
@@ -43,18 +48,22 @@ y `git stash pop` (no perder trabajo en el checkout).
 - En **inglés**, estilo convencional: `feat(scope): subject` / `fix(scope): subject`.
 - Un commit por cambio lógico/atómico; stagear únicamente los archivos de ese commit.
 
-### 0.3. Entrega automática (commit → merge → push)
+### 0.3. Entrega automática (commit → merge → push a `dev`)
 - Al terminar de implementar un cambio y **validar el build**, el agente **debe** entregarlo
   por sí mismo **sin esperar a que el usuario lo pida**: commitear en rama nueva desde `dev`,
-  pushearla, mergearla a `dev`, mergearla a `main` y pushear ambas (ciclo de entrega del 0.1).
+  pushearla y mergearla a `dev` (ciclo de entrega del 0.1). NO llevar a `main`.
 - Mientras haya cambios sin commitear en el árbol, el agente **no debe** dar por terminada la
-  tarea; debe commitearlos y llevar la entrega hasta `main` automáticamente.
+  tarea; debe commitearlos y dejar la entrega en `dev` automáticamente.
 - No preguntar "¿commiteo y pusheo?" salvo que haya un conflicto, un riesgo de `--force` o una
   ambigüedad real (por ejemplo, cambios no solicitados o incompletos).
+- El merge a `main` (producción/despliegue Vercel) se ejecuta **únicamente cuando el usuario
+  lo solicite explícitamente**.
 
 ### 0.4. Validación obligatoria
 - Todo cambio en `frontend/` debe validarse ejecutando `npm run build` en `frontend/`
   (ejecuta `tsc` + `vite build`). No finalizar una tarea si el build no pasa.
+- Para probar en local contra InsForge: `cd frontend && npm install && npm run dev` y abrir
+  `http://localhost:5173` (los valores de InsForge están en `frontend/.env`/fallback).
 
 ### 0.5. Convenciones de idioma y estilo (resumen)
 - Código, funciones, APIs, DTOs, ramas, commits y nombres: **inglés**.
