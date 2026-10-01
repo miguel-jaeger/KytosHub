@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
+import { PaginationBar, paginate } from '../../../components/Pagination';
 import { useVisitorAccess } from '../hooks/useVisitorAccess';
 import { useUserRole } from '../../../hooks/useUserRole';
 import type { Department, Floor, Tower, VisitorPackage, VisitorVisit, VehicleType } from '../types';
@@ -60,6 +61,13 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [detail, setDetail] = useState<VisitorVisit | null>(null);
+
+  // Historial (visitas completadas): filtros por nombre/DNI y rango de fechas
+  const [historySearch, setHistorySearch] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPerPage, setHistoryPerPage] = useState<number | 'all'>(10);
 
   const [showVisitForm, setShowVisitForm] = useState(false);
   const [visitForm, setVisitForm] = useState({
@@ -260,7 +268,27 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
     return true;
   });
 
-  const completedVisits = visits.filter(v => v.exit_time);
+  const completedVisits = visits
+    .filter(v => v.exit_time)
+    .sort((a, b) => new Date(b.exit_time || b.created_at).getTime() - new Date(a.exit_time || a.created_at).getTime());
+
+  const isoDate = (v: VisitorVisit): string | null => {
+    const d = v.entry_time ? new Date(v.entry_time) : v.exit_time ? new Date(v.exit_time) : (v.created_at ? new Date(v.created_at) : null);
+    if (!d || isNaN(d.getTime())) return null;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const hq = historySearch.trim().toLowerCase();
+  const filteredHistory = completedVisits.filter(v => {
+    if (hq && !`${v.full_name} ${v.document_type} ${v.document_number} ${v.vehicle_plate || ''}`.toLowerCase().includes(hq)) return false;
+    const d = isoDate(v);
+    if (d) {
+      if (fromDate && d < fromDate) return false;
+      if (toDate && d > toDate) return false;
+    }
+    return true;
+  });
+  const { slice: historyItems } = paginate(filteredHistory, historyPage, historyPerPage === 'all' ? filteredHistory.length : historyPerPage);
 
   const openPackages = packages.filter(p => !p.delivered_at);
   const deliveredPackages = packages.filter(p => p.delivered_at);
@@ -397,33 +425,53 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
         <>
           <div className="panel-header">
             <div>
-              <h3>Historial de visitas completadas</h3>
-              <small>Visitas que ya registraron su salida, al igual que el historial del estacionamiento.</small>
+              <h3>Historial de visitas</h3>
+              <small>Visitas que ya registraron su salida. Filtra por nombre, documento (DNI/CE/Pasaporte) o rango de fechas.</small>
             </div>
           </div>
 
-          {completedVisits.length === 0 ? (
-            <div className="empty-state"><p>Aún no hay visitas completadas.</p></div>
+          <div className="filter-bar">
+            <div className="form-group">
+              <label>Buscar por nombre o DNI</label>
+              <input type="text" value={historySearch} onChange={e => { setHistorySearch(e.target.value); setHistoryPage(1); }} placeholder="Nombre, DNI, placa..." />
+            </div>
+            <div className="form-group">
+              <label>Desde</label>
+              <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setHistoryPage(1); }} />
+            </div>
+            <div className="form-group">
+              <label>Hasta</label>
+              <input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setHistoryPage(1); }} />
+            </div>
+            <div className="filter-actions">
+              <button className="btn-cancel" onClick={() => { setHistorySearch(''); setFromDate(''); setToDate(''); setHistoryPage(1); }}>Limpiar</button>
+            </div>
+          </div>
+
+          {filteredHistory.length === 0 ? (
+            <div className="empty-state"><p>Aún no hay visitas completadas que coincidan.</p></div>
           ) : (
             <>
+              <div className="import-summary">Historial: <strong>{filteredHistory.length}</strong> visita(s) completada(s)</div>
+
               <table className="residents-table residents-desktop">
                 <thead>
                   <tr>
                     <th>Visitante</th>
                     <th>Documento</th>
                     <th>Departamento</th>
-                    <th>Horario</th>
+                    <th>Vehículo</th>
                     <th>Ingreso</th>
                     <th>Salida</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {completedVisits.map(v => (
+                  {historyItems.map(v => (
                     <tr key={v.id}>
                       <td><strong>{v.full_name}</strong></td>
                       <td>{v.document_type} {v.document_number}</td>
                       <td>{v.departments ? `${v.departments.department_number} (${v.departments.towers?.code || ''})` : 'General'}</td>
-                      <td>{fmtDT(v.scheduled_start)}{v.scheduled_end ? ` → ${fmtDT(v.scheduled_end)}` : ''}</td>
+                      <td>{vehicleLabel(v)}</td>
                       <td>{fmtDT(v.entry_time)}</td>
                       <td>{fmtDT(v.exit_time)}</td>
                     </tr>
@@ -432,7 +480,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
               </table>
 
               <div className="residents-mobile-grid">
-                {completedVisits.map(v => (
+                {historyItems.map(v => (
                   <div key={v.id} className="resident-grid-card">
                     <div className="resident-grid-main">
                       <span className="resident-grid-name">{v.full_name}</span>
@@ -440,12 +488,15 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
                     </div>
                     <div className="resident-grid-fields">
                       <div className="resident-grid-line"><span className="resident-grid-label">Documento</span><span>{v.document_type} {v.document_number}</span></div>
+                      <div className="resident-grid-line"><span className="resident-grid-label">Vehículo</span><span>{vehicleLabel(v)}</span></div>
                       <div className="resident-grid-line"><span className="resident-grid-label">Ingreso</span><span>{fmtDT(v.entry_time)}</span></div>
                       <div className="resident-grid-line"><span className="resident-grid-label">Salida</span><span>{fmtDT(v.exit_time)}</span></div>
                     </div>
                   </div>
                 ))}
               </div>
+
+              <PaginationBar total={filteredHistory.length} page={historyPage} perPage={historyPerPage} onPageChange={setHistoryPage} onPerPageChange={(n) => { setHistoryPerPage(n); setHistoryPage(1); }} itemLabel="visita" />
             </>
           )}
         </>
