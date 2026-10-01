@@ -1466,12 +1466,17 @@ button.sidebar-link:hover:not(:disabled) {
   color: #006c49;
 }
 
-html.dark button.sidebar-link:hover:not(:disabled),
-html.dark .sidebar-link:hover { background: #123b2a; color: #90caf9; }
+html.dark .sidebar-link:hover,
+html.dark button.sidebar-link:hover,
+html.dark a.sidebar-link:hover,
+html.dark .mobile-nav-link:hover { background: #123b2a; color: #90caf9; }
 html.dark button.sidebar-link.active,
 html.dark .sidebar-link.active { background: #1b5e44; color: #fff; }
 
-.sidebar-link:hover {
+.sidebar-link:hover,
+button.sidebar-link:hover,
+a.sidebar-link:hover,
+.mobile-nav-link:hover {
   background: #e8f5ec;
   color: #006c49;
 }
@@ -2815,6 +2820,13 @@ html.dark .resident-grid-label { color: #b3bac2; }
     margin: 0.25rem 0.2rem;
   }
 
+  .mobile-nav-link:hover {
+    color: #006c49;
+    background: #e8f5ec;
+    border-radius: 8px;
+    margin: 0.25rem 0.2rem;
+  }
+
   .mobile-nav-link.active .material-symbols-outlined {
     color: #fff;
   }
@@ -2837,6 +2849,7 @@ html.dark .resident-grid-label { color: #b3bac2; }
   html.dark .mobile-navbar { background: #27313c; border-top-color: #333; }
   html.dark .mobile-nav-link { color: #ccc; }
   html.dark .mobile-nav-link.active { color: #fff; background: #1b5e44; }
+  html.dark .mobile-nav-link:hover { color: #90caf9; background: #123b2a; }
   html.dark .mobile-logout { color: #ff8a80; }
 
   .app-layout,
