@@ -406,7 +406,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
                             {canCancel && (
                               <button className="btn-cancel" onClick={() => void handleVisitOp(v, 'cancel')} title="Cancelar"><span className="material-symbols-outlined">cancel</span></button>
                             )}
-                            <button className="btn-edit" onClick={() => setDetail(v)} title="Ver detalles"><span className="material-symbols-outlined">visibility</span> Ver detalles</button>
+                            <button className="btn-edit" onClick={() => setDetail(v)} title="Ver detalles"><span className="material-symbols-outlined">visibility</span></button>
                           </div>
                         </td>
                       </tr>
