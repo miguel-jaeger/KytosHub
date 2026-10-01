@@ -9,6 +9,7 @@ import type {
   ParkingLoan,
   ParkingLoanStatus,
   ParkingSpot,
+  MultipleVehicleLimits,
   PlateStatus,
   Vehicle
 } from '../types';
@@ -212,6 +213,26 @@ export function useParking() {
     return data.data;
   }, []);
 
+  const getMultipleCapacity = useCallback(async (schemaName: string): Promise<MultipleVehicleLimits> => {
+    const { data, error } = await invokeFunction<{ success: boolean; data: MultipleVehicleLimits | null; error: { message: string } | null }>('parking-control', {
+      method: 'POST',
+      body: { action: 'get-multiple-capacity', schema_name: schemaName }
+    });
+    if (error) throw error;
+    if (!data?.success || !data.data) throw new Error(data?.error?.message || 'Error al consultar los cupos de cocheras múltiples');
+    return data.data;
+  }, []);
+
+  const updateMultipleCapacity = useCallback(async (schemaName: string, limits: MultipleVehicleLimits): Promise<MultipleVehicleLimits> => {
+    const { data, error } = await invokeFunction<{ success: boolean; data: MultipleVehicleLimits | null; error: { message: string } | null }>('parking-control', {
+      method: 'POST',
+      body: { action: 'update-multiple-capacity', schema_name: schemaName, ...limits }
+    });
+    if (error) throw error;
+    if (!data?.success || !data.data) throw new Error(data?.error?.message || 'Error al guardar los cupos');
+    return data.data;
+  }, []);
+
   const ocrPlate = useCallback(async (image: string): Promise<OcrResult> => {
     const { data, error } = await invokeFunction<{ success: boolean; data: OcrResult | null; error: { message: string } | null }>('plate-ocr', {
       method: 'POST',
@@ -235,6 +256,6 @@ export function useParking() {
     listVehicles, createVehicle, updateVehicle, updateVehicleDriver, deleteVehicle,
     listLoans, createLoan, updateLoanStatus,
     plateStatus, searchPlates, registerEntry, registerExit, listLogs,
-    getLayout, provisionLayout, resetLayout, ocrPlate, ocrConfigured
+    getLayout, provisionLayout, resetLayout, getMultipleCapacity, updateMultipleCapacity, ocrPlate, ocrConfigured
   };
 }

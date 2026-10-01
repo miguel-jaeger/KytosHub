@@ -9,14 +9,18 @@ const CORS = {
 const SPOT_TYPES = ['PROPIO', 'VISITA', 'ALQUILADO'];
 const VEHICLE_TYPES = ['AUTO', 'MOTO'];
 const LOAN_STATUSES = ['PENDIENTE', 'ACTIVO', 'FINALIZADO', 'CANCELADO'];
+const DEFAULT_MULTIPLE_CAPACITY = { max_autos: 1, max_motos: 3 };
 
 export default async function(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
 
   try {
+    const baseUrl = Deno.env.get('INSFORGE_BASE_URL');
+    const apiKey = Deno.env.get('INSFORGE_API_KEY');
+    if (!baseUrl || !apiKey) throw new Error('InsForge admin credentials are not configured');
     const client = createAdminClient({
-      baseUrl: Deno.env.get('INSFORGE_BASE_URL'),
-      apiKey: Deno.env.get('INSFORGE_API_KEY')
+      baseUrl,
+      apiKey
     });
 
     let body: Record<string, unknown> = {};
@@ -70,6 +74,34 @@ export default async function(req: Request): Promise<Response> {
           data: layout ? { ...layout, total_spots: spotsTotal } : null,
           error: null
         }, 200);
+      }
+
+      case 'get-multiple-capacity': {
+        return json({ success: true, data: await getMultipleVehicleLimits(db), error: null }, 200);
+      }
+
+      case 'update-multiple-capacity': {
+        if (!isAdmin) return forbidden();
+        const maxAutos = Number(body.max_autos);
+        const maxMotos = Number(body.max_motos);
+        if (!Number.isInteger(maxAutos) || maxAutos < 0 || maxAutos > 20 || !Number.isInteger(maxMotos) || maxMotos < 0 || maxMotos > 20) {
+          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Los cupos deben ser enteros entre 0 y 20' } }, 400);
+        }
+        if (maxAutos > 0 && maxMotos < 1) {
+          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Una cochera múltiple con autos debe permitir al menos una moto' } }, 400);
+        }
+        const { data: settings, error: settingsError } = await db.from('condo_settings').select('config_json').eq('module_key', 'parking_control').single();
+        if (settingsError) throw settingsError;
+        const config = settings?.config_json && typeof settings.config_json === 'object'
+          ? settings.config_json as Record<string, unknown>
+          : {};
+        const limits = { max_autos: maxAutos, max_motos: maxMotos };
+        const { error } = await db.from('condo_settings').update({
+          config_json: { ...config, multiple_vehicle_limits: limits },
+          updated_at: new Date().toISOString()
+        }).eq('module_key', 'parking_control');
+        if (error) throw error;
+        return json({ success: true, data: limits, error: null }, 200);
       }
 
       case 'reset-layout': {
@@ -354,7 +386,9 @@ export default async function(req: Request): Promise<Response> {
         if (!startTime || !endTime) {
           return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'start_time y end_time son requeridos' } }, 400);
         }
-        if (new Date(endTime).getTime() <= new Date(startTime).getTime()) {
+        const startMs = new Date(startTime).getTime();
+        const endMs = new Date(endTime).getTime();
+        if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
           return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'end_time debe ser posterior a start_time' } }, 400);
         }
 
@@ -380,9 +414,12 @@ export default async function(req: Request): Promise<Response> {
             return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'duration_unit debe ser HORAS, DIAS o MESES' } }, 400);
           }
           const borrowerVehiclePlate = body.borrower_vehicle_plate ? String(body.borrower_vehicle_plate).trim().toUpperCase() : null;
+          if (!borrowerVehiclePlate) {
+            return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Registra la placa autorizada para el rango del alquiler' } }, 400);
+          }
           const borrowerVehicleType = body.borrower_vehicle_type
             ? normalizeVehicleType(body.borrower_vehicle_type)
-            : (borrowerVehiclePlate ? 'AUTO' : null);
+            : 'AUTO';
           const { data, error } = await db.from('parking_loans').insert([{
             spot_id: spotId,
             lender_department_id: body.lender_department_id || null,
@@ -544,16 +581,10 @@ export default async function(req: Request): Promise<Response> {
           return json({ success: false, data: null, error: { code: 'ALREADY_INSIDE', message: 'El vehículo ya se encuentra dentro del estacionamiento. Solo se puede registrar su salida.' } }, 409);
         }
 
-        const resolution = await resolvePlateEntry(db, plate, body.spot_id as string | null, vehicleType);
+        const capacity = await getMultipleVehicleLimits(db);
+        const resolution = await resolvePlateEntry(db, plate, body.spot_id as string | null, vehicleType, capacity);
         if (!resolution.spot) {
           return json({ success: false, data: null, error: { code: 'NO_AUTHORIZED_SPOT', message: resolution.message } }, 409);
-        }
-
-        // Occupancy rule: at most ONE car parked at a time in a spot; motorcycles
-        // may share the spot with each other and with a single car.
-        const spotAllowed = await spotCanHostType(db, resolution.spot.id, vehicleType);
-        if (!spotAllowed.ok) {
-          return json({ success: false, data: null, error: { code: 'SPOT_FULL', message: spotAllowed.message } }, 409);
         }
 
         // Driver name: for the owner/registered vehicle we resolve the department
@@ -601,7 +632,7 @@ export default async function(req: Request): Promise<Response> {
 
         // State machine: an open log means it is inside; otherwise it can only enter.
         const { data: log } = await db.from('parking_access_logs')
-          .select('id, spot_id')
+          .select('id, spot_id, vehicle_type')
           .eq('license_plate', plate)
           .is('exit_time', null)
           .order('entry_time', { ascending: false })
@@ -611,6 +642,19 @@ export default async function(req: Request): Promise<Response> {
           return json({ success: false, data: null, error: { code: 'NOT_INSIDE', message: 'El vehículo no está dentro del estacionamiento. Solo se puede registrar su ingreso.' } }, 409);
         }
 
+        const [spotResult, occupantsResult] = await Promise.all([
+          db.from('parking_spots').select('cochera_type').eq('id', log.spot_id).maybeSingle(),
+          db.from('parking_access_logs').select('id, vehicle_type').eq('spot_id', log.spot_id).is('exit_time', null)
+        ]);
+        if (occupantsResult.error) throw occupantsResult.error;
+        const remainingOccupants = ((occupantsResult.data || []) as Array<{ id: string; vehicle_type: string }>).filter(item => item.id !== log.id);
+        const isMultiple = String(spotResult.data?.cochera_type || '').toUpperCase() === 'MULTIPLE';
+        const autosRemaining = remainingOccupants.filter(item => normalizeVehicleType(item.vehicle_type) === 'AUTO').length;
+        const motosRemaining = remainingOccupants.filter(item => normalizeVehicleType(item.vehicle_type) === 'MOTO').length;
+        if (isMultiple && autosRemaining > 0 && motosRemaining === 0) {
+          return json({ success: false, data: null, error: { code: 'CAPACITY_RULE', message: 'Registra primero la salida del auto; una cochera múltiple no puede dejar un auto sin al menos una moto' } }, 409);
+        }
+
         const gate = await resolveGateForOperator(req, client, db, body.gate_id);
         const { data: updated, error } = await db.from('parking_access_logs').update({
           exit_time: new Date().toISOString(),
@@ -618,13 +662,8 @@ export default async function(req: Request): Promise<Response> {
         }).eq('id', log.id).select().single();
         if (error) throw error;
 
-        // The spot stays OCCUPED while any vehicle (car or motorcycle) remains inside
-        const { count: remaining } = await db.from('parking_access_logs')
-          .select('*', { count: 'exact', head: true })
-          .eq('spot_id', log.spot_id)
-          .is('exit_time', null);
         await db.from('parking_spots')
-          .update({ status: (remaining || 0) > 0 ? 'OCUPADO' : 'DISPONIBLE' })
+          .update({ status: remainingOccupants.length > 0 ? 'OCUPADO' : 'DISPONIBLE' })
           .eq('id', log.spot_id);
 
         return json({
@@ -702,7 +741,18 @@ async function resolvePlateStatus(db: { from(t: string): any }, plate: string) {
   }
 
   const availableVisitorSpots = await db.from('parking_spots').select('*').eq('type', 'VISITA').eq('status', 'DISPONIBLE');
-  const availableRentedSpots = await db.from('parking_spots').select('*').eq('type', 'ALQUILADO').eq('status', 'DISPONIBLE');
+  const now = new Date().toISOString();
+  const { data: activeLoans } = await db.from('parking_loans')
+    .select('spot_id, borrower_vehicle_plate, borrower_department_id')
+    .eq('status', 'ACTIVO')
+    .lte('start_time', now)
+    .gte('end_time', now);
+  const authorizedRentedSpotIds = [...new Set(((activeLoans || []) as Array<{ spot_id: string; borrower_vehicle_plate?: string | null; borrower_department_id?: string | null }>)
+    .filter(loan => loan.borrower_vehicle_plate?.toUpperCase() === plate || (vehicle?.department_id && loan.borrower_department_id === vehicle.department_id))
+    .map(loan => loan.spot_id))];
+  const availableRentedSpots = authorizedRentedSpotIds.length
+    ? await db.from('parking_spots').select('*').in('id', authorizedRentedSpotIds).eq('type', 'ALQUILADO')
+    : { data: [] };
 
   return {
     license_plate: plate,
@@ -723,9 +773,15 @@ interface EntryResolution {
   message: string;
 }
 
-async function resolvePlateEntry(db: { from(t: string): any }, plate: string, overrideSpotId: string | null, vehicleType: string): Promise<EntryResolution> {
+async function resolvePlateEntry(
+  db: { from(t: string): any },
+  plate: string,
+  overrideSpotId: string | null,
+  vehicleType: string,
+  capacity: MultipleVehicleLimits
+): Promise<EntryResolution> {
   const now = new Date().toISOString();
-  const needsHost = async (spotId: string): Promise<boolean> => (await spotCanHostType(db, spotId, vehicleType)).ok;
+  const needsHost = async (spotId: string, type = vehicleType): Promise<{ ok: boolean; message: string }> => spotCanHostType(db, spotId, type, capacity);
 
   // 1) Registered vehicle -> owner's PROPIO spot (must respect the vehicle rule)
   const { data: vehicle } = await db.from('vehicles').select('id, department_id').eq('license_plate', plate).eq('is_active', true).maybeSingle();
@@ -736,7 +792,7 @@ async function resolvePlateEntry(db: { from(t: string): any }, plate: string, ov
       .eq('type', 'PROPIO')
       .limit(10);
     for (const s of (ownSpots || []) as Array<{ id: string; spot_number: string; type: string }>) {
-      if (await needsHost(s.id)) {
+      if ((await needsHost(s.id)).ok) {
         return { spot: { id: s.id, spot_number: s.spot_number, type: s.type }, reason: 'PROPIO', message: 'Estacionamiento propio del vehículo' };
       }
     }
@@ -744,34 +800,40 @@ async function resolvePlateEntry(db: { from(t: string): any }, plate: string, ov
 
   // 2) Active loan within time window for the borrower plate or department
   const { data: loans } = await db.from('parking_loans')
-    .select('*')
+    .select('id, spot_id, borrower_vehicle_plate, borrower_department_id, borrower_vehicle_type')
     .eq('status', 'ACTIVO')
     .lte('start_time', now)
     .gte('end_time', now);
-  let loanSpotId: string | null = null;
-  let loanReason = 'PRESTAMO';
-  let loanVehicleType: string | null = null;
-  for (const loan of (loans || []) as Array<{ id: string; spot_id: string; borrower_vehicle_plate: string | null; borrower_department_id: string | null; borrower_vehicle_type: string | null }>) {
-    if (loan.borrower_vehicle_plate && loan.borrower_vehicle_plate.toUpperCase() === plate) { loanSpotId = loan.spot_id; loanVehicleType = loan.borrower_vehicle_type; break; }
-    if (vehicle && loan.borrower_department_id && loan.borrower_department_id === vehicle.department_id) { loanSpotId = loan.spot_id; loanVehicleType = loan.borrower_vehicle_type; break; }
-  }
-  if (loanSpotId) {
-    const loanHostType = loanVehicleType ? normalizeVehicleType(loanVehicleType) : vehicleType;
-    if ((await spotCanHostType(db, loanSpotId, loanHostType)).ok) {
-      const { data: loanSpot } = await db.from('parking_spots').select('id, spot_number, type').eq('id', loanSpotId).maybeSingle();
-      if (loanSpot) {
-        return { spot: { id: loanSpot.id, spot_number: loanSpot.spot_number, type: loanSpot.type }, reason: loanReason, message: 'Préstamo activo vigente' };
-      }
+  const matchingLoan = ((loans || []) as Array<{ id: string; spot_id: string; borrower_vehicle_plate: string | null; borrower_department_id: string | null; borrower_vehicle_type: string | null }>).find(loan =>
+    (loan.borrower_vehicle_plate && loan.borrower_vehicle_plate.toUpperCase() === plate) ||
+    (vehicle && loan.borrower_department_id === vehicle.department_id)
+  );
+  if (matchingLoan) {
+    const authorizedType = matchingLoan.borrower_vehicle_type ? normalizeVehicleType(matchingLoan.borrower_vehicle_type) : vehicleType;
+    if (authorizedType !== vehicleType) {
+      return { spot: null, reason: 'PRESTAMO', message: 'El tipo de vehículo no coincide con el autorizado por el préstamo.' };
     }
+    const { data: loanSpot } = await db.from('parking_spots').select('id, spot_number, type').eq('id', matchingLoan.spot_id).maybeSingle();
+    if (!loanSpot) {
+      return { spot: null, reason: 'PRESTAMO', message: 'La plaza asignada al préstamo ya no existe.' };
+    }
+    const loanCapacity = await needsHost(matchingLoan.spot_id, authorizedType);
+    if (!loanCapacity.ok) {
+      return { spot: null, reason: 'PRESTAMO', message: loanCapacity.message };
+    }
+    return { spot: { id: loanSpot.id, spot_number: loanSpot.spot_number, type: loanSpot.type }, reason: loanSpot.type === 'ALQUILADO' ? 'ALQUILER' : 'PRESTAMO', message: 'Préstamo o alquiler vigente dentro de su rango de fechas' };
   }
 
   // 3) Explicit spot chosen by the guard (e.g. VISITA / ALQUILADO assignment)
   if (overrideSpotId) {
-    if (await needsHost(overrideSpotId)) {
-      const { data: explicit } = await db.from('parking_spots').select('id, spot_number, type').eq('id', overrideSpotId).maybeSingle();
-      if (explicit) {
-        return { spot: { id: explicit.id, spot_number: explicit.spot_number, type: explicit.type }, reason: 'ASIGNADA', message: 'Estacionamiento asignado por el guardia' };
-      }
+    const { data: explicit } = await db.from('parking_spots').select('id, spot_number, type').eq('id', overrideSpotId).maybeSingle();
+    if (explicit?.type === 'ALQUILADO') {
+      return { spot: null, reason: 'ALQUILER', message: 'La plaza alquilada solo admite la placa asociada a un alquiler activo y vigente.' };
+    }
+    if (explicit) {
+      const allowed = await needsHost(overrideSpotId);
+      if (allowed.ok) return { spot: { id: explicit.id, spot_number: explicit.spot_number, type: explicit.type }, reason: 'ASIGNADA', message: 'Estacionamiento asignado por el guardia' };
+      return { spot: null, reason: 'ASIGNADA', message: allowed.message };
     }
   }
 
@@ -780,68 +842,55 @@ async function resolvePlateEntry(db: { from(t: string): any }, plate: string, ov
     .select('id, spot_number, type')
     .eq('type', 'VISITA');
   for (const vs of (availableVisitorSpots || []) as Array<{ id: string; spot_number: string; type: string }>) {
-    if (await needsHost(vs.id)) {
+    if ((await needsHost(vs.id)).ok) {
       return { spot: { id: vs.id, spot_number: vs.spot_number, type: vs.type }, reason: 'VISITA', message: 'Estacionamiento de visita disponible' };
-    }
-  }
-
-  // 5) ALQUILADO spots as last resort (plates without a registered owner/loan)
-  const { data: rentedSpots } = await db.from('parking_spots')
-    .select('id, spot_number, type')
-    .eq('type', 'ALQUILADO');
-  for (const rs of (rentedSpots || []) as Array<{ id: string; spot_number: string; type: string }>) {
-    if (await needsHost(rs.id)) {
-      return { spot: { id: rs.id, spot_number: rs.spot_number, type: rs.type }, reason: 'ALQUILADO', message: 'Estacionamiento alquilado disponible' };
     }
   }
 
   return {
     spot: null,
     reason: 'NINGUNO',
-    message: 'No se encontró un estacionamiento autorizado: el vehículo no tiene estacionamiento propio, préstamo vigente ni hay estacionamientos de visita o alquilados libres que cumplan la regla de ocupación.'
+    message: 'No se encontró un estacionamiento autorizado: el vehículo no tiene plaza propia, préstamo o alquiler vigente, ni hay plazas de visita libres que cumplan los cupos configurados.'
   };
 }
 
-// Occupancy rule: at most ONE car parked at a time in a spot; motorcycles may
-// share (several motos, or one moto alongside one car).
-async function spotCanHostType(db: { from(t: string): any }, spotId: string, vehicleType: string): Promise<{ ok: boolean; message: string }> {
+type MultipleVehicleLimits = { max_autos: number; max_motos: number };
+
+async function spotCanHostType(
+  db: { from(t: string): any },
+  spotId: string,
+  vehicleType: string,
+  limits: MultipleVehicleLimits
+): Promise<{ ok: boolean; message: string }> {
   const { data: spotRow } = await db.from('parking_spots').select('cochera_type').eq('id', spotId).single();
   const isMultiple = String((spotRow as { cochera_type?: string } | null)?.cochera_type || '').trim().toUpperCase() === 'MULTIPLE';
-
-  const { count: autoCount } = await db.from('parking_access_logs')
-    .select('*', { count: 'exact', head: true })
+  const { data: occupants, error } = await db.from('parking_access_logs')
+    .select('vehicle_type')
     .eq('spot_id', spotId)
-    .is('exit_time', null)
-    .eq('vehicle_type', 'AUTO');
-  const carsInside = (autoCount || 0);
+    .is('exit_time', null);
+  if (error) throw error;
+  const current = (occupants || []) as Array<{ vehicle_type: string }>;
+  const carsInside = current.filter(item => normalizeVehicleType(item.vehicle_type) === 'AUTO').length;
+  const motosInside = current.filter(item => normalizeVehicleType(item.vehicle_type) === 'MOTO').length;
 
   if (!isMultiple) {
     // Individual cochera: only one vehicle at a time.
-    const { count: motoCount } = await db.from('parking_access_logs')
-      .select('*', { count: 'exact', head: true })
-      .eq('spot_id', spotId)
-      .is('exit_time', null)
-      .eq('vehicle_type', 'MOTO');
-    const totalInside = carsInside + (motoCount || 0);
-    if (totalInside >= 1) {
+    if (current.length >= 1) {
       return { ok: false, message: 'La cochera es individual y ya tiene un vehículo estacionado. Solo admite un vehículo a la vez.' };
     }
     return { ok: true, message: '' };
   }
 
-  // Multiple cochera: up to 3 vehicles, at most one auto (+ motos).
-  const { count: motoCount } = await db.from('parking_access_logs')
-    .select('*', { count: 'exact', head: true })
-    .eq('spot_id', spotId)
-    .is('exit_time', null)
-    .eq('vehicle_type', 'MOTO');
-  const totalInside = carsInside + (motoCount || 0);
-
-  if (totalInside >= 3) {
-    return { ok: false, message: 'La cochera múltiple ya alcanzó su capacidad (máximo 3 vehículos).' };
+  const nextAutos = carsInside + (normalizeVehicleType(vehicleType) === 'AUTO' ? 1 : 0);
+  const nextMotos = motosInside + (normalizeVehicleType(vehicleType) === 'MOTO' ? 1 : 0);
+  if (nextAutos > limits.max_autos) {
+    return { ok: false, message: `La cochera múltiple admite como máximo ${limits.max_autos} auto(s).` };
   }
-  if (vehicleType === 'AUTO' && carsInside >= 1) {
-    return { ok: false, message: 'La cochera múltiple ya tiene un auto estacionado. No pueden coexistir dos autos en la misma plaza.' };
+  if (nextMotos > limits.max_motos) {
+    return { ok: false, message: `La cochera múltiple admite como máximo ${limits.max_motos} moto(s).` };
+  }
+  if (nextAutos > 0 && nextMotos < 1) {
+    return { ok: false, message: 'En una cochera múltiple, todo auto debe compartir la plaza con al menos una moto. Registra primero el ingreso de la moto.' };
   }
   return { ok: true, message: '' };
 }
@@ -1042,7 +1091,7 @@ async function enrichVehicles(db: { from(t: string): any }, vehicles: Array<Reco
   if (plates.length) {
     try {
       const { data: openLogs } = await db.from('parking_access_logs').select('license_plate, spot_id').is('exit_time', null).in('license_plate', plates);
-      const logSpotIds = [...new Set((openLogs || []).map(l => l.spot_id).filter(Boolean))];
+      const logSpotIds = [...new Set(((openLogs || []) as Array<{ spot_id?: string | null }>).map(log => log.spot_id).filter(Boolean))];
       const logSpotMap = new Map<string, string>();
       if (logSpotIds.length) {
         const { data: logSpots } = await db.from('parking_spots').select('id, spot_number').in('id', logSpotIds);
@@ -1093,7 +1142,7 @@ async function enrichLoans(db: { from(t: string): any }, loans: Array<Record<str
   const towerMap = new Map((towerRows as Array<{ id: string; name: string; code: string }>).map(t => [t.id, t]));
 
   const vehicles = await db.from('vehicles').select('license_plate, department_id');
-  const vehicleMap = new Map((vehicles.data || []).map((v: { license_plate: string; department_id: string }) => [v.license_plate.toUpperCase(), v]));
+  const vehicleMap = new Map<string, { license_plate: string; department_id: string }>((vehicles.data || []).map((v: { license_plate: string; department_id: string }) => [v.license_plate.toUpperCase(), v]));
 
   return loans.map(l => {
     const spot = spotMap.get(l.spot_id as string);
@@ -1188,6 +1237,21 @@ async function getLayoutConfig(db: { from(t: string): any }): Promise<{ rows: nu
   } catch {
     return null;
   }
+}
+
+async function getMultipleVehicleLimits(db: { from(t: string): any }): Promise<MultipleVehicleLimits> {
+  const { data, error } = await db.from('condo_settings').select('config_json').eq('module_key', 'parking_control').single();
+  if (error) throw error;
+  const config = data?.config_json && typeof data.config_json === 'object' ? data.config_json as Record<string, unknown> : {};
+  const stored = config.multiple_vehicle_limits && typeof config.multiple_vehicle_limits === 'object'
+    ? config.multiple_vehicle_limits as Record<string, unknown>
+    : {};
+  const maxAutos = Number(stored.max_autos ?? DEFAULT_MULTIPLE_CAPACITY.max_autos);
+  const maxMotos = Number(stored.max_motos ?? DEFAULT_MULTIPLE_CAPACITY.max_motos);
+  if (!Number.isInteger(maxAutos) || maxAutos < 0 || maxAutos > 20 || !Number.isInteger(maxMotos) || maxMotos < 0 || maxMotos > 20 || (maxAutos > 0 && maxMotos < 1)) {
+    return DEFAULT_MULTIPLE_CAPACITY;
+  }
+  return { max_autos: maxAutos, max_motos: maxMotos };
 }
 
 function normalizeOrientation(v: unknown): 'HORIZONTAL' | 'VERTICAL' {
