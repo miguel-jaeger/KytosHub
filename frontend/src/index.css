@@ -2040,7 +2040,7 @@ html.dark .cart-gate-card:hover { border-color: #444; box-shadow: 0 3px 10px rgb
 html.dark .cart-gate-num { color: #e5e7eb; }
 html.dark .cart-gate-code { background: #333d48; color: #9aa0a6; }
 html.dark .cart-gate-badge { color: #69db7c; border-color: rgba(105, 219, 124, 0.35); background: rgba(105, 219, 124, 0.08); }
-html.dark .cart-gate-type { border-top-color: #333; }
+html.dark .cart-gate-type { border-top-color: #3a414d; }
 html.dark .cart-gate-type-label { color: #c8cad1; }
 html.dark .cart-gate-cap { color: #9aa0a6; }
 html.dark .cart-gate-bar { background: #333; }
