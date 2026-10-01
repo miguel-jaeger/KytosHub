@@ -384,7 +384,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
                     <th>Visitante</th>
                     <th>Documento</th>
                     <th>Estado</th>
-                    <th></th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
