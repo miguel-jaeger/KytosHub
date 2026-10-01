@@ -1415,12 +1415,15 @@ html.dark .sidebar-toggle:hover .material-symbols-outlined {
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1.25rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: none;
+  background: #f1f5f9;
   font-size: 0.85rem;
   color: #0b1c30;
   overflow: hidden;
   white-space: nowrap;
 }
+
+html.dark .sidebar-condominium { background: #202932; }
 
 .sidebar-condominium img {
   width: 28px;

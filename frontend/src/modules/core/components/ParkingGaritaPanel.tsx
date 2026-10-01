@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useParking } from '../hooks/useParking';
+import { useCondoStats } from '../hooks/useCondoStats';
 import { PlateScanner } from './PlateScanner';
 import { recognizePlate, type ScanBox } from '../../../lib/plateOcr';
 import type { PlateStatus, GuardGateSession, Vehicle, VehicleType } from '../types';
@@ -22,6 +23,7 @@ const VEHICLE_TYPE_LABELS: Record<VehicleType, string> = { AUTO: 'Auto', MOTO: '
 
 export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
   const { searchPlates, plateStatus, registerEntry, registerExit, updateVehicleDriver } = useParking();
+  const { getStats } = useCondoStats();
   const [plate, setPlate] = useState('');
   const [results, setResults] = useState<Vehicle[]>([]);
   const [searchDone, setSearchDone] = useState(false);
@@ -36,6 +38,29 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
   const [savingDriver, setSavingDriver] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Estadísticas del estacionamiento antes del control (estilo carritos)
+  const [garitaStats, setGaritaStats] = useState<{
+    spots_total: number;
+    spots_occupied: number;
+    vehicles_total: number;
+    access_inside: number;
+    parking_loans_active: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!schemaName) return;
+    getStats(schemaName)
+      .then(s => setGaritaStats({
+        spots_total: s.spots_total,
+        spots_occupied: s.spots_occupied,
+        vehicles_total: s.vehicles_total,
+        access_inside: s.access_inside,
+        parking_loans_active: s.parking_loans_active
+      }))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schemaName]);
 
   const normalizePlate = (v: string) => v.trim().toUpperCase().replace(/\s+/g, '');
 
@@ -210,8 +235,19 @@ export function ParkingGaritaPanel({ schemaName, guardGate }: Props) {
           : <small className="text-muted">Sin puerta asignada. La entrada/salida quedará sin puerta registrada.</small>}
       </div>
 
-      {message && <div className="success-message" onClick={() => setMessage(null)}>{message} — clic para cerrar</div>}
+{message && <div className="success-message" onClick={() => setMessage(null)}>{message} — clic para cerrar</div>}
       {error && <div className="error-message" onClick={() => setError(null)}>{error} — clic para cerrar</div>}
+
+      {garitaStats && (
+        <div className="cart-kpi-row">
+          <div className="cart-kpi"><span className="material-symbols-outlined">local_parking</span><strong>{garitaStats.spots_total}</strong> estacionamientos</div>
+          <div className="cart-kpi cart-kpi-dispo"><span className="material-symbols-outlined">check_circle</span><strong>{Math.max(0, garitaStats.spots_total - garitaStats.spots_occupied)}</strong> disponibles</div>
+          <div className="cart-kpi cart-kpi-mant"><span className="material-symbols-outlined">directions_car</span><strong>{garitaStats.spots_occupied}</strong> ocupados</div>
+          <div className="cart-kpi"><span className="material-symbols-outlined">directions_car</span><strong>{garitaStats.vehicles_total}</strong> vehículos</div>
+          <div className="cart-kpi cart-kpi-prestado"><span className="material-symbols-outlined">login</span><strong>{garitaStats.access_inside}</strong> dentro</div>
+          <div className="cart-kpi"><span className="material-symbols-outlined">handshake</span><strong>{garitaStats.parking_loans_active}</strong> préstamos activos</div>
+        </div>
+      )}
 
       <div className="parking-flow">
         <div className="parking-search">
