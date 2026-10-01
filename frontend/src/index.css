@@ -3106,9 +3106,9 @@ html.dark .parking-flow .parking-search .search-bar input { background: transpar
 .parking-register-fields .btn-primary,
 .parking-register-fields .btn-edit,
 .parking-register-fields .btn-danger {
-  min-height: 44px;
-  padding: 0.6rem 1.1rem !important;
-  font-size: 0.95rem;
+  min-height: 32px;
+  padding: 0.25rem 0.8rem !important;
+  font-size: 0.85rem;
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
