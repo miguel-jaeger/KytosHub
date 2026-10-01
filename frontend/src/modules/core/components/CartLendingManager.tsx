@@ -338,7 +338,7 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
                       <th>Puerta</th>
                       <th>Tipo</th>
                       <th>Estado</th>
-                      <th></th>
+                      <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>

@@ -412,7 +412,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
               <th>Departamento</th>
               <th>Estacionamiento</th>
               <th>Estado</th>
-              <th></th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>

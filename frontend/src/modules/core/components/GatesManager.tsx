@@ -185,7 +185,7 @@ export function GatesManager({ schemaName }: { schemaName?: string }) {
               <th>Carritos carga</th>
               <th>Carritos compras</th>
               <th>Estado</th>
-              <th></th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
