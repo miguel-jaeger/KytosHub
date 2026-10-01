@@ -182,7 +182,6 @@ export function GatesManager({ schemaName }: { schemaName?: string }) {
             <tr>
               <th>Nombre</th>
               <th>Código</th>
-              <th>·</th>
               <th>Carritos carga</th>
               <th>Carritos compras</th>
               <th>Estado</th>
@@ -194,7 +193,6 @@ export function GatesManager({ schemaName }: { schemaName?: string }) {
               <tr key={g.id}>
                 <td>{g.name}</td>
                 <td>{g.code || '-'}</td>
-                <td>{g.is_entry_exit ? <span className="btn-edit" style={{ padding: '0.2rem 0.5rem' }}>Vehículos</span> : '-'}</td>
                 <td>{g.carts_carga} de {CART_TYPE_LABELS.CARGA}</td>
                 <td>{g.carts_compra} de {CART_TYPE_LABELS.COMPRA}</td>
                 <td><span className={`status-badge ${g.is_active ? 'status-occupied' : 'status-vacant'}`}>{g.is_active ? 'Activa' : 'Inactiva'}</span></td>
