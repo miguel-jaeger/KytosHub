@@ -668,6 +668,7 @@ button:disabled {
 
 .history-tools {
   margin-top: 1.25rem;
+  margin-bottom: 12px;
   padding: 0.8rem 1rem;
   background: #fff5f5;
   border: 1px solid #efb0ad;
