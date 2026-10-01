@@ -177,6 +177,11 @@ export type VehicleType = 'AUTO' | 'MOTO';
 export type ParkingLoanStatus = 'PENDIENTE' | 'ACTIVO' | 'FINALIZADO' | 'CANCELADO';
 export type ParkingOrientation = 'HORIZONTAL' | 'VERTICAL';
 
+export interface MultipleVehicleLimits {
+  max_autos: number;
+  max_motos: number;
+}
+
 export interface ParkingSpot {
   id: string;
   spot_number: string;

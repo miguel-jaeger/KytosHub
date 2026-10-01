@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { invokeFunction } from '../../../lib/insforge';
 import { useParking } from '../hooks/useParking';
 import { ParkingMap, deptLabel, SPOT_TYPE_LABELS } from './ParkingMap';
-import type { CocheraType, Department, Floor, ParkingLayout, ParkingOrientation, ParkingSpot, ParkingSpotType, Tower } from '../types';
+import type { CocheraType, Department, Floor, MultipleVehicleLimits, ParkingLayout, ParkingOrientation, ParkingSpot, ParkingSpotType, Tower } from '../types';
 
 const emptySpotForm = { type: 'PROPIO' as ParkingSpotType, cochera_type: 'MULTIPLE' as CocheraType, department_id: '' };
 
@@ -12,7 +12,7 @@ export const COCHERA_TYPE_LABELS: Record<CocheraType, string> = {
 };
 
 export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
-  const { listSpots, getLayout, provisionLayout, resetLayout, updateSpot } = useParking();
+  const { listSpots, getLayout, provisionLayout, resetLayout, getMultipleCapacity, updateMultipleCapacity, updateSpot } = useParking();
   const [layout, setLayout] = useState<ParkingLayout | null>(null);
   const [spots, setSpots] = useState<ParkingSpot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,6 +25,8 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
   const [orientation, setOrientation] = useState<ParkingOrientation>('HORIZONTAL');
   const [generating, setGenerating] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [multipleCapacity, setMultipleCapacity] = useState<MultipleVehicleLimits>({ max_autos: 1, max_motos: 3 });
+  const [savingCapacity, setSavingCapacity] = useState(false);
 
   const [editingSpot, setEditingSpot] = useState<ParkingSpot | null>(null);
   const [spotForm, setSpotForm] = useState(emptySpotForm);
@@ -147,8 +149,9 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
     setLoading(true);
     setError(null);
     try {
-      const [sp, ly] = await Promise.all([listSpots(schemaName), getLayout(schemaName)]);
+      const [sp, ly, capacity] = await Promise.all([listSpots(schemaName), getLayout(schemaName), getMultipleCapacity(schemaName)]);
       setSpots(sp);
+      setMultipleCapacity(capacity);
       // Only apply a real, persisted layout. get-layout returns null when there is
       // no saved configuration, so the form keeps its defaults instead of corrupting.
       if (ly && Number(ly.rows) >= 1) {
@@ -171,7 +174,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
     } finally {
       setLoading(false);
     }
-  }, [schemaName, listSpots, getLayout]);
+  }, [schemaName, listSpots, getLayout, getMultipleCapacity]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -230,6 +233,26 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
 
   const handleRowNameChange = (idx: number, value: string) => {
     setRowNameInputs(prev => prev.map((v, i) => i === idx ? value : v));
+  };
+
+  const handleCapacitySave = async () => {
+    if (!schemaName) return;
+    if (multipleCapacity.max_autos > 0 && multipleCapacity.max_motos < 1) {
+      setError('Si se permiten autos en una cochera múltiple, también debe permitirse al menos una moto.');
+      return;
+    }
+    setSavingCapacity(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const saved = await updateMultipleCapacity(schemaName, multipleCapacity);
+      setMultipleCapacity(saved);
+      setMessage('Cupos de cocheras múltiples guardados.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al guardar los cupos');
+    } finally {
+      setSavingCapacity(false);
+    }
   };
 
   const handleProvision = async () => {
@@ -318,6 +341,41 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
 
       {message && <div className="success-message" onClick={() => setMessage(null)}>{message} — clic para cerrar</div>}
       {error && <div className="error-message" onClick={() => setError(null)}>{error} — clic para cerrar</div>}
+
+      <div className="cart-form">
+        <h4>Cupos de cocheras múltiples</h4>
+        <p className="text-muted">Define los máximos por tipo de vehículo para cada plaza marcada como Múltiple. Si hay un auto, debe quedar al menos una moto; para retirar la última moto, primero debe salir el auto.</p>
+        <div className="form-row">
+          <div className="form-group">
+            <label>Máximo de autos</label>
+            <input
+              type="number"
+              min={0}
+              max={20}
+              step={1}
+              value={multipleCapacity.max_autos}
+              onChange={e => setMultipleCapacity(prev => ({ ...prev, max_autos: Math.max(0, Math.min(20, Math.trunc(Number(e.target.value) || 0))) }))}
+            />
+          </div>
+          <div className="form-group">
+            <label>Máximo de motos</label>
+            <input
+              type="number"
+              min={0}
+              max={20}
+              step={1}
+              value={multipleCapacity.max_motos}
+              onChange={e => setMultipleCapacity(prev => ({ ...prev, max_motos: Math.max(0, Math.min(20, Math.trunc(Number(e.target.value) || 0))) }))}
+            />
+          </div>
+        </div>
+        <small className="text-muted">Valores iniciales: 1 auto y hasta 3 motos. Sin auto, pueden ingresar hasta 3 motos; con auto, debe haber al menos una moto.</small>
+        <div className="form-actions">
+          <button onClick={handleCapacitySave} disabled={savingCapacity || loading}>
+            <span className="material-symbols-outlined">save</span> {savingCapacity ? 'Guardando...' : 'Guardar cupos'}
+          </button>
+        </div>
+      </div>
 
       <div className="cart-form">
         <h4>Diseño del layout</h4>
@@ -462,7 +520,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
             <select value={spotForm.cochera_type} onChange={e => setSpotForm({ ...spotForm, cochera_type: e.target.value as CocheraType })}>
               {Object.entries(COCHERA_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
-            <small className="text-muted">Individual: solo un vehículo a la vez. Múltiple: hasta 3 vehículos (máximo un auto y el resto motos).</small>
+            <small className="text-muted">Individual admite un vehículo. Múltiple usa los cupos configurados arriba y exige al menos una moto mientras haya un auto.</small>
           </div>
 
           {(spotForm.type === 'VISITA' || spotForm.type === 'ALQUILADO' ? false : true) && (
