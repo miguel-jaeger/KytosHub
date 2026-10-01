@@ -1462,33 +1462,33 @@ button.sidebar-link {
 }
 
 button.sidebar-link:hover:not(:disabled) {
-  background: #e8f5ec;
-  color: #006c49;
+  background: #006c49;
+  color: #fff;
 }
 
 html.dark .sidebar-link:hover,
 html.dark button.sidebar-link:hover,
 html.dark a.sidebar-link:hover,
-html.dark .mobile-nav-link:hover { background: #123b2a; color: #90caf9; }
+html.dark .mobile-nav-link:hover { background: #1b5e44; color: #fff; }
 html.dark button.sidebar-link.active,
-html.dark .sidebar-link.active { background: #1b5e44; color: #fff; }
+html.dark .sidebar-link.active { background: #123b2a; color: #90caf9; }
 
 .sidebar-link:hover,
 button.sidebar-link:hover,
 a.sidebar-link:hover,
 .mobile-nav-link:hover {
-  background: #e8f5ec;
-  color: #006c49;
+  background: #006c49;
+  color: #fff;
 }
 
 .sidebar-link.active {
-  background: #006c49;
-  color: #fff;
+  background: #e8f5ec;
+  color: #006c49;
   font-weight: 600;
 }
 
 .sidebar-link.active .material-symbols-outlined {
-  color: #fff;
+  color: #006c49;
 }
 
 .sidebar-link .material-symbols-outlined {
@@ -2812,17 +2812,24 @@ html.dark .resident-grid-label { color: #b3bac2; }
     font-size: 26px;
   }
 
-  .mobile-nav-link.active {
-    color: #fff;
+.mobile-nav-link.active {
+    color: #006c49;
     font-weight: 600;
+    background: #e8f5ec;
+    border-radius: 8px;
+    margin: 0.25rem 0.2rem;
+  }
+
+  .mobile-nav-link:hover {
+    color: #fff;
     background: #006c49;
     border-radius: 8px;
     margin: 0.25rem 0.2rem;
   }
 
   .mobile-nav-link:hover {
-    color: #006c49;
-    background: #e8f5ec;
+    color: #fff;
+    background: #006c49;
     border-radius: 8px;
     margin: 0.25rem 0.2rem;
   }
@@ -2848,8 +2855,8 @@ html.dark .resident-grid-label { color: #b3bac2; }
 
   html.dark .mobile-navbar { background: #27313c; border-top-color: #333; }
   html.dark .mobile-nav-link { color: #ccc; }
-  html.dark .mobile-nav-link.active { color: #fff; background: #1b5e44; }
-  html.dark .mobile-nav-link:hover { color: #90caf9; background: #123b2a; }
+  html.dark .mobile-nav-link.active { color: #90caf9; background: #123b2a; }
+  html.dark .mobile-nav-link:hover { color: #fff; background: #1b5e44; }
   html.dark .mobile-logout { color: #ff8a80; }
 
   .app-layout,
