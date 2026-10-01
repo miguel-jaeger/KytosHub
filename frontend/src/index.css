@@ -2696,6 +2696,15 @@ html.dark .resident-search input { background: #333d48; border-color: #444; colo
 .residents-table { width: 100%; border-collapse: collapse; }
 .residents-table th, .residents-table td { padding: 0.6rem; border-bottom: 1px solid #e5e7eb; text-align: left; font-size: 0.9rem; }
 .residents-table th { background: #f8f9ff; color: #45464d; }
+.parking-vehicles-table { table-layout: fixed; }
+.parking-vehicles-table th:nth-child(1), .parking-vehicles-table td:nth-child(1) { width: 12%; white-space: nowrap; }
+.parking-vehicles-table th:nth-child(2), .parking-vehicles-table td:nth-child(2) { width: 14%; }
+.parking-vehicles-table th:nth-child(3), .parking-vehicles-table td:nth-child(3) { width: 20%; }
+.parking-vehicles-table th:nth-child(4), .parking-vehicles-table td:nth-child(4) { width: 17%; }
+.parking-vehicles-table th:nth-child(5), .parking-vehicles-table td:nth-child(5) { width: 7%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.parking-vehicles-table th:nth-child(6), .parking-vehicles-table td:nth-child(6) { width: 12%; white-space: nowrap; }
+.parking-vehicles-table th:nth-child(7), .parking-vehicles-table td:nth-child(7) { width: 18%; }
+.parking-vehicles-table .vehicle-license-plate { white-space: nowrap; }
 .empty-text { color: #76777d; font-style: italic; }
 .resident-row-actions {
   display: inline-flex;

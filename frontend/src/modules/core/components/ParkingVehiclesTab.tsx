@@ -403,14 +403,14 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
       ) : filteredVehicles.length === 0 ? (
         <div className="empty-state"><p>No hay vehículos que coincidan con los filtros.</p></div>
       ) : (
-        <table className="residents-table residents-desktop">
+        <table className="residents-table residents-desktop parking-vehicles-table">
           <thead>
             <tr>
               <th>Placa</th>
               <th>Vehículo</th>
               <th>Conductor</th>
               <th>Departamento</th>
-              <th>Estacionamiento</th>
+              <th>Plaza</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -418,7 +418,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
           <tbody>
             {vehPageItems.map(v => (
               <tr key={v.id}>
-                <td><strong>{v.license_plate}</strong></td>
+                <td className="vehicle-license-plate"><strong>{v.license_plate}</strong></td>
                 <td>{(VEHICLE_TYPE_LABELS[v.vehicle_type] || v.vehicle_type)}{(v.model || v.brand) ? ` · ${v.model || v.brand}` : ''}</td>
                 <td>{v.driver_name || <span className="text-muted">Sin conductor</span>}</td>
                 <td>{deptLabelV(v.departments)}</td>
