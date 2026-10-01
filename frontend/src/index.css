@@ -1329,7 +1329,8 @@ html.dark .status-late { background: rgba(230, 57, 70, 0.2); color: #ff8a8a; }
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.25rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: none;
+  box-shadow: inset 0 -1px 0 rgba(11, 28, 48, 0.07);
   min-height: 60px;
 }
 
@@ -1470,8 +1471,10 @@ html.dark .sidebar-link.active { background: #1b5e44; color: #fff; }
 }
 
 .sidebar-footer {
-  border-top: 1px solid #e5e7eb;
-  padding: 0.75rem 1.25rem;
+  border-top: none;
+  margin-top: 0.4rem;
+  padding: 0.85rem 1.25rem 0.75rem;
+  background: rgba(11, 28, 48, 0.04);
 }
 
 .sidebar-user {
@@ -1606,6 +1609,8 @@ button .material-symbols-outlined { font-size: 16px; vertical-align: middle; }
 html.dark body { background-color: #202932; color: #e5e7eb; }
 html.dark .app-layout { background: #1b222b; }
 html.dark .sidebar { background: #27313c; border-right-color: #333; }
+html.dark .sidebar-header { box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.07); }
+html.dark .sidebar-footer { background: rgba(255, 255, 255, 0.05); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05); }
 html.dark .sidebar-logo-text, html.dark .sidebar-link, html.dark .sidebar-condominium { color: #e5e7eb; }
 html.dark .sidebar-link:hover, html.dark .sidebar-link.active { background: #333d48; color: #90caf9; }
 html.dark .sidebar-user-name { color: #e5e7eb; } html.dark .sidebar-user-role { color: #aaa; } html.dark .sidebar-user { color: #aaa; }
@@ -2026,7 +2031,7 @@ html.dark input[type='datetime-local']::-webkit-calendar-picker-indicator {
 .cart-gate-type-head { display: flex; justify-content: space-between; align-items: center; gap: 0.4rem; }
 .cart-gate-type-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: #45464d; }
 .cart-gate-cap { font-size: 0.72rem; color: #76777d; }
-.cart-gate-bar { height: 6px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+.cart-gate-bar { height: 6px; background: #d9dde3; border-radius: 999px; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(11, 28, 48, 0.06); }
 .cart-gate-bar > span { display: block; height: 100%; background: #006c49; border-radius: 999px; transition: width 0.3s ease; }
 .cart-gate-bar.cart-gate-bar-used > span { background: #c2410c; }
 .cart-gate-type-counts { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem; }
@@ -2043,7 +2048,7 @@ html.dark .cart-gate-badge { color: #69db7c; border-color: rgba(105, 219, 124, 0
 html.dark .cart-gate-type { border-top-color: #3a414d; }
 html.dark .cart-gate-type-label { color: #c8cad1; }
 html.dark .cart-gate-cap { color: #9aa0a6; }
-html.dark .cart-gate-bar { background: #333; }
+html.dark .cart-gate-bar { background: #3f4752; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
 html.dark .cart-gate-disp { color: #69db7c; }
 html.dark .cart-gate-prestado { color: #9aa0a6; }
 html.dark .cart-gate-prestado.has { color: #fb923c; }
