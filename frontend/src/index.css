@@ -1795,6 +1795,17 @@ html.dark .theme-switch input:checked + .theme-switch-track { background: #006c4
 
 /* Section header: title on the left, actions (Adicionar) always on the right,
    separated from any filter bar below */
+.modules-header > button,
+.panel-header > button {
+  width: fit-content;
+  flex: 0 0 auto;
+  margin-left: auto;
+  align-self: flex-start;
+  margin-bottom: 0.35rem; /* separación mínima (~5px) con lo que sigue */
+  white-space: nowrap;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.9rem;
+}
 .panel-header {
   display: flex;
   align-items: flex-start;

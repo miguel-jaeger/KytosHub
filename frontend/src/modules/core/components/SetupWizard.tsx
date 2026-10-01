@@ -13,6 +13,15 @@ import type { WizardStep } from '../types';
 
 type SetupTab = 'structure' | 'gates' | 'modules' | 'carts' | 'parking' | 'billing';
 
+const TAB_LABELS: Record<SetupTab, string> = {
+  structure: 'Estructura',
+  gates: 'Puertas',
+  modules: 'Módulos',
+  carts: 'Carritos',
+  parking: 'Estacionamiento',
+  billing: 'Facturación'
+};
+
 export function SetupWizard() {
   const { condominium, setCondominium } = useCondominium();
   const { register } = useCondominiumRegistration();
@@ -145,7 +154,7 @@ export function SetupWizard() {
     <div className="setup-wizard">
       <div className="wizard-steps">
         <span className="done">1. Datos del condominio</span>
-        <span className="active">2. Estructura</span>
+        <span className="active">2. {TAB_LABELS[tab]}</span>
       </div>
 
       <div className="setup-tabs">

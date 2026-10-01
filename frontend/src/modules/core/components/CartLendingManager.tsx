@@ -338,20 +338,18 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
                       <th>Puerta</th>
                       <th>Tipo</th>
                       <th>Estado</th>
-                      <th>Notas</th>
                       <th></th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredCarts.length === 0 ? (
-                      <tr><td colSpan={6} className="empty-text">{q ? 'No hay carritos que coincidan con la búsqueda.' : 'No hay carritos registrados.'}</td></tr>
+                      <tr><td colSpan={5} className="empty-text">{q ? 'No hay carritos que coincidan con la búsqueda.' : 'No hay carritos registrados.'}</td></tr>
                     ) : items.map(c => (
                       <tr key={c.id}>
                         <td>{c.code_identifier}</td>
                         <td>{c.gate?.name || '-'}</td>
                         <td>{CART_TYPE_LABELS[c.cart_type || 'CARGA']}</td>
                         <td><span className={`status-badge status-cart-${(c.status || '').toLowerCase()}`}>{c.status}</span></td>
-                        <td>{c.notes || '-'}</td>
                         <td>
                           <div className="resident-row-actions">
                             <button className="btn-edit" onClick={() => startEditCart(c)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
