@@ -129,19 +129,15 @@ export function ParkingStatsTab({ schemaName }: { schemaName?: string }) {
       <div className="history-tools">
           <div className="history-tools-title">
             <span className="material-symbols-outlined">delete_forever</span>
-            <strong>Registros (solo disponible para super admin)</strong>
+            <strong>Registros del estacionamiento (solo disponible para super admin)</strong>
           </div>
           <div className="history-tools-actions">
             <button className="btn-cancel users-bulk-delete" onClick={() => handleClearHistory('parking')} disabled={deletingHistory !== null}>
               {deletingHistory === 'parking' ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">directions_car</span>}
               {deletingHistory === 'parking' ? 'Eliminando...' : 'Eliminar registros del estacionamiento'}
             </button>
-            <button className="btn-cancel users-bulk-delete" onClick={() => handleClearHistory('carts')} disabled={deletingHistory !== null}>
-              {deletingHistory === 'carts' ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">luggage</span>}
-              {deletingHistory === 'carts' ? 'Eliminando...' : 'Eliminar registros de carritos'}
-            </button>
           </div>
-          <small className="text-muted">Borra todos los registros de accesos/préstamos y libera plazas y carritos. Solo el super admin puede ejecutarlo. No se puede deshacer.</small>
+          <small className="text-muted">Borra todos los registros de accesos y préstamos del estacionamiento y libera las plazas. Solo el super admin puede ejecutarlo. No se puede deshacer.</small>
         </div>
 
       <ParkingLogsTab schemaName={schemaName} />
