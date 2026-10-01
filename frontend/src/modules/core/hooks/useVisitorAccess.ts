@@ -73,5 +73,15 @@ export function useVisitorAccess() {
     return data.data;
   }, []);
 
-  return { listVisits, createVisit, updateVisitStatus, listPackages, createPackage, updatePackage, clearHistory };
+  const clearAllVisits = useCallback(async (schemaName: string): Promise<{ cleared: boolean }> => {
+    const { data, error } = await invokeFunction<{ success: boolean; data: { cleared: boolean } | null; error: { message: string } | null }>('visitor-access', {
+      method: 'POST',
+      body: { action: 'clear-all', schema_name: schemaName }
+    });
+    if (error) throw error;
+    if (!data?.success || !data.data) throw new Error(data?.error?.message || 'No se pudieron eliminar los datos de visitas');
+    return data.data;
+  }, []);
+
+  return { listVisits, createVisit, updateVisitStatus, listPackages, createPackage, updatePackage, clearHistory, clearAllVisits };
 }

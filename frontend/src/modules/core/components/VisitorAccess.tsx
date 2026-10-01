@@ -49,7 +49,7 @@ function toLocal(iso: string): string {
 export function VisitorAccess({ schemaName }: { schemaName?: string }) {
   const role = useUserRole();
   const isOperator = role === 'admin' || role === 'super' || role === 'security';
-  const { listVisits, createVisit, updateVisitStatus, listPackages, createPackage, updatePackage, clearHistory } = useVisitorAccess();
+  const { listVisits, createVisit, updateVisitStatus, listPackages, createPackage, updatePackage, clearHistory, clearAllVisits } = useVisitorAccess();
 
   const [visits, setVisits] = useState<VisitorVisit[]>([]);
   const [packages, setPackages] = useState<VisitorPackage[]>([]);
@@ -69,6 +69,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
   const [historyPage, setHistoryPage] = useState(1);
   const [historyPerPage, setHistoryPerPage] = useState<number | 'all'>(10);
   const [clearingHistory, setClearingHistory] = useState(false);
+  const [clearingAll, setClearingAll] = useState(false);
 
   const [showVisitForm, setShowVisitForm] = useState(false);
   const [visitForm, setVisitForm] = useState({
@@ -278,6 +279,24 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
     }
   };
 
+  const handleClearAllVisits = async () => {
+    if (!schemaName) return;
+    if (!confirm('¿Eliminar TODOS los datos de visitas registradas (pendientes, activas, canceladas y completadas)? Solo el super admin puede ejecutarlo. Esta acción no se puede deshacer.')) return;
+    setClearingAll(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await clearAllVisits(schemaName);
+      setHistoryPage(1);
+      setMessage('Todos los datos de visitas eliminados.');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudieron eliminar los datos de visitas');
+    } finally {
+      setClearingAll(false);
+    }
+  };
+
   if (loading) return <div className="loading-message">Cargando visitantes...</div>;
 
   const q = search.trim().toLowerCase();
@@ -470,15 +489,19 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
           <div className="history-tools">
             <div className="history-tools-title">
               <span className="material-symbols-outlined">delete_forever</span>
-              <strong>Historial de visitas (solo disponible para super admin)</strong>
+              <strong>Datos de visitas (solo disponible para super admin)</strong>
             </div>
             <div className="history-tools-actions">
-              <button className="btn-cancel users-bulk-delete" onClick={handleClearHistory} disabled={clearingHistory}>
+              <button className="btn-cancel users-bulk-delete" onClick={handleClearHistory} disabled={clearingHistory || clearingAll}>
                 {clearingHistory ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">person_off</span>}
                 {clearingHistory ? 'Eliminando...' : 'Eliminar historial de visitas'}
               </button>
+              <button className="btn-cancel users-bulk-delete" onClick={handleClearAllVisits} disabled={clearingHistory || clearingAll}>
+                {clearingAll ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">person_remove</span>}
+                {clearingAll ? 'Eliminando...' : 'Eliminar todos los datos de visitas'}
+              </button>
             </div>
-            <small className="text-muted">Borra todas las visitas que ya registraron su salida. Solo el super admin puede ejecutarlo. No se puede deshacer.</small>
+            <small className="text-muted">Solo el super admin puede ejecutarlo. "Historial" borra las visitas completadas; "Todos los datos" borra también pendientes, activas y canceladas. No se puede deshacer.</small>
           </div>
 
           {filteredHistory.length === 0 ? (
