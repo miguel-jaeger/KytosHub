@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useCondominium } from '../contexts/CondominiumContext';
 import { useUserRole, useRoleLabel } from '../hooks/useUserRole';
+import { useCondoModules } from '../modules/core/hooks/useCondoModules';
 import { invokeFunction } from '../lib/insforge';
 
 export function Sidebar() {
@@ -13,12 +14,28 @@ export function Sidebar() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { condominium, setCondominium } = useCondominium();
+  const { list: listModules } = useCondoModules();
+  const [visitorEnabled, setVisitorEnabled] = useState(false);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth <= 820);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!condominium?.schema_name) { setVisitorEnabled(false); return; }
+      try {
+        const r = await listModules(condominium.schema_name);
+        if (!cancelled) setVisitorEnabled(r.modules.some(m => m.module_key === 'visitor_access' && m.is_enabled));
+      } catch {
+        if (!cancelled) setVisitorEnabled(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [condominium?.schema_name, listModules]);
 
   const role = useUserRole();
   const isSuperAdmin = role === 'super';
@@ -27,6 +44,7 @@ export function Sidebar() {
   const canManageCondo = role === 'admin';
   const isSecurity = role === 'security';
   const isResident = role === 'resident';
+  const canSeeVisitors = visitorEnabled && (isResident || isSecurity || canManageCondo || isSuperAdmin);
 
   const openMyCondominium = async () => {
     if (!user) return;
@@ -80,6 +98,13 @@ export function Sidebar() {
           <Link to="/parking" className={`mobile-nav-link ${location.pathname === '/parking' ? 'active' : ''}`}>
             <span className="material-symbols-outlined">local_parking</span>
             {!collapsed && <span className="mobile-nav-label">Mi Estacionamiento</span>}
+          </Link>
+        )}
+
+        {canSeeVisitors && (
+          <Link to="/visitor" className={`mobile-nav-link ${location.pathname === '/visitor' ? 'active' : ''}`}>
+            <span className="material-symbols-outlined">badge</span>
+            {!collapsed && <span className="mobile-nav-label">Visitas</span>}
           </Link>
         )}
 
@@ -150,6 +175,13 @@ export function Sidebar() {
           <Link to="/parking" className={linkClass('/parking')} title={collapsed ? 'Mi Estacionamiento' : undefined}>
             <span className="material-symbols-outlined">local_parking</span>
             {!collapsed && <span className="sidebar-label">Mi Estacionamiento</span>}
+          </Link>
+        )}
+
+        {canSeeVisitors && (
+          <Link to="/visitor" className={linkClass('/visitor')} title={collapsed ? 'Visitas' : undefined}>
+            <span className="material-symbols-outlined">badge</span>
+            {!collapsed && <span className="sidebar-label">Visitas</span>}
           </Link>
         )}
 
