@@ -1567,6 +1567,43 @@ html.dark .sidebar-link.active .material-symbols-outlined {
   color: #fff;
 }
 
+/* Collapsed sidebar: keep avatar and logout icon centered and undistorted. */
+.sidebar.collapsed .sidebar-footer {
+  padding: 0.75rem 0.4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+.sidebar.collapsed .sidebar-user {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0;
+}
+.sidebar.collapsed .sidebar-avatar {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  flex: 0 0 28px;
+}
+.sidebar.collapsed .sidebar-avatar-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+.sidebar.collapsed .sidebar-logout {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+.sidebar.collapsed .sidebar-logout .material-symbols-outlined {
+  font-size: 20px;
+}
+.sidebar.collapsed .sidebar-logout span:not(.material-symbols-outlined) {
+  display: none;
+}
+
 .sidebar-logout:hover .material-symbols-outlined {
   color: #fff;
 }
