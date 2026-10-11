@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from 'react';
 import { insforge, invokeFunction } from '../lib/insforge';
-import { saveAuth, loadAuth, clearAuth } from '../lib/auth-storage';
+import { saveAuth, loadAuth, clearAuth, clearStoredCondominium, isTokenExpired } from '../lib/auth-storage';
 import { translateAuthError } from '../lib/errors';
 
 interface AuthUser {
@@ -100,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return insforge.auth.onAuthStateChange(async event => {
       if (event === 'signedOut') {
         clearAuth();
+        clearStoredCondominium();
         applyUser(null);
         return;
       }
@@ -147,14 +148,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // No SDK session: fall back to the persisted token (offline reloads or
-      // restored single-page state), validating it before restoring.
+      // Restore the persisted access token only when it is still usable, and
+      // validate it against an AUTHENTICATED endpoint. A public endpoint accepts
+      // an expired/invalid token, which used to leave the app "logged in" with a
+      // broken session (every real call 401s and no module shows up).
       const cached = loadAuth();
-      if (cached?.token) {
+      if (cached?.token && !isTokenExpired(cached.token)) {
         insforge.setAccessToken(cached.token);
         const res = await invokeFunction<{ success: boolean; error: { message: string } | null }>('list-condominium-users', {
           method: 'POST',
-          body: { action: 'list-by-user', user_id: cached.user.id }
+          body: { action: 'current-role' }
         });
         if (!cancelled && !res.error && res.data?.success) {
           const restoredUser = await mapUserWithGlobalName({
@@ -167,20 +170,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           persistSession(restoredUser);
           return;
         }
-        if (!cancelled) {
-          // The persisted access token may have expired: let the SDK refresh
-          // the session (refresh/CSRF cookies) before giving up.
-          const { data: viaRefresh, error: viaRefreshError } = await insforge.auth.getCurrentUser();
-          if (!viaRefreshError && viaRefresh?.user) {
-            const u = await mapUserWithGlobalName(viaRefresh.user as unknown as Record<string, unknown>);
-            applyUser(u);
-            persistSession(u);
-            return;
-          }
-          clearAuth();
-          try { await insforge.auth.signOut(); } catch {}
-        }
+      }
+
+      // Fall back to the SDK session (httpOnly refresh cookie) so a session
+      // survives when the stored token expired but the cookie is still valid.
+      const { data: viaRefresh, error: viaRefreshError } = await insforge.auth.getCurrentUser();
+      if (!cancelled && !viaRefreshError && viaRefresh?.user) {
+        const u = await mapUserWithGlobalName(viaRefresh.user as unknown as Record<string, unknown>);
+        applyUser(u);
+        persistSession(u);
         return;
+      }
+
+      // No usable session: drop the corrupt/stale data automatically so the user
+      // lands on the login screen instead of a broken, half-authenticated app.
+      if (!cancelled) {
+        clearAuth();
+        clearStoredCondominium();
+        try { insforge.getHttpClient().setAuthToken(null); } catch {}
+        try { await insforge.auth.signOut(); } catch {}
       }
     }
 
@@ -246,6 +254,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // SDK's onAuthStateChange callback can not re-persist the old account.
     applyUser(null);
     clearAuth();
+    clearStoredCondominium();
     try {
       await insforge.auth.signOut();
     } catch {}

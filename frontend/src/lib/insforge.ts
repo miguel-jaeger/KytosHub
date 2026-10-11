@@ -1,5 +1,6 @@
 import { createClient } from '@insforge/sdk';
 import { translateAuthError } from './errors';
+import { clearAuth, clearStoredCondominium } from './auth-storage';
 
 const INSFORGE_URL = import.meta.env.VITE_INSFORGE_URL || 'https://5vvsyy6z.us-east.insforge.app';
 const ANON_KEY = import.meta.env.VITE_INSFORGE_ANON_KEY || 'anon_5f9299a95b22ec28e9448096df4bf583846acc6706e489d739c8b0a6c8b0bc14';
@@ -65,11 +66,23 @@ export async function invokeFunction<T>(
         response = await invoke();
       } else if (refreshError && [401, 403].includes(refreshError.statusCode || 0)) {
         // The refresh cookie itself is no longer valid; clear the stale UI session.
+        clearAuth();
+        clearStoredCondominium();
+        try { insforge.getHttpClient().setAuthToken(null); } catch {}
         try { await insforge.auth.signOut(); } catch {}
       }
     }
 
-    if (response.error) throw response.error;
+    if (response.error) {
+      // A token that is rejected even after a refresh attempt is unusable: purge
+      // the stored session so the next load shows the login screen instead of a
+      // broken, half-authenticated app.
+      if (isExpiredAuthError(response.error, response.data)) {
+        clearAuth();
+        try { insforge.getHttpClient().setAuthToken(null); } catch {}
+      }
+      throw response.error;
+    }
 
     return { data: response.data as T, error: null };
   } catch (error) {

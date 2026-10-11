@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
+import { ACTIVE_CONDOMINIUM_KEY } from '../lib/auth-storage';
 
 export interface ActiveCondominium {
   tenant_id: string;
@@ -15,13 +16,21 @@ interface CondominiumContextValue {
   clearCondominium: () => void;
 }
 
-const STORAGE_KEY = 'kytoshub_active_condominium';
+const STORAGE_KEY = ACTIVE_CONDOMINIUM_KEY;
 
 const loadStored = (): ActiveCondominium | null => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as ActiveCondominium) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ActiveCondominium;
+    if (!parsed?.tenant_id || !parsed?.schema_name) {
+      localStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    return parsed;
   } catch {
+    // Corrupt/partial JSON: drop it so it never breaks the app on load.
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
     return null;
   }
 };
