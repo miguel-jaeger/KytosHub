@@ -144,6 +144,9 @@ export default async function(req: Request): Promise<Response> {
           const per = Math.max(1, Math.round(Number(body.spots_per_row) || 1));
           counts = Array.from({ length: rows }, () => per);
         }
+        if (counts.reduce((total, count) => total + count, 0) > 999) {
+          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'El layout no puede superar las 999 plazas (numeración de 001 a 999)' } }, 400);
+        }
 
         // row_names: optional per-row editable labels (fallback to "Fila N" in the RPC)
         let rowNames: string[] | null = null;
@@ -198,8 +201,8 @@ export default async function(req: Request): Promise<Response> {
         if (!isAdmin) return forbidden();
         const spotNumber = String(body.spot_number || '').trim();
         const type = normalizeSpotType(body.type);
-        if (!spotNumber) {
-          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'spot_number es requerido' } }, 400);
+        if (!/^(?!000)\d{3}$/.test(spotNumber)) {
+          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'El número de cochera debe tener tres cifras, entre 001 y 999' } }, 400);
         }
         const { data: existing } = await db.from('parking_spots').select('id').eq('spot_number', spotNumber).single();
         if (existing) {
@@ -229,7 +232,7 @@ export default async function(req: Request): Promise<Response> {
         const updates: Record<string, unknown> = {};
         if (body.spot_number !== undefined) {
           const spotNumber = String(body.spot_number).trim();
-          if (!spotNumber) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'spot_number es requerido' } }, 400);
+          if (!/^(?!000)\d{3}$/.test(spotNumber)) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'El número de cochera debe tener tres cifras, entre 001 y 999' } }, 400);
           updates.spot_number = spotNumber;
         }
         if (body.type !== undefined) updates.type = normalizeSpotType(body.type);

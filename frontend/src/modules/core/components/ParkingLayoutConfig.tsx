@@ -190,8 +190,39 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
   while (perRowCounts.length < rows) perRowCounts.push(1);
   const effectiveCounts = perRowCounts.slice(0, rows);
   const totalExpected = effectiveCounts.reduce((a, b) => a + b, 0);
-  const assignedCount = spots.filter(s => Boolean(s.department_id)).length;
-  const availableCount = spots.length - assignedCount;
+  const displayedSpots: ParkingSpot[] = [];
+  const layoutCounts = layout
+    ? Array.from({ length: layout.rows }, (_, row) => Math.max(1, Math.trunc(Number(
+        Array.isArray(layout.spots_per_row) ? layout.spots_per_row[row] : layout.spots_per_row
+      ) || 1)))
+    : [];
+  const statsTotal = layout ? layoutCounts.reduce((total, count) => total + count, 0) : spots.length;
+  if (!layout) {
+    displayedSpots.push(...spots);
+  } else {
+    const positioned = new Map<string, ParkingSpot>();
+    const unpositioned: ParkingSpot[] = [];
+    for (const spot of spots) {
+      if (spot.spot_row != null && spot.spot_index != null) {
+        if (spot.spot_row >= 1 && spot.spot_row <= layout.rows && spot.spot_index >= 1 && spot.spot_index <= (layoutCounts[spot.spot_row - 1] || 1)) {
+          positioned.set(`${spot.spot_row}-${spot.spot_index}`, spot);
+        }
+      } else {
+        unpositioned.push(spot);
+      }
+    }
+
+    let nextUnpositioned = 0;
+    for (let row = 1; row <= layout.rows; row++) {
+      for (let index = 1; index <= (layoutCounts[row - 1] || 1); index++) {
+        const spot = positioned.get(`${row}-${index}`) || unpositioned[nextUnpositioned++];
+        if (spot) displayedSpots.push(spot);
+      }
+    }
+  }
+  const assignedCount = displayedSpots.filter(s => Boolean(s.department_id)).length;
+  const availableCount = statsTotal - assignedCount;
+  const totalDisplayed = layout || spots.length > 0 ? statsTotal : totalExpected;
   const previewLayout = layout ? { ...layout, orientation } : null;
 
   const quickQuery = spotQuickSearch.trim().toLowerCase();
@@ -264,6 +295,10 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
 
   const handleProvision = async () => {
     if (!schemaName) return;
+    if (totalExpected > 999) {
+      setError('El layout no puede superar las 999 plazas (numeración de 001 a 999).');
+      return;
+    }
     setGenerating(true);
     setError(null);
     setMessage(null);
@@ -393,7 +428,10 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
           </div>
           <div className="form-group" style={{ justifyContent: 'center' }}>
             <label>Total de plazas</label>
-            <div className="plaza-total-preview"><strong>{totalExpected}</strong> plazas · numeración 01…{String(totalExpected).padStart(Math.max(2, String(totalExpected).length), '0')}</div>
+            <div className="plaza-total-preview">
+              <span><strong>{totalDisplayed}</strong> plazas actuales · numeración 001…{String(totalDisplayed).padStart(3, '0')}</span>
+              {totalExpected !== totalDisplayed && <small>El diseño pendiente tendrá {totalExpected} plazas.</small>}
+            </div>
             {spots.length > 0 && (
               <div className="plaza-assign-stats">
                 <span className="plaza-stat-assigned"><i />Asignadas: <strong>{assignedCount}</strong></span>

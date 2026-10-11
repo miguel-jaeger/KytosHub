@@ -198,11 +198,11 @@ export function GatesManager({ schemaName }: { schemaName?: string }) {
                 <td><span className={`status-badge ${g.is_active ? 'status-occupied' : 'status-vacant'}`}>{g.is_active ? 'Activa' : 'Inactiva'}</span></td>
                 <td>
                   <div className="resident-row-actions">
-                    <button className="btn-edit" onClick={() => startEdit(g)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
+                    <button className="icon-btn" onClick={() => startEdit(g)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
                     <button className={g.is_active ? 'btn-danger' : 'btn-edit'} onClick={() => toggleActive(g)} title={g.is_active ? 'Desactivar' : 'Activar'}>
                       <span className="material-symbols-outlined">{g.is_active ? 'toggle_off' : 'toggle_on'}</span>
                     </button>
-                    <button className="btn-edit" onClick={() => handleDelete(g)} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
+                    <button className="icon-btn danger" onClick={() => handleDelete(g)} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
                   </div>
                 </td>
               </tr>

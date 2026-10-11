@@ -352,8 +352,8 @@ export function CartLendingManager({ schemaName }: { schemaName?: string }) {
                         <td><span className={`status-badge status-cart-${(c.status || '').toLowerCase()}`}>{c.status}</span></td>
                         <td>
                           <div className="resident-row-actions">
-                            <button className="btn-edit" onClick={() => startEditCart(c)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
-                            <button className="btn-danger" onClick={() => handleDeleteCart(c)} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
+                            <button className="icon-btn" onClick={() => startEditCart(c)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
+                            <button className="icon-btn danger" onClick={() => handleDeleteCart(c)} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
                           </div>
                         </td>
                       </tr>

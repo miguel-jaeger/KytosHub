@@ -435,8 +435,8 @@ export function DepartmentModal({
                         <td>{r.email || r.phone || '-'}</td>
                         <td>
                           <div className="resident-row-actions">
-                            <button className="btn-edit" onClick={() => setEditingResident(r)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
-                            <button className="btn-danger" onClick={() => handleDelete(r.id)} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
+                            <button className="icon-btn" onClick={() => setEditingResident(r)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
+                            <button className="icon-btn danger" onClick={() => handleDelete(r.id)} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
                           </div>
                         </td>
                       </tr>
@@ -457,8 +457,8 @@ export function DepartmentModal({
                         <div className="resident-grid-line"><span className="resident-grid-label">Contacto</span><span>{r.email || r.phone || '-'}</span></div>
                       </div>
                       <div className="resident-row-actions">
-                        <button className="btn-edit" onClick={() => setEditingResident(r)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
-                        <button className="btn-danger" onClick={() => handleDelete(r.id)} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
+                        <button className="icon-btn" onClick={() => setEditingResident(r)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
+                        <button className="icon-btn danger" onClick={() => handleDelete(r.id)} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
                       </div>
                     </div>
                   ))}

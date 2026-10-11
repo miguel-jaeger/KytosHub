@@ -426,8 +426,8 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
                 <td><span className={`status-badge ${v.is_active ? 'status-occupied' : 'status-vacant'}`}>{v.is_active ? 'Activo' : 'Inactivo'}</span></td>
                 <td>
                   <div className="resident-row-actions">
-                    <button className="btn-edit" onClick={() => startVehicleEdit(v)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
-                    <button className="btn-edit" onClick={() => handleVehicleDelete(v)} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
+                    <button className="icon-btn" onClick={() => startVehicleEdit(v)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
+                    <button className="icon-btn danger" onClick={() => handleVehicleDelete(v)} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
                   </div>
                 </td>
               </tr>

@@ -1568,7 +1568,8 @@ html.dark .sidebar-link.active .material-symbols-outlined {
   flex: 1;
   width: auto;
   max-width: 100%;
-  padding: 10px;
+  /* Keep page actions clear of the fixed accessibility controls at the top. */
+  padding: 76px 10px 10px;
   box-sizing: border-box;
   min-width: 0;
 }
@@ -1584,6 +1585,7 @@ html.dark .sidebar-link.active .material-symbols-outlined {
 .structure-manager .tower-card { width: 100%; max-width: 100%; }
 .structure-manager .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
 .structure-manager .header h2 { margin: 0; }
+.structure-header-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin: 0 0 10px auto; }
 
 .tower-toolbar { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 1.5rem; background: #f8f9ff; border-bottom: 1px solid #e5e7eb; }
 .tower-toolbar .toolbar-title { font-weight: 600; color: #45464d; font-size: 0.85rem; flex: 1; }
@@ -2574,9 +2576,9 @@ html.dark .pagination span { color: #ccc; }
 }
 
 .icon-btn.danger {
-  color: #ba1a1a;
-  border-color: #ffdad6;
-  background: #ffdad6;
+  color: #45464d;
+  border-color: #e5e7eb;
+  background: #f1f5f9;
 }
 
 .icon-btn.danger:hover {
@@ -2591,7 +2593,7 @@ html.dark .pagination span { color: #ccc; }
 
 html.dark .icon-btn { background: #333d48; border-color: #444; color: #ccc; }
 html.dark .icon-btn:hover { background: #006c49; border-color: #006c49; color: #fff; }
-html.dark .icon-btn.danger { background: rgba(186,26,26,0.2); border-color: #ba1a1a; color: #ff8a80; }
+html.dark .icon-btn.danger { background: #333d48; border-color: #444; color: #ccc; }
 html.dark .icon-btn.danger:hover { background: #ba1a1a; color: #fff; }
 html.dark .condo-card-actions { border-top-color: #333; }
 
@@ -3262,13 +3264,23 @@ html.dark .parking-spot-number { color: #e5e7eb; }
 .plaza-row { display: flex; align-items: flex-start; gap: 0.7rem; }
 .plaza-row-label { font-size: 0.78rem; font-weight: 700; color: #76777d; min-width: 48px; padding-top: 0.62rem; text-transform: uppercase; }
 .plaza-row-spots { display: flex; flex-wrap: wrap; gap: 0.55rem; }
-.plaza-row-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(92px, 100%), 1fr)); flex: 1; gap: 0.55rem; overflow-x: auto; }
+.plaza-row-grid { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(92px, 1fr); flex: 1; min-width: 0; gap: 0.55rem; overflow-x: auto; overflow-y: hidden; }
 .plaza-map-vertical { flex-direction: row; align-items: flex-start; justify-content: center; justify-content: safe center; overflow-x: auto; gap: 1.5rem; }
 .plaza-map-vertical .plaza-row { flex: 0 1 auto; min-width: 0; flex-direction: column; align-items: center; gap: 0.55rem; background: #f7f8fb; border: 1px solid #e4e6eb; border-radius: 14px; padding: 0.85rem 0.9rem 1rem; box-shadow: 0 1px 3px rgba(11, 28, 48, 0.08); }
 .plaza-map-vertical .plaza-row-label { min-width: 0; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.75rem; background: #006c49; color: #fff; border-radius: 999px; text-transform: uppercase; font-size: 0.8rem; }
 .plaza-map-vertical .plaza-row-label .material-symbols-outlined { font-size: 1rem; }
 .plaza-map-vertical .plaza-row-count { font-size: 0.7rem; font-weight: 700; color: #76777d; text-transform: uppercase; letter-spacing: 0.03em; }
-.plaza-map-vertical .plaza-row-vertical-spots { grid-template-columns: minmax(100px, 1fr); overflow-x: visible; }
+.plaza-map-vertical .plaza-row-vertical-spots { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: minmax(100px, 1fr); overflow-x: visible; }
+@media (max-width: 600px) {
+  .plaza-map-vertical {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+  .plaza-map-vertical .plaza-row { flex: 0 0 132px; }
+  .plaza-map-vertical .plaza-row-vertical-spots { width: 100%; flex: none; }
+}
 html.dark .plaza-map-vertical .plaza-row { background: #202830; border-color: #3a414d; }
 html.dark .plaza-map-vertical .plaza-row-label { background: #2e7d5b; color: #eef7f2; }
 html.dark .plaza-map-vertical .plaza-row-count { color: #9ca3af; }
@@ -3351,7 +3363,8 @@ html.dark .plaza-legend-item.plaza-occupied { background: #2b1717; border-color:
 html.dark .plaza-legend-item.plaza-visita { background: #142438; border-color: #2f68a8; }
 html.dark .plaza-legend-item.plaza-rented { background: #2b2212; border-color: #9a6a1e; }
 .plaza-empty { text-align: center; color: #76777d; padding: 0.75rem 0; }
-.plaza-total-preview { display: flex; align-items: center; font-size: 0.9rem; color: #45464d; }
+.plaza-total-preview { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; font-size: 0.9rem; color: #45464d; }
+.plaza-total-preview > small { flex-basis: 100%; }
 .plaza-total-preview strong { font-size: 1.2rem; color: #006c49; margin: 0 0.35rem; }
 .plaza-assign-stats { display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem; margin-top: 0.4rem; font-size: 0.82rem; color: #45464d; }
 .plaza-assign-stats span { display: inline-flex; align-items: center; gap: 0.35rem; }
@@ -3453,8 +3466,6 @@ html.dark .condo-counts .count-link:hover { background: #1e5138; border-color: #
 /* Ensure condo card action icons stay visible in dark mode */
 html.dark .condo-card-actions .icon-btn,
 html.dark .condo-card-actions .icon-btn .material-symbols-outlined { color: #e5e7eb; }
-html.dark .condo-card-actions .icon-btn.danger,
-html.dark .condo-card-actions .icon-btn.danger .material-symbols-outlined { color: #ff8a80; }
 html.dark .condo-card-actions .icon-btn:hover,
 html.dark .condo-card-actions .icon-btn:hover .material-symbols-outlined { color: #fff; }
 

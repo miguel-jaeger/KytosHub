@@ -293,8 +293,8 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
                     <td><span className={`status-badge ${v.is_active ? 'status-occupied' : 'status-vacant'}`}>{v.is_active ? 'Activo' : 'Inactivo'}</span></td>
                     <td>
                       <div className="resident-row-actions">
-                        <button className="btn-edit" onClick={() => openVehicleForm(v)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
-                        <button className="btn-danger" onClick={async () => {
+                        <button className="icon-btn" onClick={() => openVehicleForm(v)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
+                        <button className="icon-btn danger" onClick={async () => {
                           if (!confirm(`¿Eliminar ${v.license_plate}?`)) return;
                           try { await deleteVehicle(schemaName, v.id); setMessage('Vehículo eliminado'); await load(); }
                           catch (err) { setError(err instanceof Error ? err.message : 'Error'); }
@@ -318,8 +318,8 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
                     <div className="resident-grid-line"><span className="resident-grid-label">Estado</span><span className={v.is_active ? '' : 'text-muted'}>{v.is_active ? 'Activo' : 'Inactivo'}</span></div>
                   </div>
                   <div className="resident-row-actions">
-                    <button className="btn-edit" onClick={() => openVehicleForm(v)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
-                    <button className="btn-danger" onClick={async () => {
+                    <button className="icon-btn" onClick={() => openVehicleForm(v)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
+                    <button className="icon-btn danger" onClick={async () => {
                       if (!confirm(`¿Eliminar ${v.license_plate}?`)) return;
                       try { await deleteVehicle(schemaName, v.id); setMessage('Vehículo eliminado'); await load(); }
                       catch (err) { setError(err instanceof Error ? err.message : 'Error'); }
