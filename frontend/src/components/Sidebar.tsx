@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useCondominium } from '../contexts/CondominiumContext';
-import { useUserRole, useRoleLabel, SUPER_ADMIN_EMAIL } from '../hooks/useUserRole';
+import { useUserRole, useRoleLabel } from '../hooks/useUserRole';
 import { invokeFunction } from '../lib/insforge';
 
 export function Sidebar() {
@@ -20,8 +20,8 @@ export function Sidebar() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
   const role = useUserRole();
+  const isSuperAdmin = role === 'super';
   const displayRole = role === 'super' ? 'Super Admin' : useRoleLabel(role);
   const canManageUsers = role === 'super' || role === 'admin';
   const canManageCondo = role === 'admin';

@@ -9,6 +9,7 @@ import { TowerBoardsManager } from './TowerBoardsManager';
 import { GeneralBoardsManager } from './GeneralBoardsManager';
 import { MorososView } from './MorososView';
 import { PaginationBar, paginate } from '../../../components/Pagination';
+import { useUserRole } from '../../../hooks/useUserRole';
 
 interface TenantUser {
   id: string;
@@ -187,8 +188,9 @@ function mapImportRows(dataRows: string[][], idx: ImportColumnIndexes): { rows: 
 export function CondominioAdminDashboard() {
   const { condominium, setCondominium } = useCondominium();
   const { user } = useAuth();
+  const role = useUserRole();
   const { condominiums } = useCondominiums();
-  const isSuperAdmin = user?.email === 'miguel.jaeger@gmail.com';
+  const isSuperAdmin = role === 'super';
   const [users, setUsers] = useState<TenantUser[]>([]);
   const [selectedUserKeys, setSelectedUserKeys] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -221,6 +223,10 @@ export function CondominioAdminDashboard() {
     : section === 'general-board' && generalBoardEnabled && towerBoardsEnabled ? 'general-board'
     : section === 'morosos' && billingEnabled ? 'morosos'
     : 'users';
+
+  useEffect(() => {
+    if (role === 'super') setViewAllCondos(true);
+  }, [role]);
 
   useEffect(() => {
     if (!condominium?.schema_name) { setTowerBoardsEnabled(false); setGeneralBoardEnabled(false); setBillingEnabled(false); return; }

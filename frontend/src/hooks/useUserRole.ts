@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { invokeFunction } from '../lib/insforge';
 
-export const SUPER_ADMIN_EMAIL = 'miguel.jaeger@gmail.com';
-
 export const ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN: 'Super Admin',
   ADMIN: 'Administrador',
@@ -20,24 +18,23 @@ export function useUserRole(): UserRole {
   const [role, setRole] = useState<UserRole>('loading');
 
   useEffect(() => {
-    if (loading || !user) { setRole('loading'); return; }
-    if (user.email === SUPER_ADMIN_EMAIL) { setRole('super'); return; }
+    if (loading) { setRole('loading'); return; }
+    if (!user) { setRole('none'); return; }
 
     let cancelled = false;
-    invokeFunction<{ success: boolean; data: { role: string; status: string }[] | null }>('list-condominium-users', {
+    invokeFunction<{ success: boolean; data: { role: string } | null }>('list-condominium-users', {
       method: 'POST',
-      body: { action: 'list-by-user', user_id: user.id }
+      body: { action: 'current-role' }
     }).then(({ data }) => {
       if (cancelled) return;
-      if (data?.success && data.data) {
-        const active = data.data.filter(x => x.status === 'ACTIVE');
-        const isManager = active.some(x => x.role === 'SUPER_ADMIN' || x.role === 'ADMIN');
-        const isSecurity = active.some(x => x.role === 'SECURITY_AGENT' || x.role === 'SUPERVISOR');
-        setRole(isManager ? 'admin' : isSecurity ? 'security' : 'resident');
-      } else {
-        setRole('resident');
-      }
-    }).catch(() => { if (!cancelled) setRole('resident'); });
+      if (!data?.success || !data.data) { setRole('none'); return; }
+      const resolvedRole = data.data.role;
+      setRole(resolvedRole === 'SUPER_ADMIN' ? 'super'
+        : resolvedRole === 'ADMIN' ? 'admin'
+        : resolvedRole === 'SECURITY_AGENT' ? 'security'
+        : resolvedRole === 'RESIDENT' ? 'resident'
+        : 'none');
+    }).catch(() => { if (!cancelled) setRole('none'); });
 
     return () => { cancelled = true; };
   }, [user, loading]);

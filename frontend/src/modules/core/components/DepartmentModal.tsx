@@ -1,8 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useResidents } from '../hooks/useResidents';
 import { useCondominium } from '../../../contexts/CondominiumContext';
-import { useAuth } from '../../../contexts/AuthContext';
-import { SUPER_ADMIN_EMAIL } from '../../../hooks/useUserRole';
+import { useUserRole } from '../../../hooks/useUserRole';
 import { PaginationBar, paginate } from '../../../components/Pagination';
 import type { Resident, DepartmentNode } from '../types';
 
@@ -35,9 +34,9 @@ export function DepartmentModal({
   onResidentChange?: () => void;
 }) {
   const { condominium } = useCondominium();
-  const { user } = useAuth();
+  const role = useUserRole();
   const schemaName = condominium?.schema_name;
-  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
+  const isSuperAdmin = role === 'super';
   const { residents, loading: residentsLoading, createResident, deleteResident, fetchResidents } = useResidents(departmentId);
   const [showForm, setShowForm] = useState(false);
   const [showSearch, setShowSearch] = useState(false);

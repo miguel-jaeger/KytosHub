@@ -1,4 +1,4 @@
-import { createAdminClient } from 'npm:@insforge/sdk';
+import { createAdminClient, createClient } from 'npm:@insforge/sdk';
 
 interface AddUserRequest {
   tenant_id: string;
@@ -33,6 +33,48 @@ export default async function(req: Request): Promise<Response> {
     const tenantId = (body.tenant_id as string) || url.searchParams.get('tenant_id');
     const role = (body.role as string) || url.searchParams.get('role');
     const action = (body.action as string) || (req.method === 'GET' ? 'list' : '');
+
+    if (action === 'current-role') {
+      const accessToken = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
+      if (!accessToken) {
+        return new Response(JSON.stringify({ success: false, data: null, error: { code: 'UNAUTH', message: 'No autenticado' } }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const userClient = createClient({ baseUrl: Deno.env.get('INSFORGE_BASE_URL'), accessToken });
+      const { data: current, error: authError } = await userClient.auth.getCurrentUser();
+      const userId = current?.user?.id;
+      if (authError || !userId) {
+        return new Response(JSON.stringify({ success: false, data: null, error: { code: 'UNAUTH', message: 'La sesión no es válida' } }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const { data: globalUser, error: globalUserError } = await client.database.from('users_global').select('is_superadmin').eq('id', userId).maybeSingle();
+      if (globalUserError) throw globalUserError;
+      if ((globalUser as { is_superadmin?: boolean } | null)?.is_superadmin) {
+        return new Response(JSON.stringify({ success: true, data: { role: 'SUPER_ADMIN' }, error: null }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const { data: memberships, error: membershipError } = await client.database.from('tenant_users').select('role').eq('user_id', userId).eq('status', 'ACTIVE');
+      if (membershipError) throw membershipError;
+      const roles = (memberships || []).map((membership: { role?: string }) => String(membership.role || ''));
+      let resolvedRole = roles.some(value => value === 'ADMIN' || value === 'SUPER_ADMIN')
+        ? 'ADMIN'
+        : roles.some(value => value === 'SECURITY_AGENT' || value === 'SUPERVISOR')
+          ? 'SECURITY_AGENT'
+          : roles.length > 0 ? 'RESIDENT' : 'NONE';
+
+      if (resolvedRole === 'NONE') {
+        const { data: tenants, error: tenantsError } = await client.database.from('tenants').select('schema_name').not('schema_name', 'is', null);
+        if (tenantsError) throw tenantsError;
+        for (const tenant of (tenants || []) as Array<{ schema_name?: string }>) {
+          if (!tenant.schema_name) continue;
+          try {
+            const { data: residentRows } = await client.database.schema(tenant.schema_name).from('residents').select('id').eq('user_id', userId).limit(1);
+            if (residentRows?.length) { resolvedRole = 'RESIDENT'; break; }
+          } catch {}
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true, data: { role: resolvedRole }, error: null }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     if (action === 'list-by-user') {
       const userId = body.user_id as string;

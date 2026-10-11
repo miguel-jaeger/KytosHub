@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCondominiums } from '../hooks/useCondominiums';
 import { useCondominium } from '../../../contexts/CondominiumContext';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useUserRole } from '../../../hooks/useUserRole';
 import { CondominiumRegistration } from './CondominiumRegistration';
 import { invokeFunction } from '../../../lib/insforge';
 import { PaginationBar, paginate } from '../../../components/Pagination';
@@ -14,9 +15,10 @@ export function SuperAdminDashboard() {
   const { condominiums, loading, error, search, setSearch, updateCondominium, deleteCondominium } = useCondominiums();
   const { setCondominium, clearCondominium } = useCondominium();
   const { user } = useAuth();
+  const role = useUserRole();
   const navigate = useNavigate();
   const [allowedIds, setAllowedIds] = useState<string[] | null>(null);
-  const isSuperAdmin = user?.email === 'miguel.jaeger@gmail.com';
+  const isSuperAdmin = role === 'super';
 
   useEffect(() => {
     if (!user || isSuperAdmin) { setAllowedIds(null); return; }

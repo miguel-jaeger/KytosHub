@@ -1,12 +1,11 @@
 import { useRef, useState } from 'react';
 import { useCondominium } from '../../../contexts/CondominiumContext';
-import { useAuth } from '../../../contexts/AuthContext';
 import { invokeFunction } from '../../../lib/insforge';
 import { useTowerStructure } from '../hooks/useTowerStructure';
 import { TowerWizard } from './TowerWizard';
 import { DepartmentModal } from './DepartmentModal';
 import { PaginationBar, paginate } from '../../../components/Pagination';
-import { SUPER_ADMIN_EMAIL } from '../../../hooks/useUserRole';
+import { useUserRole } from '../../../hooks/useUserRole';
 import type { ApiResponse, Resident, TowerNode, DepartmentNode } from '../types';
 
 interface ResidentImportCandidate extends Omit<Partial<Resident>, 'id'> {
@@ -56,7 +55,7 @@ function normalizeDni(value: string): string {
 
 export function StructureManager() {
   const { condominium } = useCondominium();
-  const { user } = useAuth();
+  const role = useUserRole();
   const { towers, loading, error, refresh } = useTowerStructure();
   const [expandedTower, setExpandedTower] = useState<string | null>(null);
   const [expandedFloor, setExpandedFloor] = useState<string | null>(null);
@@ -79,7 +78,7 @@ export function StructureManager() {
   const { slice: pagedTowers } = paginate(towers, towerPage, towerPerPage === 'all' ? towers.length : towerPerPage);
 
   const schemaName = condominium?.schema_name;
-  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
+  const isSuperAdmin = role === 'super';
 
   const doAction = async (fn: string, body: Record<string, unknown>) => {
     const { data, error } = await invokeFunction<{ success: boolean; error?: { message?: string } }>(fn, { method: 'POST', body });
@@ -342,7 +341,7 @@ export function StructureManager() {
       <div className="header">
         <h2>Estructura del Condominio</h2>
         <div className="header-actions structure-header-actions">
-          <button onClick={openResidentImport} disabled={!schemaName}>
+          <button onClick={openResidentImport} disabled={!schemaName || role === 'loading'}>
             <span className="material-symbols-outlined">upload_file</span> Importar residentes
           </button>
           <button onClick={() => { setShowTowerForm(!showTowerForm); setExpandedTower(null); }}>
