@@ -38,11 +38,25 @@ export default async function(req: Request): Promise<Response> {
     }
 
     const db = client.database.schema(schemaName);
-    const isAdmin = await isAdminForSchema(req, client, schemaName);
-    const isSecurity = await isSecurityForSchema(req, client, schemaName);
+
+    // Resolve the caller once. Every permission helper used to run its own auth
+    // round-trip plus profile/tenant lookups, so a single request paid the same
+    // queries four times before doing any real work. Identity, roles and (only
+    // when the action needs it) the caller's department are resolved once here.
+    const identity = await authenticatedIdentity(req);
+    const profile = identity ? await globalProfileForAuthUser(client, identity) : null;
+    const roles = await resolveTenantRoles(client, schemaName, identity, profile);
+    const isAdmin = roles.isAdmin;
+    const isSecurity = roles.isSecurity;
     const isOperator = isAdmin || isSecurity;
-    const uid = await currentUserId(req);
-    const myDepartmentId = uid ? await departmentOfUser(req, client, db, uid) : null;
+    const uid = identity?.id || null;
+
+    // Reading actions for residents/security need the caller's department; admin
+    // actions never do, so we avoid the extra residents lookups for them.
+    const DEPARTMENT_ACTIONS = new Set(['list-spots', 'list-vehicles', 'create-vehicle', 'update-vehicle', 'set-vehicle-active', 'delete-vehicle', 'list-loans', 'create-loan', 'update-loan-status']);
+    const myDepartmentId = (!isAdmin && uid && DEPARTMENT_ACTIONS.has(action))
+      ? await departmentOfUser(db, uid, identity, profile)
+      : null;
 
     switch (action) {
       // ---------- SPOTS ----------
@@ -886,7 +900,7 @@ export default async function(req: Request): Promise<Response> {
           ? await resolveOwnerDriverName(db, vehicleRow)
           : (body.driver_name ? String(body.driver_name).trim() : null);
 
-        const gate = await resolveGateForOperator(req, client, db, body.gate_id);
+        const gate = await resolveGateForOperator(uid, db, body.gate_id);
         const now = new Date().toISOString();
         const { data: log, error } = await db.from('parking_access_logs').insert([{
           spot_id: resolution.spot.id,
@@ -946,7 +960,7 @@ export default async function(req: Request): Promise<Response> {
           return json({ success: false, data: null, error: { code: 'CAPACITY_RULE', message: 'Registra primero la salida del auto; una cochera múltiple no puede dejar un auto sin al menos una moto' } }, 409);
         }
 
-        const gate = await resolveGateForOperator(req, client, db, body.gate_id);
+        const gate = await resolveGateForOperator(uid, db, body.gate_id);
         const { data: updated, error } = await db.from('parking_access_logs').update({
           exit_time: new Date().toISOString(),
           exit_gate_id: gate?.id || null
@@ -1250,8 +1264,7 @@ async function resolveOwnerDriverName(
 // ---------------------------------------------------------------------------
 
 async function resolveGateForOperator(
-  req: Request,
-  client: ReturnType<typeof createAdminClient>,
+  uid: string | null,
   db: { from(t: string): any },
   explicitGateId: unknown
 ): Promise<{ id: string; name: string } | null> {
@@ -1262,7 +1275,6 @@ async function resolveGateForOperator(
   }
 
   // 2) Guard's active session gate (persisted when they authenticated/entered garita)
-  const uid = await currentUserId(req);
   if (uid) {
     const { data: session } = await db.from('guard_gate_sessions')
       .select('gate_id')
@@ -1322,11 +1334,31 @@ async function closeOpenVehicleLogs(db: { from(t: string): any }, plates: string
 
 async function enrichSpots(db: { from(t: string): any }, spots: Array<Record<string, unknown>>): Promise<Array<Record<string, unknown>>> {
   const deptIds = [...new Set(spots.map(s => s.department_id as string | null).filter(Boolean))];
-  const deptRows = await fetchRowsIn(db, 'departments', 'id, department_number, tower_id, floor_id', 'id', deptIds);
+  const spotIds = spots.map(s => s.id as string).filter(Boolean);
+
+  // None of these depend on each other, so they run together instead of one
+  // after another (the map/config load used to wait on ~20 sequential queries).
+  const [deptRows, resRows, openSpotList, vehRows] = await Promise.all([
+    fetchRowsIn(db, 'departments', 'id, department_number, tower_id, floor_id', 'id', deptIds),
+    deptIds.length
+      ? fetchRowsIn(db, 'residents', 'department_id, full_name, is_primary_contact, relationship_type', 'department_id', deptIds).catch(() => [])
+      : Promise.resolve([] as Array<Record<string, any>>),
+    fetchOpenSpotIds(db, spotIds).catch(() => [] as string[]),
+    (async () => {
+      try {
+        const { data } = await db.from('vehicles').select('spot_id, license_plate').eq('is_active', true).not('spot_id', 'is', null);
+        return (data || []) as Array<{ spot_id?: string | null; license_plate?: string }>;
+      } catch { return [] as Array<{ spot_id?: string | null; license_plate?: string }>; }
+    })()
+  ]);
+
   const towerIds = [...new Set((deptRows as Array<{ tower_id: string }>).map(d => d.tower_id))];
-  const towerRows = await fetchRowsIn(db, 'towers', 'id, name, code', 'id', towerIds);
   const floorIds = [...new Set((deptRows as Array<{ floor_id: string }>).map(d => d.floor_id).filter(Boolean))];
-  const floorRows = await fetchRowsIn(db, 'floors', 'id, floor_number', 'id', floorIds);
+  const [towerRows, floorRows] = await Promise.all([
+    fetchRowsIn(db, 'towers', 'id, name, code', 'id', towerIds),
+    fetchRowsIn(db, 'floors', 'id, floor_number', 'id', floorIds)
+  ]);
+
   const deptMap = new Map((deptRows as Array<{ id: string; department_number: string; tower_id: string; floor_id: string }>).map(d => [d.id, d]));
   const towerMap = new Map((towerRows as Array<{ id: string; name: string; code: string }>).map(t => [t.id, t]));
   const floorMap = new Map((floorRows as Array<{ id: string; floor_number: number }>).map(f => [f.id, f]));
@@ -1334,43 +1366,29 @@ async function enrichSpots(db: { from(t: string): any }, spots: Array<Record<str
   // Owner of each assigned department (primary / owner resident) so the vehicles
   // form can prefill the driver name from the parking spot without asking again.
   const ownerMap = new Map<string, string>();
-  if (deptIds.length) {
-    try {
-      const resRows = await fetchRowsIn(db, 'residents', 'department_id, full_name, is_primary_contact, relationship_type', 'department_id', deptIds);
-      const best = new Map<string, { name: string; score: number }>();
-      for (const r of resRows as Array<{ department_id: string; full_name: string; is_primary_contact: boolean; relationship_type: string }>) {
-        const deptId = r.department_id;
-        let score = 2;
-        if (r.relationship_type === 'PROPIETARIO') score--;
-        if (r.is_primary_contact) score--;
-        const cur = best.get(deptId);
-        if (!cur || score < cur.score) best.set(deptId, { name: r.full_name, score });
-      }
-      for (const [deptId, v] of best) ownerMap.set(deptId, v.name);
-    } catch {}
+  const bestOwner = new Map<string, { name: string; score: number }>();
+  for (const r of resRows as Array<{ department_id: string; full_name: string; is_primary_contact: boolean; relationship_type: string }>) {
+    const deptId = r.department_id;
+    let score = 2;
+    if (r.relationship_type === 'PROPIETARIO') score--;
+    if (r.is_primary_contact) score--;
+    const cur = bestOwner.get(deptId);
+    if (!cur || score < cur.score) bestOwner.set(deptId, { name: r.full_name, score });
   }
+  for (const [deptId, v] of bestOwner) ownerMap.set(deptId, v.name);
 
-  const spotIds = spots.map(s => s.id as string).filter(Boolean);
-  const insideSpotIds = new Set<string>();
-  for (let i = 0; i < spotIds.length; i += 40) {
-    const { data: openLogs, error } = await db.from('parking_access_logs').select('spot_id').is('exit_time', null).in('spot_id', spotIds.slice(i, i + 40));
-    if (error) throw error;
-    for (const l of (openLogs || []) as Array<{ spot_id: string }>) insideSpotIds.add(l.spot_id);
-  }
+  const insideSpotIds = new Set<string>(openSpotList);
 
   // Cochera con vehículo registrado (aunque no esté físicamente dentro) y las
   // matrículas de esos vehículos activos, para mostrarlas en el mapa.
   const vehiclePlatesBySpot = new Map<string, string[]>();
-  try {
-    const { data: vehRows } = await db.from('vehicles').select('spot_id, license_plate').eq('is_active', true).not('spot_id', 'is', null);
-    for (const v of (vehRows || []) as Array<{ spot_id?: string | null; license_plate?: string }>) {
-      if (!v.spot_id) continue;
-      const key = String(v.spot_id);
-      const arr = vehiclePlatesBySpot.get(key) || [];
-      if (v.license_plate) arr.push(String(v.license_plate));
-      vehiclePlatesBySpot.set(key, arr);
-    }
-  } catch {}
+  for (const v of vehRows) {
+    if (!v.spot_id) continue;
+    const key = String(v.spot_id);
+    const arr = vehiclePlatesBySpot.get(key) || [];
+    if (v.license_plate) arr.push(String(v.license_plate));
+    vehiclePlatesBySpot.set(key, arr);
+  }
 
   return spots.map(s => {
     const dept = s.department_id ? deptMap.get(s.department_id as string) : undefined;
@@ -1399,8 +1417,25 @@ async function enrichSpots(db: { from(t: string): any }, spots: Array<Record<str
   });
 }
 
+// Returns the ids of spots with an open (no exit) access log. The id batches
+// run in parallel so a full parking lot resolves in a single round trip.
+async function fetchOpenSpotIds(db: { from(t: string): any }, spotIds: string[]): Promise<string[]> {
+  if (spotIds.length === 0) return [];
+  const chunks: string[][] = [];
+  for (let i = 0; i < spotIds.length; i += 40) chunks.push(spotIds.slice(i, i + 40));
+  const results = await Promise.all(chunks.map(chunk =>
+    db.from('parking_access_logs').select('spot_id').is('exit_time', null).in('spot_id', chunk)
+  ));
+  const out: string[] = [];
+  for (const { data, error } of results) {
+    if (error) throw error;
+    for (const l of (data || []) as Array<{ spot_id?: string }>) if (l.spot_id) out.push(l.spot_id);
+  }
+  return out;
+}
+
 // PostgREST rejects very long URLs, so a single `.in()` with hundreds of ids
-// silently fails. Fetch ids in small batches and merge the rows.
+// silently fails. Fetch ids in small batches (in parallel) and merge the rows.
 async function fetchRowsIn(
   db: { from(t: string): any },
   table: string,
@@ -1410,9 +1445,12 @@ async function fetchRowsIn(
   chunkSize = 40
 ): Promise<Array<Record<string, any>>> {
   const unique = [...new Set(ids.filter(Boolean))] as string[];
+  if (unique.length === 0) return [];
+  const chunks: string[][] = [];
+  for (let i = 0; i < unique.length; i += chunkSize) chunks.push(unique.slice(i, i + chunkSize));
+  const results = await Promise.all(chunks.map(chunk => db.from(table).select(columns).in(column, chunk)));
   const out: Array<Record<string, any>> = [];
-  for (let i = 0; i < unique.length; i += chunkSize) {
-    const { data, error } = await db.from(table).select(columns).in(column, unique.slice(i, i + chunkSize));
+  for (const { data, error } of results) {
     if (error) throw error;
     if (data) out.push(...(data as Array<Record<string, any>>));
   }
@@ -1421,11 +1459,29 @@ async function fetchRowsIn(
 
 async function enrichVehicles(db: { from(t: string): any }, vehicles: Array<Record<string, unknown>>): Promise<Array<Record<string, unknown>>> {
   const deptIds = [...new Set(vehicles.map(v => v.department_id as string).filter(Boolean))];
-  const deptRows = await fetchRowsIn(db, 'departments', 'id, department_number, tower_id, floor_id', 'id', deptIds);
+  const explicitSpotIds = [...new Set(vehicles.map(v => v.spot_id as string | null).filter(Boolean))] as string[];
+  const plates = vehicles.map(v => String(v.license_plate || '').toUpperCase()).filter(Boolean);
+
+  // Independent lookups run together instead of sequentially.
+  const [deptRows, spotRowsByDept, spotRowsByExplicit, openLogs] = await Promise.all([
+    fetchRowsIn(db, 'departments', 'id, department_number, tower_id, floor_id', 'id', deptIds),
+    deptIds.length
+      ? fetchRowsIn(db, 'parking_spots', 'id, department_id, spot_number', 'department_id', deptIds).catch(() => [])
+      : Promise.resolve([] as Array<Record<string, any>>),
+    explicitSpotIds.length
+      ? fetchRowsIn(db, 'parking_spots', 'id, department_id, spot_number', 'id', explicitSpotIds).catch(() => [])
+      : Promise.resolve([] as Array<Record<string, any>>),
+    plates.length
+      ? fetchRowsIn(db, 'parking_access_logs', 'license_plate, spot_id', 'license_plate', plates).catch(() => [])
+      : Promise.resolve([] as Array<Record<string, any>>)
+  ]);
+
   const towerIds = [...new Set((deptRows as Array<{ tower_id: string }>).map(d => d.tower_id))];
-  const towerRows = await fetchRowsIn(db, 'towers', 'id, name, code', 'id', towerIds);
   const floorIds = [...new Set((deptRows as Array<{ floor_id: string }>).map(d => d.floor_id).filter(Boolean))];
-  const floorRows = await fetchRowsIn(db, 'floors', 'id, floor_number', 'id', floorIds);
+  const [towerRows, floorRows] = await Promise.all([
+    fetchRowsIn(db, 'towers', 'id, name, code', 'id', towerIds),
+    fetchRowsIn(db, 'floors', 'id, floor_number', 'id', floorIds)
+  ]);
   const deptMap = new Map((deptRows as Array<{ id: string; department_number: string; tower_id: string; floor_id: string }>).map(d => [d.id, d]));
   const towerMap = new Map((towerRows as Array<{ id: string; name: string; code: string }>).map(t => [t.id, t]));
   const floorMap = new Map((floorRows as Array<{ id: string; floor_number: number }>).map(f => [f.id, f]));
@@ -1435,34 +1491,23 @@ async function enrichVehicles(db: { from(t: string): any }, vehicles: Array<Reco
   // spot_id wins over the department fallback.
   const spotByDept = new Map<string, string[]>();
   const spotById = new Map<string, { spot_number: string; department_id: string | null }>();
-  const explicitSpotIds = [...new Set(vehicles.map(v => v.spot_id as string | null).filter(Boolean))] as string[];
-  if (deptIds.length || explicitSpotIds.length) {
-    try {
-      const spotRowsById = new Map<string, { id: string; department_id: string | null; spot_number: string }>();
-      for (const sp of await fetchRowsIn(db, 'parking_spots', 'id, department_id, spot_number', 'department_id', deptIds)) {
-        spotRowsById.set(sp.id, sp as { id: string; department_id: string | null; spot_number: string });
-      }
-      for (const sp of await fetchRowsIn(db, 'parking_spots', 'id, department_id, spot_number', 'id', explicitSpotIds)) {
-        spotRowsById.set(sp.id, sp as { id: string; department_id: string | null; spot_number: string });
-      }
-      for (const sp of spotRowsById.values()) {
-        spotById.set(sp.id, { spot_number: sp.spot_number, department_id: sp.department_id });
-        if (sp.department_id) {
-          const arr = spotByDept.get(sp.department_id) || [];
-          arr.push(sp.spot_number);
-          spotByDept.set(sp.department_id, arr);
-        }
-      }
-    } catch {}
+  const spotRowsById = new Map<string, { id: string; department_id: string | null; spot_number: string }>();
+  for (const sp of spotRowsByDept as Array<{ id: string; department_id: string | null; spot_number: string }>) spotRowsById.set(sp.id, sp);
+  for (const sp of spotRowsByExplicit as Array<{ id: string; department_id: string | null; spot_number: string }>) spotRowsById.set(sp.id, sp);
+  for (const sp of spotRowsById.values()) {
+    spotById.set(sp.id, { spot_number: sp.spot_number, department_id: sp.department_id });
+    if (sp.department_id) {
+      const arr = spotByDept.get(sp.department_id) || [];
+      arr.push(sp.spot_number);
+      spotByDept.set(sp.department_id, arr);
+    }
   }
 
   // Plaza que cada vehículo está ocupando actualmente (acceso abierto sin salida).
   const occupiedByPlate = new Map<string, string>();
-  const plates = vehicles.map(v => String(v.license_plate || '').toUpperCase()).filter(Boolean);
-  if (plates.length) {
+  const logSpotIds = [...new Set((openLogs as Array<{ spot_id?: string }>).map(log => log.spot_id).filter(Boolean))] as string[];
+  if (logSpotIds.length) {
     try {
-      const openLogs = await fetchRowsIn(db, 'parking_access_logs', 'license_plate, spot_id', 'license_plate', plates);
-      const logSpotIds = [...new Set(openLogs.map(log => log.spot_id).filter(Boolean))];
       const logSpots = await fetchRowsIn(db, 'parking_spots', 'id, spot_number', 'id', logSpotIds);
       const logSpotMap = new Map((logSpots as Array<{ id: string; spot_number: string }>).map(sp => [sp.id, sp.spot_number]));
       for (const l of openLogs as Array<{ license_plate: string; spot_id?: string }>) {
@@ -1686,13 +1731,11 @@ function normalizeOrientation(v: unknown): 'HORIZONTAL' | 'VERTICAL' {
 }
 
 async function departmentOfUser(
-  req: Request,
-  client: ReturnType<typeof createAdminClient>,
   db: { from(t: string): any },
-  userId: string
+  userId: string,
+  authUser: { id: string; email?: string } | null,
+  profile: { id: string; email?: string; document_number?: string | null; is_superadmin?: boolean } | null
 ): Promise<string | null> {
-  const authUser = await authenticatedIdentity(req);
-  const profile = authUser ? await globalProfileForAuthUser(client, authUser) : null;
   const userIds = [...new Set([userId, profile?.id].filter(Boolean))];
   // Older resident links may use the global profile id instead of auth.uid().
   const { data: byUser } = await db.from('residents').select('department_id').in('user_id', userIds).limit(1).maybeSingle();
@@ -1767,43 +1810,36 @@ function normalizeVehicleType(v: unknown): string {
   return VEHICLE_TYPES.includes(t) ? t : 'AUTO';
 }
 
-async function isAdminForSchema(req: Request, client: ReturnType<typeof createAdminClient>, schemaName: string): Promise<boolean> {
+// Resolves the caller's condominium roles with a single tenant + tenant_users
+// lookup (previously each role check repeated both queries, plus its own auth
+// round-trip and profile read).
+async function resolveTenantRoles(
+  client: ReturnType<typeof createAdminClient>,
+  schemaName: string,
+  identity: { id: string; email?: string } | null,
+  profile: { id: string; is_superadmin?: boolean } | null
+): Promise<{ isAdmin: boolean; isSecurity: boolean }> {
+  if (!identity) return { isAdmin: false, isSecurity: false };
+  if (profile?.is_superadmin) return { isAdmin: true, isSecurity: false };
   try {
-    const authUser = await authenticatedIdentity(req);
-    if (!authUser) return false;
-    const profile = await globalProfileForAuthUser(client, authUser);
-
-    if (profile?.is_superadmin) return true;
-
     const { data: t } = await client.database.from('tenants').select('id').eq('schema_name', schemaName).single();
     const tenantId = t?.id;
-    if (!tenantId) return false;
+    if (!tenantId) return { isAdmin: false, isSecurity: false };
 
-    const userIds = [...new Set([authUser.id, profile?.id].filter(Boolean))];
-    const { data: tu } = await client.database.from('tenant_users').select('id').in('user_id', userIds).eq('tenant_id', tenantId).eq('status', 'ACTIVE').in('role', ['SUPER_ADMIN', 'ADMIN']).limit(1).maybeSingle();
-    return Boolean(tu);
-  } catch { return false; }
-}
-
-async function isSecurityForSchema(req: Request, client: ReturnType<typeof createAdminClient>, schemaName: string): Promise<boolean> {
-  try {
-    const authUser = await authenticatedIdentity(req);
-    if (!authUser) return false;
-    const profile = await globalProfileForAuthUser(client, authUser);
-
-    const { data: t } = await client.database.from('tenants').select('id').eq('schema_name', schemaName).single();
-    const tenantId = t?.id;
-    if (!tenantId) return false;
-
-    const userIds = [...new Set([authUser.id, profile?.id].filter(Boolean))];
-    const { data: tu } = await client.database.from('tenant_users').select('id').in('user_id', userIds).eq('tenant_id', tenantId).eq('status', 'ACTIVE').in('role', ['SECURITY_AGENT', 'SUPERVISOR']).limit(1).maybeSingle();
-    return Boolean(tu);
-  } catch { return false; }
-}
-
-async function currentUserId(req: Request): Promise<string | null> {
-  const authUser = await authenticatedIdentity(req);
-  return authUser?.id || null;
+    const userIds = [...new Set([identity.id, profile?.id].filter(Boolean))];
+    const { data: rows } = await client.database.from('tenant_users')
+      .select('role')
+      .in('user_id', userIds)
+      .eq('tenant_id', tenantId)
+      .eq('status', 'ACTIVE');
+    const roleList = (rows || []).map((r: { role?: string }) => String(r.role || ''));
+    return {
+      isAdmin: roleList.some(r => r === 'ADMIN' || r === 'SUPER_ADMIN'),
+      isSecurity: roleList.some(r => r === 'SECURITY_AGENT' || r === 'SUPERVISOR')
+    };
+  } catch {
+    return { isAdmin: false, isSecurity: false };
+  }
 }
 
 async function authenticatedIdentity(req: Request): Promise<{ id: string; email?: string } | null> {
