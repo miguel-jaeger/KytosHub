@@ -2648,6 +2648,22 @@ html.dark .pagination span { color: #ccc; }
   border-color: #ba1a1a;
 }
 
+.icon-btn.toggle-active {
+  background: #e7f6ee;
+  border-color: #16a34a;
+  color: #15803d;
+}
+
+.icon-btn.toggle-active:hover {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
+}
+
+.icon-btn.toggle-inactive {
+  color: #9ca3af;
+}
+
 .icon-btn .material-symbols-outlined {
   font-size: 20px;
 }
@@ -2656,6 +2672,9 @@ html.dark .icon-btn { background: #333d48; border-color: #444; color: #ccc; }
 html.dark .icon-btn:hover { background: #006c49; border-color: #006c49; color: #fff; }
 html.dark .icon-btn.danger { background: #333d48; border-color: #444; color: #ccc; }
 html.dark .icon-btn.danger:hover { background: #ba1a1a; color: #fff; }
+html.dark .icon-btn.toggle-active { background: #123a2a; border-color: #16a34a; color: #4ade80; }
+html.dark .icon-btn.toggle-active:hover { background: #16a34a; border-color: #16a34a; color: #fff; }
+html.dark .icon-btn.toggle-inactive { color: #6b7280; }
 html.dark .condo-card-actions { border-top-color: #333; }
 
 .modal-content {

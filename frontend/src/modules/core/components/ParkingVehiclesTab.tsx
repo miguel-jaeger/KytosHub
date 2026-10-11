@@ -953,7 +953,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
                 <td><span className={`status-badge ${v.is_active ? 'status-occupied' : 'status-vacant'}`}>{v.is_active ? 'Activo' : 'Inactivo'}</span></td>
                 <td>
                   <div className="resident-row-actions">
-                    <button className="icon-btn" onClick={() => handleToggleVehicleActive(v)} disabled={togglingVehicleIds.has(v.id)} title={v.is_active ? 'Desactivar' : 'Activar'}>{togglingVehicleIds.has(v.id) ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">{v.is_active ? 'toggle_on' : 'toggle_off'}</span>}</button>
+                    <button className={`icon-btn ${v.is_active ? 'toggle-active' : 'toggle-inactive'}`} onClick={() => handleToggleVehicleActive(v)} disabled={togglingVehicleIds.has(v.id)} title={v.is_active ? 'Desactivar' : 'Activar'}>{togglingVehicleIds.has(v.id) ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">{v.is_active ? 'toggle_on' : 'toggle_off'}</span>}</button>
                     <button className="icon-btn" onClick={() => startVehicleEdit(v)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
                     <button className="icon-btn danger" onClick={() => handleVehicleDelete(v)} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
                   </div>
@@ -985,7 +985,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
                 <div className="resident-grid-line"><span className="resident-grid-label">Estado</span><span>{v.is_active ? 'Activo' : 'Inactivo'}</span></div>
               </div>
               <div className="resident-row-actions">
-                <button className="icon-btn" onClick={() => handleToggleVehicleActive(v)} disabled={togglingVehicleIds.has(v.id)} title={v.is_active ? 'Desactivar' : 'Activar'}>{togglingVehicleIds.has(v.id) ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">{v.is_active ? 'toggle_on' : 'toggle_off'}</span>}</button>
+                <button className={`icon-btn ${v.is_active ? 'toggle-active' : 'toggle-inactive'}`} onClick={() => handleToggleVehicleActive(v)} disabled={togglingVehicleIds.has(v.id)} title={v.is_active ? 'Desactivar' : 'Activar'}>{togglingVehicleIds.has(v.id) ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">{v.is_active ? 'toggle_on' : 'toggle_off'}</span>}</button>
                     <button className="icon-btn" onClick={() => startVehicleEdit(v)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
                 <button className="icon-btn danger" onClick={() => handleVehicleDelete(v)} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
               </div>
