@@ -271,7 +271,8 @@ export default async function(req: Request): Promise<Response> {
 
       case 'create-vehicle': {
         const licensePlate = String(body.license_plate || '').trim().toUpperCase();
-        if (!licensePlate) {
+        const normalizedPlate = normalizeLicensePlate(licensePlate);
+        if (!normalizedPlate) {
           return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'license_plate es requerido' } }, 400);
         }
         let departmentId = body.department_id as string;
@@ -286,9 +287,10 @@ export default async function(req: Request): Promise<Response> {
         if (!departmentId) {
           return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'department_id es requerido' } }, 400);
         }
-        const { data: existing } = await db.from('vehicles').select('id').eq('department_id', departmentId).eq('license_plate', licensePlate).single();
-        if (existing) {
-          return json({ success: false, data: null, error: { code: 'DUPLICATE', message: 'Ese vehículo ya está registrado para el departamento' } }, 409);
+        const { data: registeredVehicles, error: registeredVehiclesError } = await db.from('vehicles').select('id, license_plate').limit(10000);
+        if (registeredVehiclesError) throw registeredVehiclesError;
+        if ((registeredVehicles || []).some((vehicle: { license_plate?: string }) => normalizeLicensePlate(vehicle.license_plate) === normalizedPlate)) {
+          return json({ success: false, data: null, error: { code: 'DUPLICATE', message: `La placa ${licensePlate} ya está registrada en otra cochera de este condominio` } }, 409);
         }
         const { data, error } = await db.from('vehicles').insert([{
           department_id: departmentId,
@@ -306,6 +308,162 @@ export default async function(req: Request): Promise<Response> {
         return json({ success: true, data: enriched, error: null }, 201);
       }
 
+      case 'import-vehicles': {
+        if (!isAdmin) return forbidden();
+        const items = (Array.isArray(body.items) ? body.items : []) as Array<Record<string, unknown>>;
+        if (items.length === 0) {
+          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'No hay vehículos para importar' } }, 400);
+        }
+
+        const [vehicleResult, spotResult, towerResult, floorResult, departmentResult] = await Promise.all([
+          db.from('vehicles').select('license_plate').limit(10000),
+          db.from('parking_spots').select('*').limit(10000),
+          db.from('towers').select('id, code'),
+          db.from('floors').select('id, tower_id, floor_number'),
+          db.from('departments').select('id, tower_id, floor_id, department_number')
+        ]);
+        if (vehicleResult.error) throw vehicleResult.error;
+        if (spotResult.error) throw spotResult.error;
+        if (towerResult.error) throw towerResult.error;
+        if (floorResult.error) throw floorResult.error;
+        if (departmentResult.error) throw departmentResult.error;
+
+        const registeredPlates = new Set((vehicleResult.data || []).map((vehicle: { license_plate?: string }) => normalizeLicensePlate(vehicle.license_plate)).filter(Boolean));
+        const parkingSpots = await enrichSpots(db, (spotResult.data || []) as Array<Record<string, unknown>>);
+        const spotsByNumber = new Map<string, Array<Record<string, unknown>>>();
+        for (const spot of parkingSpots) {
+          const number = normalizeParkingSpotNumber(spot.spot_number);
+          if (!number) continue;
+          const rows = spotsByNumber.get(number) || [];
+          rows.push(spot);
+          spotsByNumber.set(number, rows);
+        }
+        const towers = (towerResult.data || []) as Array<{ id: string; code: string }>;
+        const floors = (floorResult.data || []) as Array<{ id: string; tower_id: string; floor_number: number }>;
+        const departments = (departmentResult.data || []) as Array<{ id: string; tower_id: string; floor_id: string; department_number: string }>;
+
+        const importedPlates = new Set<string>();
+        const spotPlans = new Map<string, { spot: Record<string, unknown>; departmentId: string; spotType: string; cocheraType: string }>();
+        const validRows: Array<{ line: number; licensePlate: string; plateKey: string; spotId: string; departmentId: string; vehicleType: string }> = [];
+        const errors: Array<{ line: number; license_plate: string; reason: string }> = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          const line = Number(item.line) || i + 2;
+          const licensePlate = String(item.license_plate || '').trim().toUpperCase();
+          const plateKey = normalizeLicensePlate(licensePlate);
+          const spotNumber = normalizeParkingSpotNumber(item.spot_number);
+          const towerCode = String(item.tower_code || '').trim();
+          const departmentNumber = String(item.department_number || '').trim().replace(/\s/g, '');
+          const spotType = parseImportedSpotType(item.spot_type);
+          const cocheraType = parseImportedCocheraType(item.cochera_type);
+          const fail = (reason: string) => errors.push({ line, license_plate: licensePlate, reason });
+          if (!plateKey || !spotNumber || !towerCode || !departmentNumber) {
+            fail(!plateKey ? 'La placa no es válida.' : !spotNumber ? 'La cochera debe ser un número entre 001 y 999.' : 'Falta la torre o el departamento.');
+            continue;
+          }
+          if (!spotType || !cocheraType) {
+            fail(!spotType ? `El tipo de plaza ${String(item.spot_type || '')} no es válido.` : `El tipo de cochera ${String(item.cochera_type || '')} no es válido.`);
+            continue;
+          }
+          if (!/^\d{3,}$/.test(departmentNumber)) {
+            fail(`El departamento ${departmentNumber} debe ser un número de al menos 3 cifras.`);
+            continue;
+          }
+          if (importedPlates.has(plateKey)) {
+            fail(`La placa ${licensePlate} está repetida en el archivo.`);
+            continue;
+          }
+          if (registeredPlates.has(plateKey)) {
+            fail(`La placa ${licensePlate} ya está registrada en otra cochera de este condominio.`);
+            continue;
+          }
+          const matchingTowers = towers.filter(tower => tower.code.trim().toLowerCase() === towerCode.toLowerCase());
+          if (matchingTowers.length !== 1) {
+            fail(matchingTowers.length === 0 ? `No existe la torre ${towerCode}.` : `Hay más de una torre con el nombre corto ${towerCode}.`);
+            continue;
+          }
+          const floorNumber = Number(departmentNumber.slice(0, -2));
+          const floor = floors.find(candidate => candidate.tower_id === matchingTowers[0].id && candidate.floor_number === floorNumber);
+          if (!floor) {
+            fail(`No existe el piso ${floorNumber} en la torre ${towerCode}.`);
+            continue;
+          }
+          const exactDepartments = departments.filter(department => department.floor_id === floor.id && department.department_number.trim() === departmentNumber);
+          const numericDepartments = departments.filter(department => department.floor_id === floor.id && /^\d+$/.test(department.department_number) && Number(department.department_number) === Number(departmentNumber));
+          const matchingDepartments = exactDepartments.length > 0 ? exactDepartments : numericDepartments;
+          if (matchingDepartments.length !== 1) {
+            fail(matchingDepartments.length === 0 ? `No existe el departamento ${departmentNumber} en la torre ${towerCode}.` : `El departamento ${departmentNumber} es ambiguo en la torre ${towerCode}.`);
+            continue;
+          }
+
+          const matches = spotsByNumber.get(spotNumber) || [];
+          if (matches.length !== 1) {
+            fail(matches.length === 0 ? `No existe la cochera ${spotNumber}.` : `Hay más de una cochera ${spotNumber}.`);
+            continue;
+          }
+          const spot = matches[0];
+          const departmentId = matchingDepartments[0].id;
+          if (spot.inside && (
+            spot.department_id !== departmentId ||
+            spot.type !== spotType ||
+            (spot.cochera_type || 'MULTIPLE') !== cocheraType
+          )) {
+            fail(`La cochera ${spotNumber} está ocupada y no se puede reasignar ni cambiar de tipo.`);
+            continue;
+          }
+          const currentPlan = spotPlans.get(String(spot.id));
+          if (currentPlan && (currentPlan.departmentId !== departmentId || currentPlan.spotType !== spotType || currentPlan.cocheraType !== cocheraType)) {
+            fail(`La cochera ${spotNumber} tiene asignaciones o tipos distintos en el archivo.`);
+            continue;
+          }
+
+          importedPlates.add(plateKey);
+          registeredPlates.add(plateKey);
+          spotPlans.set(String(spot.id), { spot, departmentId, spotType, cocheraType });
+          validRows.push({ line, licensePlate, plateKey, spotId: String(spot.id), departmentId, vehicleType: normalizeVehicleType(item.vehicle_type) });
+        }
+
+        const plannedSpots = await enrichSpots(db, Array.from(spotPlans.values()).map(plan => ({ ...plan.spot, department_id: plan.departmentId })));
+        const plannedSpotById = new Map(plannedSpots.map(spot => [String(spot.id), spot]));
+        const updateGroups = new Map<string, { departmentId: string; spotType: string; cocheraType: string; ids: string[] }>();
+        for (const [spotId, plan] of spotPlans) {
+          if (plan.spot.department_id === plan.departmentId && plan.spot.type === plan.spotType && plan.spot.cochera_type === plan.cocheraType) continue;
+          const key = `${plan.departmentId}:${plan.spotType}:${plan.cocheraType}`;
+          const group = updateGroups.get(key) || { departmentId: plan.departmentId, spotType: plan.spotType, cocheraType: plan.cocheraType, ids: [] };
+          group.ids.push(spotId);
+          updateGroups.set(key, group);
+        }
+        const assignmentGroups = Array.from(updateGroups.values());
+        for (let i = 0; i < assignmentGroups.length; i += 8) {
+          const results = await Promise.all(assignmentGroups.slice(i, i + 8).map(group => db.from('parking_spots').update({
+            department_id: group.departmentId,
+            type: group.spotType,
+            cochera_type: group.cocheraType
+          }).in('id', group.ids)));
+          const failed = results.find(result => result.error);
+          if (failed?.error) throw failed.error;
+        }
+
+        const toInsert = validRows.map(row => ({
+          department_id: row.departmentId,
+          license_plate: row.licensePlate,
+          vehicle_type: row.vehicleType,
+          driver_name: String((plannedSpotById.get(row.spotId)?.departments as { owner_name?: string } | undefined)?.owner_name || '').trim() || null,
+          brand: null,
+          model: null,
+          color: null,
+          is_active: true,
+          created_by_user_id: uid
+        }));
+        let created: Array<Record<string, unknown>> = [];
+        if (validRows.length > 0) {
+          const { data, error: insertError } = await db.from('vehicles').insert(toInsert).select();
+          if (insertError) throw insertError;
+          created = await enrichVehicles(db, (data || []) as Array<Record<string, unknown>>);
+        }
+        return json({ success: true, data: { created: created.length, spots_configured: spotPlans.size, errors }, error: null }, 200);
+      }
+
       case 'update-vehicle': {
         const id = body.id as string;
         if (!id) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'id es requerido' } }, 400);
@@ -316,7 +474,17 @@ export default async function(req: Request): Promise<Response> {
         }
 
         const updates: Record<string, unknown> = {};
-        if (body.license_plate !== undefined) updates.license_plate = String(body.license_plate).trim().toUpperCase();
+        if (body.license_plate !== undefined) {
+          const licensePlate = String(body.license_plate).trim().toUpperCase();
+          const normalizedPlate = normalizeLicensePlate(licensePlate);
+          if (!normalizedPlate) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'La placa no es válida' } }, 400);
+          const { data: registeredVehicles, error: registeredVehiclesError } = await db.from('vehicles').select('id, license_plate').limit(10000);
+          if (registeredVehiclesError) throw registeredVehiclesError;
+          if ((registeredVehicles || []).some((vehicle: { id: string; license_plate?: string }) => vehicle.id !== id && normalizeLicensePlate(vehicle.license_plate) === normalizedPlate)) {
+            return json({ success: false, data: null, error: { code: 'DUPLICATE', message: `La placa ${licensePlate} ya está registrada en otra cochera de este condominio` } }, 409);
+          }
+          updates.license_plate = licensePlate;
+        }
         if (body.vehicle_type !== undefined) updates.vehicle_type = normalizeVehicleType(body.vehicle_type);
         if (body.driver_name !== undefined) updates.driver_name = body.driver_name ? String(body.driver_name).trim() : null;
         if (body.brand !== undefined) updates.brand = body.brand ? String(body.brand) : null;
@@ -1304,6 +1472,33 @@ async function isModuleEnabled(client: ReturnType<typeof createAdminClient>, sch
 function normalizeSpotType(v: unknown): string {
   const t = String(v || 'PROPIO').trim().toUpperCase();
   return SPOT_TYPES.includes(t) ? t : 'PROPIO';
+}
+
+function normalizeLicensePlate(value: unknown): string {
+  return String(value ?? '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+function parseImportedSpotType(value: unknown): string | null {
+  const raw = String(value ?? '').trim();
+  if (!raw) return 'PROPIO';
+  const normalized = raw.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return SPOT_TYPES.includes(normalized) ? normalized : null;
+}
+
+function parseImportedCocheraType(value: unknown): string | null {
+  const raw = String(value ?? '').trim();
+  if (!raw) return 'MULTIPLE';
+  const normalized = raw.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (normalized === 'INDIVIDUAL' || normalized === 'I') return 'INDIVIDUAL';
+  if (normalized === 'MULTIPLE' || normalized === 'MULTIPLES' || normalized === 'M') return 'MULTIPLE';
+  return null;
+}
+
+function normalizeParkingSpotNumber(value: unknown): string | null {
+  const raw = String(value ?? '').trim().replace(/^cochera\s*/i, '');
+  if (!/^\d{1,3}$/.test(raw)) return null;
+  const number = Number(raw);
+  return number > 0 && number <= 999 ? String(number).padStart(3, '0') : null;
 }
 
 const COCHERA_TYPES = ['INDIVIDUAL', 'MULTIPLE'];
