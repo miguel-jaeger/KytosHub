@@ -14,6 +14,28 @@ interface InvokeOptions {
   headers?: Record<string, string>;
 }
 
+const REFRESHABLE_AUTH_CODES = new Set([
+  'AUTH_UNAUTHORIZED', 'PGRST301', 'UNAUTH', 'UNAUTHORIZED', 'AUTH_TOKEN_EXPIRED', 'TOKEN_EXPIRED', 'JWT_EXPIRED'
+]);
+
+function getErrorCode(value: unknown): string | null {
+  if (typeof value === 'string') return value.toUpperCase();
+  if (!value || typeof value !== 'object') return null;
+  const error = value as { code?: unknown; error?: unknown };
+  if (typeof error.code === 'string') return error.code.toUpperCase();
+  if (typeof error.error === 'string') return error.error.toUpperCase();
+  return null;
+}
+
+function isExpiredAuthError(error: unknown, data: unknown): boolean {
+  const statusCode = (error as { statusCode?: number } | null)?.statusCode;
+  if (statusCode === 401) return true;
+  const payloadError = (data as { error?: unknown } | null)?.error;
+  if (REFRESHABLE_AUTH_CODES.has(getErrorCode(error) || '') || REFRESHABLE_AUTH_CODES.has(getErrorCode(payloadError) || '')) return true;
+  const message = String((error as { message?: unknown } | null)?.message || (payloadError as { message?: unknown } | null)?.message || '');
+  return /(?:access|refresh|jwt|session) token.{0,24}(?:expired|invalid)|token expired/i.test(message);
+}
+
 export async function invokeFunction<T>(
   slug: string,
   options: InvokeOptions = {}
@@ -21,15 +43,34 @@ export async function invokeFunction<T>(
   const { method = 'GET', body, headers = {} } = options;
 
   try {
-    const { data, error } = await insforge.functions.invoke(slug, {
+    const invoke = () => insforge.functions.invoke(slug, {
       method,
       body,
       headers
     });
+    // Always use the browser's httpOnly refresh cookie, never an old local token.
+    insforge.getHttpClient().setRefreshToken(null);
+    try {
+      await insforge.getHttpClient().getValidAccessToken();
+    } catch {
+      // Let the request path below return its normal auth error if refresh is unavailable.
+    }
+    let response = await invoke();
 
-    if (error) throw error;
+    if (isExpiredAuthError(response.error, response.data)) {
+      const { data: refreshed, error: refreshError } = await insforge.auth.refreshSession();
+      if (!refreshError && refreshed?.accessToken) {
+        insforge.getHttpClient().setRefreshToken(null);
+        response = await invoke();
+      } else if (refreshError && [401, 403].includes(refreshError.statusCode || 0)) {
+        // The refresh cookie itself is no longer valid; clear the stale UI session.
+        try { await insforge.auth.signOut(); } catch {}
+      }
+    }
 
-    return { data: data as T, error: null };
+    if (response.error) throw response.error;
+
+    return { data: response.data as T, error: null };
   } catch (error) {
     console.error(`Function ${slug} failed:`, error);
     const e = error as { error?: unknown; message?: unknown };

@@ -54,6 +54,8 @@ async function mapUserWithGlobalName(raw: Record<string, unknown>): Promise<Auth
 // defensively so the token can be persisted to localStorage and survive reloads.
 async function readSdkToken(): Promise<string | null> {
   try {
+    // Browser SPAs refresh through the httpOnly cookie, not a stored token.
+    insforge.getHttpClient().setRefreshToken(null);
     const token = await insforge.getHttpClient().getValidAccessToken();
     if (token) return token;
   } catch {}
@@ -83,9 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!u?.id) return;
       const sessionToken = await readSdkToken();
       if (!sessionToken) return;
-      // Keep the original refresh token across access-token rotations.
-      const stored = loadAuth();
-      saveAuth(sessionToken, u, stored?.refreshToken);
+      // Browser refresh tokens live in an httpOnly cookie; never persist a stale
+      // mobile-style refresh token in localStorage.
+      saveAuth(sessionToken, u);
     } catch {}
   }, []);
 
@@ -94,13 +96,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Google OAuth exchange landing), adopt the SDK's session so the app flips
   // to the newly authenticated account without relying on stale local data.
   useEffect(() => {
-    return insforge.auth.onAuthStateChange(async () => {
+    return insforge.auth.onAuthStateChange(async event => {
+      if (event === 'signedOut') {
+        clearAuth();
+        applyUser(null);
+        return;
+      }
       try {
         const { data, error } = await insforge.auth.getCurrentUser();
         if (error) return;
         const u = data?.user ? await mapUserWithGlobalName(data.user as unknown as Record<string, unknown>) : null;
         if (u?.id) {
-          if (!userRef.current) applyUser(u);
+          applyUser(u);
           void persistSession(u);
         }
       } catch {
@@ -144,9 +151,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const cached = loadAuth();
       if (cached?.token) {
         insforge.setAccessToken(cached.token);
-        if (cached.refreshToken) {
-          insforge.getHttpClient().setRefreshToken(cached.refreshToken || null);
-        }
         const res = await invokeFunction<{ success: boolean; error: { message: string } | null }>('list-condominium-users', {
           method: 'POST',
           body: { action: 'list-by-user', user_id: cached.user.id }
@@ -195,9 +199,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data?.user) {
       const u = await mapUserWithGlobalName(data.user as unknown as Record<string, unknown>);
       applyUser(u);
-      const sessionData = data as { accessToken?: string; refreshToken?: string };
-      const stored = loadAuth();
-      if (sessionData.accessToken) saveAuth(sessionData.accessToken, u, sessionData.refreshToken || stored?.refreshToken);
+      const sessionData = data as { accessToken?: string };
+      if (sessionData.accessToken) saveAuth(sessionData.accessToken, u);
     }
     return { error: null };
   }, [applyUser]);
@@ -218,9 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.user) {
         const u = await mapUserWithGlobalName(data.user as unknown as Record<string, unknown>);
         applyUser(u);
-        const sessionData = data as { refreshToken?: string };
-        const stored = loadAuth();
-        saveAuth(data.accessToken, u, sessionData.refreshToken || stored?.refreshToken);
+        saveAuth(data.accessToken, u);
       }
       return { error: null, requireVerification: false };
     }
@@ -260,7 +261,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userRef.current = userRef.current ? { ...userRef.current, avatar_url: url } : userRef.current;
     if (userRef.current) {
       const stored = loadAuth();
-      if (stored) saveAuth(stored.token, userRef.current, stored.refreshToken);
+      if (stored) saveAuth(stored.token, userRef.current);
     }
   }, []);
 
@@ -271,7 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userRef.current = updated;
     setUser(updated);
     const stored = loadAuth();
-    if (stored) saveAuth(stored.token, updated, stored.refreshToken);
+    if (stored) saveAuth(stored.token, updated);
   }, []);
 
   return (
