@@ -261,6 +261,7 @@ export default async function(req: Request): Promise<Response> {
           phone: string;
         }> = [];
         const seenEmails = new Set<string>();
+        const seenDocumentKeys = new Set<string>();
         for (const row of rows) {
           const email = String(row.email ?? '').trim().toLowerCase();
           const name = String(row.name ?? '').trim();
@@ -277,6 +278,20 @@ export default async function(req: Request): Promise<Response> {
             results.failed++;
             results.errors.push({ email: email || '(sin correo)', reason: 'Correo duplicado en el archivo' });
             continue;
+          }
+          if (!documentNumber) {
+            results.failed++;
+            results.errors.push({ email: email || '(sin correo)', reason: 'Falta el número de DNI/documento' });
+            continue;
+          }
+          if (normalizedRow.documentType) {
+            const key = documentKey(normalizedRow.documentType, documentNumber);
+            if (seenDocumentKeys.has(key)) {
+              results.failed++;
+              results.errors.push({ email: email || '(sin correo)', reason: `Documento duplicado en el archivo (${documentNumber})` });
+              continue;
+            }
+            seenDocumentKeys.add(key);
           }
           if (email) seenEmails.add(email);
           normalizedRows.push(normalizedRow);
@@ -297,8 +312,8 @@ export default async function(req: Request): Promise<Response> {
               for (const u of (data || []) as Array<{ id: string; email: string; document_type?: string | null; document_number?: string | null }>) {
                 const em = String(u.email).toLowerCase();
                 existingGlobalByEmail.set(em, String(u.id));
-                if (u.document_type && u.document_number) {
-                  existingGlobalByDoc.set(documentKey(String(u.document_type), String(u.document_number)), { userId: String(u.id), email: em });
+                if (u.document_number) {
+                  existingGlobalByDoc.set(documentKey(String(u.document_type || 'DNI'), String(u.document_number)), { userId: String(u.id), email: em });
                 }
               }
             }
@@ -307,18 +322,47 @@ export default async function(req: Request): Promise<Response> {
           // Document numbers are unique (DNI / CE / Pasaporte), so also look them up
           // globally even when the email differs from the row being imported.
           const docNumbers = Array.from(new Set(normalizedRows.filter(r => r.documentNumber).map(r => r.documentNumber)));
-          try {
+          const existingTenantDocs = new Set<string>();
+          if (docNumbers.length > 0) {
+            const { data: tenant, error: tenantError } = await client.database.from('tenants').select('schema_name').eq('id', importTenantId).single();
+            const schemaName = (tenant as { schema_name?: string } | null)?.schema_name;
+            if (tenantError || !schemaName) {
+              return new Response(
+                JSON.stringify({ success: false, data: null, error: { code: 'DOCUMENT_CHECK_FAILED', message: 'No se pudo validar la existencia de los DNI. No se importó ningún usuario.' } }),
+                { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+            const tenantDb = client.database.schema(schemaName);
             for (let i = 0; i < docNumbers.length; i += 100) {
               const chunk = docNumbers.slice(i, i + 100);
-              if (chunk.length === 0) continue;
-              const { data } = await client.database.from('users_global').select('id, email, document_type, document_number').in('document_number', chunk);
+              const { data, error: residentError } = await tenantDb.from('residents').select('document_type, document_number').in('document_number', chunk);
+              if (residentError) {
+                return new Response(
+                  JSON.stringify({ success: false, data: null, error: { code: 'DOCUMENT_CHECK_FAILED', message: 'No se pudo validar la existencia de los DNI. No se importó ningún usuario.' } }),
+                  { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                );
+              }
+              for (const resident of (data || []) as Array<{ document_type?: string | null; document_number?: string | null }>) {
+                if (resident.document_number) existingTenantDocs.add(documentKey(resident.document_type || 'DNI', resident.document_number));
+              }
+            }
+
+            for (let i = 0; i < docNumbers.length; i += 100) {
+              const chunk = docNumbers.slice(i, i + 100);
+              const { data, error: globalDocError } = await client.database.from('users_global').select('id, email, document_type, document_number').in('document_number', chunk);
+              if (globalDocError) {
+                return new Response(
+                  JSON.stringify({ success: false, data: null, error: { code: 'DOCUMENT_CHECK_FAILED', message: 'No se pudo validar la existencia de los DNI. No se importó ningún usuario.' } }),
+                  { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                );
+              }
               for (const u of (data || []) as Array<{ id: string; email: string; document_type?: string | null; document_number?: string | null }>) {
-                if (u.document_type && u.document_number) {
-                  existingGlobalByDoc.set(documentKey(String(u.document_type), String(u.document_number)), { userId: String(u.id), email: String(u.email).toLowerCase() });
+                if (u.document_number) {
+                  existingGlobalByDoc.set(documentKey(String(u.document_type || 'DNI'), String(u.document_number)), { userId: String(u.id), email: String(u.email).toLowerCase() });
                 }
               }
             }
-          } catch (e) { console.error('bulk document lookup error:', e); }
+          }
 
           const linkedUserIdSet = new Set<string>();
           try {
@@ -339,6 +383,12 @@ export default async function(req: Request): Promise<Response> {
               return;
             }
             const effectiveDocType = documentType || 'DNI';
+            const identityKey = documentKey(effectiveDocType, documentNumber);
+            if (existingTenantDocs.has(identityKey)) {
+              results.existing++;
+              results.errors.push({ email, reason: `Ya existe una persona con documento ${documentNumber} en este condominio` });
+              return;
+            }
 
             // Identity resolution: a person is identified by email and by the unique
             // document (DNI / CE / Pasaporte). If someone already registered the
@@ -899,7 +949,8 @@ function canonicalDocumentType(value: string): string {
 
 // Unique identity key for a person: document type + document number are unique.
 function documentKey(documentType: string, documentNumber: string): string {
-  return `${canonicalDocumentType(documentType)}:${documentNumber.trim().toLowerCase()}`;
+  const normalizedNumber = documentNumber.trim().replace(/[^a-z0-9]/gi, '').toLowerCase();
+  return `${canonicalDocumentType(documentType)}:${normalizedNumber}`;
 }
 
 async function findUserGlobalByEmail(client: ReturnType<typeof createAdminClient>, email: string) {

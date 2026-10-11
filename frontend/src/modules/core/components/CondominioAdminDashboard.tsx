@@ -112,7 +112,7 @@ function detectImportColumns(headers: string[]): ImportColumnIndexes {
     if (['nombre', 'name', 'nombres', 'nombre completo'].includes(key)) idx.name = i;
     else if (['correo', 'email', 'correo electronico', 'correo electrónico'].includes(key)) idx.email = i;
     else if (['tipo de documento', 'tipo documento', 'tipo doc', 'tipo doc identidad', 'documento tipo'].includes(key)) idx.docType = i;
-    else if (['dni', 'documento', 'numero de documento', 'nro documento', 'nro dni'].includes(key)) idx.document = i;
+    else if (['dni', 'documento', 'numero de documento', 'nro documento', 'nro dni', 'n° dni', 'nº dni', 'numero de dni', 'numero dni'].includes(key)) idx.document = i;
     else if (['telefono', 'phone', 'celular', 'numero de telefono'].includes(key)) idx.phone = i;
   });
   return idx;
@@ -137,6 +137,7 @@ function mapImportRows(dataRows: string[][], idx: ImportColumnIndexes): { rows: 
   const rows: ImportRow[] = [];
   const errors: ImportRowError[] = [];
   const seen = new Set<string>();
+  const seenDocuments = new Set<string>();
   const hasDocTypeColumn = idx.docType !== undefined;
   dataRows.forEach((cells, i) => {
     const fileRow = i + 2; // fila 1 = encabezado
@@ -163,11 +164,21 @@ function mapImportRows(dataRows: string[][], idx: ImportColumnIndexes): { rows: 
       errors.push({ row: fileRow, email, reason });
       return;
     }
+    if (!document_number) {
+      errors.push({ row: fileRow, email, reason: 'Falta el número de DNI/documento' });
+      return;
+    }
     if (seen.has(email)) {
       errors.push({ row: fileRow, email, reason: 'Correo duplicado en el archivo' });
       return;
     }
+    const documentKey = `${document_type}:${document_number.toUpperCase().replace(/[^A-Z0-9]/g, '')}`;
+    if (seenDocuments.has(documentKey)) {
+      errors.push({ row: fileRow, email, reason: `Documento duplicado en el archivo (${document_number})` });
+      return;
+    }
     seen.add(email);
+    seenDocuments.add(documentKey);
     rows.push({ name, email, document_type, document_number, phone });
   });
   return { rows, errors, invalid: errors.length };
@@ -328,7 +339,8 @@ export function CondominioAdminDashboard() {
     const q = searchTerm.trim().toLowerCase();
     const email = (u.email || u.users_global?.email || '').toLowerCase();
     const name = (u.name || '').toLowerCase();
-    const matchesSearch = !q || email.includes(q) || name.includes(q);
+    const document = `${u.document_type || u.users_global?.document_type || ''} ${u.document_number || u.users_global?.document_number || ''}`.toLowerCase();
+    const matchesSearch = !q || email.includes(q) || name.includes(q) || document.includes(q);
     const matchesRole = !filterRole || u.role === filterRole;
     return matchesSearch && matchesRole;
   });
@@ -797,7 +809,7 @@ const results: ImportResult = { created: 0, linked: 0, skipped: 0, existing: 0, 
         )}
         <div className="search-bar">
           <span className="material-symbols-outlined search-icon">search</span>
-          <input type="text" placeholder="Buscar usuario por nombre o correo..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }} />
+          <input type="text" placeholder="Buscar usuario por nombre, correo o documento..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }} />
           {searchTerm && <button className="clear-search" onClick={() => setSearchTerm('')}><span className="material-symbols-outlined">close</span></button>}
         </div>
         <div className="search-bar" style={{ marginTop: '0.75rem' }}>
