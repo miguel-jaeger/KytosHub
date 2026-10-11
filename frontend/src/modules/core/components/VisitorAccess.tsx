@@ -426,6 +426,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
             </div>
           </div>
 
+          {role === 'super' && (
           <div className="history-tools">
             <div className="history-tools-title">
               <span className="material-symbols-outlined">delete_forever</span>
@@ -439,6 +440,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
             </div>
             <small className="text-muted">Borra también las visitas pendientes, activas y canceladas. Solo el super admin puede ejecutarlo. No se puede deshacer.</small>
           </div>
+          )}
 
           {filteredVisits.length === 0 ? (
             <div className="empty-state"><p>No hay visitas registradas.</p></div>
@@ -535,6 +537,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
             </div>
           </div>
 
+          {role === 'super' && (
           <div className="history-tools">
             <div className="history-tools-title">
               <span className="material-symbols-outlined">delete_forever</span>
@@ -548,6 +551,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
             </div>
             <small className="text-muted">Borra todas las visitas que ya registraron su salida. Solo el super admin puede ejecutarlo. No se puede deshacer.</small>
           </div>
+          )}
 
           {filteredHistory.length === 0 ? (
             <div className="empty-state"><p>Aún no hay visitas completadas que coincidan.</p></div>
@@ -666,6 +670,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
             </>
           )}
 
+          {role === 'super' && (
           <div className="history-tools">
             <div className="history-tools-title">
               <span className="material-symbols-outlined">delete_forever</span>
@@ -679,6 +684,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
             </div>
             <small className="text-muted">Borra todos los paquetes/delivery recibidos, notificados y entregados. Solo el super admin puede ejecutarlo. No se puede deshacer.</small>
           </div>
+          )}
         </>
       )}
 
