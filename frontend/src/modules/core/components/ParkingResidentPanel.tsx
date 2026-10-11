@@ -230,7 +230,7 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
         end_time: new Date(loanForm.end_time).toISOString()
       });
       setShowLoanForm(false);
-      setMessage('Préstamo de estacionamiento solicitado');
+      setMessage('Préstamo de estacionamiento registrado');
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error');
@@ -407,7 +407,7 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <div>
-                  <h3>Solicitar préstamo de estacionamiento</h3>
+                  <h3>Prestar estacionamiento</h3>
                   <p className="text-on-surface-variant">Cede temporalmente tu estacionamiento indicando quién la usará y la ventana de tiempo autorizada.</p>
                 </div>
                 <button className="modal-close" onClick={() => setShowLoanForm(false)} title="Cerrar"><span className="material-symbols-outlined">close</span></button>
@@ -543,7 +543,7 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
             </div>
             <div className="form-actions">
               <button className="btn-cancel" onClick={() => setShowLoanForm(false)}>Cancelar</button>
-              <button onClick={handleLoanSave} disabled={saving}>{saving ? 'Guardando...' : 'Solicitar préstamo'}</button>
+              <button onClick={handleLoanSave} disabled={saving}>{saving ? 'Guardando...' : 'Prestar'}</button>
             </div>
               </div>
             </div>
