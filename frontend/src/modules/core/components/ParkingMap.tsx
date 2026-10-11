@@ -129,7 +129,7 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend, highlightSp
                 <span className="material-symbols-outlined">local_parking</span>
                 {rowNames[r]?.trim() || `Fila ${r + 1}`}
               </span>
-                <span className="plaza-row-count">{countsForRow(r + 1)} plazas · {rowFreeCount} disponibles</span>
+                <span className="plaza-row-count">{countsForRow(r + 1)} plazas · {rowFreeCount} {vertical ? 'disp.' : 'disponibles'}</span>
               </div>
             )}
             <div className={`plaza-row-spots${hasLayout ? ' plaza-row-grid' : ''}${vertical ? ' plaza-row-vertical-spots' : ''}`}>
