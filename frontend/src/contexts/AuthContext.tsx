@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from 'react';
 import { insforge, invokeFunction } from '../lib/insforge';
 import { saveAuth, loadAuth, clearAuth } from '../lib/auth-storage';
+import { translateAuthError } from '../lib/errors';
 
 interface AuthUser {
   id: string;
@@ -194,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithPassword = useCallback(async (email: string, password: string) => {
     const { data, error } = await insforge.auth.signInWithPassword({ email, password });
     if (error) {
-      return { error: error.message };
+      return { error: translateAuthError(error.message) };
     }
     if (data?.user) {
       const u = await mapUserWithGlobalName(data.user as unknown as Record<string, unknown>);
@@ -214,7 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (error) {
-      return { error: error.message, requireVerification: false };
+      return { error: translateAuthError(error.message), requireVerification: false };
     }
 
     if (data?.accessToken) {

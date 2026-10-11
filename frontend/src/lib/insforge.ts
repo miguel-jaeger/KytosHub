@@ -1,4 +1,5 @@
 import { createClient } from '@insforge/sdk';
+import { translateAuthError } from './errors';
 
 const INSFORGE_URL = import.meta.env.VITE_INSFORGE_URL || 'https://5vvsyy6z.us-east.insforge.app';
 const ANON_KEY = import.meta.env.VITE_INSFORGE_ANON_KEY || 'anon_5f9299a95b22ec28e9448096df4bf583846acc6706e489d739c8b0a6c8b0bc14';
@@ -80,6 +81,6 @@ export async function invokeFunction<T>(
     }
     if (!msg && typeof e?.message === 'string' && e.message) msg = e.message;
     if (!msg && error instanceof Error && error.message) msg = error.message;
-    return { data: null, error: new Error(msg || 'Error de conexión') };
+    return { data: null, error: new Error(translateAuthError(msg || 'Error de conexión')) };
   }
 }
