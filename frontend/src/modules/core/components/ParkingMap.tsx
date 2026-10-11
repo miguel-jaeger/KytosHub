@@ -119,7 +119,9 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend, highlightSp
       {hasLayout && <div className="plaza-map-title">Mapa de estacionamiento</div>}
 
       <div className={`plaza-map-grid${vertical ? ' plaza-map-vertical' : ''}`}>
-        {placed.map((rowSpots, r) => (
+        {placed.map((rowSpots, r) => {
+          const rowFreeCount = rowSpots.filter(s => s && !isOccupied(s)).length;
+          return (
           <div key={r} className={`plaza-row${vertical ? ' plaza-row-vertical' : ''}`}>
             {hasLayout && (
               <div className="plaza-row-heading">
@@ -127,7 +129,7 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend, highlightSp
                 <span className="material-symbols-outlined">local_parking</span>
                 {rowNames[r]?.trim() || `Fila ${r + 1}`}
               </span>
-                <span className="plaza-row-count">{countsForRow(r + 1)} plazas</span>
+                <span className="plaza-row-count">{countsForRow(r + 1)} plazas · {rowFreeCount} disponibles</span>
               </div>
             )}
             <div className={`plaza-row-spots${hasLayout ? ' plaza-row-grid' : ''}${vertical ? ' plaza-row-vertical-spots' : ''}`}>
@@ -152,7 +154,8 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend, highlightSp
               ))}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {showLegend && (
