@@ -26,16 +26,33 @@ export function Sidebar() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!condominium?.schema_name) { setVisitorEnabled(false); return; }
       try {
-        const r = await listModules(condominium.schema_name);
+        // Resolve the condominium schema even when the shared context has not
+        // been populated yet, so residents always see the visitor module.
+        let schema = condominium?.schema_name || '';
+        if (!schema && user) {
+          const { data } = await invokeFunction<{ success: boolean; data: { tenant_id: string; role: string; status: string }[] | null }>('list-condominium-users', {
+            method: 'POST',
+            body: { action: 'list-by-user', user_id: user.id }
+          });
+          const tenantId = (data?.data || []).find(x => x.status === 'ACTIVE')?.tenant_id;
+          if (tenantId) {
+            const { data: condo } = await invokeFunction<{ success: boolean; data: { schema_name: string } | null }>('list-condominiums', {
+              method: 'POST',
+              body: { action: 'list', id: tenantId }
+            });
+            schema = condo?.data?.schema_name || '';
+          }
+        }
+        if (!schema) { if (!cancelled) setVisitorEnabled(false); return; }
+        const r = await listModules(schema);
         if (!cancelled) setVisitorEnabled(r.modules.some(m => m.module_key === 'visitor_access' && m.is_enabled));
       } catch {
         if (!cancelled) setVisitorEnabled(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [condominium?.schema_name, listModules]);
+  }, [condominium?.schema_name, user, listModules]);
 
   const role = useUserRole();
   const isSuperAdmin = role === 'super';
