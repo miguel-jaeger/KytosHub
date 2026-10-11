@@ -29,7 +29,7 @@ export interface Resident {
   id: string;
   department_id: string;
   full_name: string;
-  document_type: 'DNI' | 'CE' | 'PASAPORTE';
+  document_type: 'DNI' | 'CE' | 'PASAPORTE' | 'RUC';
   document_number: string;
   relationship_type: 'PROPIETARIO' | 'FAMILIAR' | 'INQUILINO';
   is_primary_contact: boolean;
@@ -201,6 +201,8 @@ export interface ParkingSpot {
     towers?: { id: string; name: string; code: string };
   };
   inside?: boolean;
+  has_vehicle?: boolean;
+  vehicle_plates?: string[];
 }
 
 export interface ParkingLayout {
@@ -216,7 +218,11 @@ export interface Vehicle {
   department_id: string;
   license_plate: string;
   vehicle_type: VehicleType;
+  spot_id?: string | null;
   occupied_spot?: string | null;
+  assigned_spot?: string | null;
+  department_label?: string | null;
+  parking_spots?: string[];
   driver_name: string | null;
   brand: string | null;
   model: string | null;

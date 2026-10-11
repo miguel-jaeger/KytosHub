@@ -25,8 +25,12 @@ export const COCHERA_TYPE_SHORT: Record<'INDIVIDUAL' | 'MULTIPLE', string> = {
   MULTIPLE: 'M'
 };
 
+function isOccupied(spot: ParkingSpot): boolean {
+  return Boolean(spot.inside || spot.has_vehicle || spot.status === 'OCUPADO');
+}
+
 function spotClass(spot: ParkingSpot): string {
-  if (spot.inside || spot.status === 'OCUPADO') return 'plaza-occupied';
+  if (isOccupied(spot)) return 'plaza-occupied';
   if (spot.type === 'VISITA') return 'plaza-visita';
   if (spot.type === 'ALQUILADO') return 'plaza-rented';
   if (!spot.department_id) return 'plaza-unassigned';
@@ -34,12 +38,15 @@ function spotClass(spot: ParkingSpot): string {
 }
 
 function spotStateLabel(spot: ParkingSpot): string {
-  if (spot.inside || spot.status === 'OCUPADO') return 'Ocupada';
+  if (isOccupied(spot)) {
+    const plates = spot.vehicle_plates && spot.vehicle_plates.length > 0 ? ` · ${spot.vehicle_plates.join(', ')}` : '';
+    return (spot.inside ? 'Ocupada (vehículo dentro)' : 'Ocupada (con vehículo registrado)') + plates;
+  }
   if (spot.type === 'VISITA') return 'Visita disponible';
   if (spot.type === 'ALQUILADO') return 'Alquilada disponible';
   if (!spot.department_id) return 'Sin asignar a un departamento';
   const owner = spot.departments?.owner_name;
-  return `Asignada a ${deptLabel(spot.departments)}${owner ? ` · Propietario(a): ${owner}` : ''} · disponible`;
+  return `Asignada a ${deptLabel(spot.departments)}${owner ? ` · Propietario(a): ${owner}` : ''} · libre`;
 }
 
 export function deptLabel(departments?: { department_number?: string; towers?: { code?: string } }): string {
@@ -115,12 +122,14 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend, highlightSp
         {placed.map((rowSpots, r) => (
           <div key={r} className={`plaza-row${vertical ? ' plaza-row-vertical' : ''}`}>
             {hasLayout && (
+              <div className="plaza-row-heading">
               <span className="plaza-row-label">
-                {vertical && <span className="material-symbols-outlined">local_parking</span>}
+                <span className="material-symbols-outlined">local_parking</span>
                 {rowNames[r]?.trim() || `Fila ${r + 1}`}
               </span>
+                <span className="plaza-row-count">{countsForRow(r + 1)} plazas</span>
+              </div>
             )}
-            {vertical && hasLayout && <span className="plaza-row-count">{countsForRow(r + 1)} plazas</span>}
             <div className={`plaza-row-spots${hasLayout ? ' plaza-row-grid' : ''}${vertical ? ' plaza-row-vertical-spots' : ''}`}>
               {rowSpots.map((s, c) => (
                 s ? (
@@ -131,9 +140,10 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend, highlightSp
                     onClick={onSpotClick ? () => onSpotClick(s) : undefined}
                     title={`Plaza ${s.spot_number} · ${SPOT_TYPE_LABELS[s.type] || s.type} · ${spotStateLabel(s)}`}
                   >
-                    <span className="plaza-cell-icon material-symbols-outlined">directions_car</span>
+                    <span className="plaza-cell-icon material-symbols-outlined">{isOccupied(s) ? 'directions_car_filled' : 'local_parking'}</span>
                     <strong>{s.spot_number}</strong>
                     {onSpotClick && <small>{COCHERA_TYPE_SHORT[s.cochera_type || 'MULTIPLE'] ?? 'M'}</small>}
+                    {s.vehicle_plates && s.vehicle_plates.length > 0 && <small className="plaza-cell-plate">{s.vehicle_plates.join(', ')}</small>}
                     {s.departments && <small className="plaza-cell-dept">{deptLabel(s.departments)}</small>}
                   </button>
                 ) : (
@@ -148,7 +158,7 @@ export function ParkingMap({ spots, layout, onSpotClick, showLegend, highlightSp
       {showLegend && (
         <div className="plaza-legend">
           <span className="plaza-legend-item"><span className="material-symbols-outlined">local_parking</span>M: Múltiple · I: Individual</span>
-          <span className="plaza-legend-item plaza-free"><span className="material-symbols-outlined">check_circle</span>Asignada · libre</span>
+          <span className="plaza-legend-item plaza-free"><span className="material-symbols-outlined">check_circle</span>Disponible (sin auto registrado)</span>
           <span className="plaza-legend-item plaza-unassigned"><span className="material-symbols-outlined">local_parking</span>Sin asignar</span>
           <span className="plaza-legend-item plaza-occupied"><span className="material-symbols-outlined">directions_car_filled</span>Ocupada</span>
           <span className="plaza-legend-item plaza-visita"><span className="material-symbols-outlined">handshake</span>Visita</span>

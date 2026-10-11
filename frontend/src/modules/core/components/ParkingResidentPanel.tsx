@@ -33,9 +33,10 @@ const toLocalInput = (iso: string): string => {
 };
 
 export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
-  const { listSpots, listVehicles, listLoans, createVehicle, updateVehicle, createLoan, updateLoanStatus, deleteVehicle } = useParking();
+  const { listSpots, listVehicles, listLoans, createVehicle, updateVehicle, createLoan, updateLoanStatus, deleteVehicle, setVehicleActive } = useParking();
   const [spots, setSpots] = useState<ParkingSpot[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
   const [loans, setLoans] = useState<ParkingLoan[]>([]);
   const [towers, setTowers] = useState<TowerOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -172,6 +173,21 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
     setShowVehicleForm(true);
   };
 
+  const toggleVehicleActive = async (v: Vehicle) => {
+    if (!schemaName || togglingIds.has(v.id)) return;
+    setError(null);
+    setTogglingIds(prev => new Set(prev).add(v.id));
+    try {
+      const updated = await setVehicleActive(schemaName, v.id, !v.is_active);
+      if (updated) setVehicles(prev => prev.map(x => (x.id === v.id ? updated : x)));
+      setMessage(v.is_active ? 'Vehículo desactivado' : `Vehículo ${v.license_plate} activado`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error');
+    } finally {
+      setTogglingIds(prev => { const next = new Set(prev); next.delete(v.id); return next; });
+    }
+  };
+
   const closeVehicleForm = () => {
     setShowVehicleForm(false);
     setEditingVehicle(null);
@@ -293,6 +309,7 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
                     <td><span className={`status-badge ${v.is_active ? 'status-occupied' : 'status-vacant'}`}>{v.is_active ? 'Activo' : 'Inactivo'}</span></td>
                     <td>
                       <div className="resident-row-actions">
+                        <button className="icon-btn" onClick={() => toggleVehicleActive(v)} disabled={togglingIds.has(v.id)} title={v.is_active ? 'Desactivar' : 'Activar'}>{togglingIds.has(v.id) ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">{v.is_active ? 'toggle_on' : 'toggle_off'}</span>}</button>
                         <button className="icon-btn" onClick={() => openVehicleForm(v)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
                         <button className="icon-btn danger" onClick={async () => {
                           if (!confirm(`¿Eliminar ${v.license_plate}?`)) return;
@@ -318,7 +335,8 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
                     <div className="resident-grid-line"><span className="resident-grid-label">Estado</span><span className={v.is_active ? '' : 'text-muted'}>{v.is_active ? 'Activo' : 'Inactivo'}</span></div>
                   </div>
                   <div className="resident-row-actions">
-                    <button className="icon-btn" onClick={() => openVehicleForm(v)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
+                    <button className="icon-btn" onClick={() => toggleVehicleActive(v)} disabled={togglingIds.has(v.id)} title={v.is_active ? 'Desactivar' : 'Activar'}>{togglingIds.has(v.id) ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">{v.is_active ? 'toggle_on' : 'toggle_off'}</span>}</button>
+                        <button className="icon-btn" onClick={() => openVehicleForm(v)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
                     <button className="icon-btn danger" onClick={async () => {
                       if (!confirm(`¿Eliminar ${v.license_plate}?`)) return;
                       try { await deleteVehicle(schemaName, v.id); setMessage('Vehículo eliminado'); await load(); }
@@ -427,6 +445,7 @@ export function ParkingResidentPanel({ schemaName }: { schemaName?: string }) {
                   <option value="DNI">DNI</option>
                   <option value="CE">CE</option>
                   <option value="PASAPORTE">Pasaporte</option>
+                  <option value="RUC">RUC</option>
                 </select>
               </div>
             </div>

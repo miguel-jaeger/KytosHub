@@ -122,7 +122,8 @@ function detectImportColumns(headers: string[]): ImportColumnIndexes {
 const DOC_TYPE_LABELS: Record<string, string> = {
   DNI: 'DNI',
   CE: 'Carnet de Extranjería',
-  PASAPORTE: 'Pasaporte'
+  PASAPORTE: 'Pasaporte',
+  RUC: 'RUC'
 };
 
 function normalizeDocumentType(value: string): string | null {
@@ -130,6 +131,7 @@ function normalizeDocumentType(value: string): string | null {
   if (v === 'dni') return 'DNI';
   if (['ce', 'carnetdeextranjeria', 'carnetdeextranjera', 'extranjeria', 'extranjera', 'carnetextranjeria', 'carnetextranjera'].includes(v)) return 'CE';
   if (['pasaporte', 'passport', 'passeport', 'pasaport'].includes(v)) return 'PASAPORTE';
+  if (['ruc', 'taxid', 'registrounicodecontribuyentes'].includes(v)) return 'RUC';
   return null;
 }
 
@@ -152,7 +154,7 @@ function mapImportRows(dataRows: string[][], idx: ImportColumnIndexes): { rows: 
       const t = normalizeDocumentType(at(idx.docType));
       if (t) document_type = t;
       else if (document_number) {
-        errors.push({ row: fileRow, email, reason: 'Tipo de documento no válido (use DNI, CE o PASAPORTE)' });
+        errors.push({ row: fileRow, email, reason: 'Tipo de documento no válido (use DNI, CE, PASAPORTE o RUC)' });
         return;
       }
     }
@@ -902,6 +904,7 @@ const results: ImportResult = { created: 0, linked: 0, skipped: 0, existing: 0, 
                 <option value="DNI">DNI</option>
                 <option value="CE">CE</option>
                 <option value="PASAPORTE">Pasaporte</option>
+                <option value="RUC">RUC</option>
               </select>
             </div>
             <div className="form-group">
@@ -980,6 +983,7 @@ const results: ImportResult = { created: 0, linked: 0, skipped: 0, existing: 0, 
                 <option value="DNI">DNI</option>
                 <option value="CE">CE</option>
                 <option value="PASAPORTE">Pasaporte</option>
+                <option value="RUC">RUC</option>
               </select>
             </div>
             <div className="form-group">

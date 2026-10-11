@@ -4,7 +4,7 @@ interface AddResidentRequest {
   schema_name: string;
   department_id: string;
   full_name: string;
-  document_type: 'DNI' | 'CE' | 'PASAPORTE';
+  document_type: 'DNI' | 'CE' | 'PASAPORTE' | 'RUC';
   document_number: string;
   relationship_type: 'PROPIETARIO' | 'FAMILIAR' | 'INQUILINO';
   is_primary_contact?: boolean;

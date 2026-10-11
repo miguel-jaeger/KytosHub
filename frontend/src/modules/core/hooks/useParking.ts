@@ -74,6 +74,16 @@ export function useParking() {
     return data.data;
   }, []);
 
+  const setVehicleActive = useCallback(async (schemaName: string, id: string, isActive: boolean): Promise<Vehicle | null> => {
+    const { data, error } = await invokeFunction<{ success: boolean; data: Vehicle | null; error: { message: string } | null }>('parking-control', {
+      method: 'POST',
+      body: { action: 'set-vehicle-active', schema_name: schemaName, id, is_active: isActive }
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error?.message || 'Error al actualizar el estado del vehículo');
+    return data.data;
+  }, []);
+
   const updateVehicle = useCallback(async (schemaName: string, id: string, changes: Partial<Vehicle>) => {
     const { data, error } = await invokeFunction<{ success: boolean; data: Vehicle | null; error: { message: string } | null }>('parking-control', {
       method: 'POST',
@@ -101,6 +111,16 @@ export function useParking() {
     });
     if (error) throw error;
     if (!data?.success) throw new Error(data?.error?.message || 'Error al eliminar vehículo');
+  }, []);
+
+  const deleteVehicles = useCallback(async (schemaName: string, ids: string[]): Promise<number> => {
+    const { data, error } = await invokeFunction<{ success: boolean; data: { deleted: number } | null; error: { message: string } | null }>('parking-control', {
+      method: 'POST',
+      body: { action: 'delete-vehicles', schema_name: schemaName, ids }
+    });
+    if (error) throw error;
+    if (!data?.success || !data.data) throw new Error(data?.error?.message || 'Error al eliminar vehículos');
+    return data.data.deleted;
   }, []);
 
   const listLoans = useCallback(async (schemaName: string, opts: { spot_id?: string; lender_department_id?: string } = {}): Promise<ParkingLoan[]> => {
@@ -253,7 +273,7 @@ export function useParking() {
 
   return {
     listSpots, createSpot, updateSpot, deleteSpot,
-    listVehicles, createVehicle, updateVehicle, updateVehicleDriver, deleteVehicle,
+    listVehicles, createVehicle, updateVehicle, updateVehicleDriver, deleteVehicle, deleteVehicles, setVehicleActive,
     listLoans, createLoan, updateLoanStatus,
     plateStatus, searchPlates, registerEntry, registerExit, listLogs,
     getLayout, provisionLayout, resetLayout, getMultipleCapacity, updateMultipleCapacity, ocrPlate, ocrConfigured

@@ -221,7 +221,10 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
     }
   }
   const assignedCount = displayedSpots.filter(s => Boolean(s.department_id)).length;
-  const availableCount = statsTotal - assignedCount;
+  const occupiedCount = displayedSpots.filter(s => Boolean(s.has_vehicle) || Boolean(s.inside)).length;
+  // "Disponibles" = cocheras libres: asignadas a un departamento pero sin un
+  // vehículo activo registrado.
+  const availableCount = displayedSpots.filter(s => Boolean(s.department_id) && !s.has_vehicle && !s.inside).length;
   const totalDisplayed = layout || spots.length > 0 ? statsTotal : totalExpected;
   const previewLayout = layout ? { ...layout, orientation } : null;
 
@@ -435,6 +438,7 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
             {spots.length > 0 && (
               <div className="plaza-assign-stats">
                 <span className="plaza-stat-assigned"><i />Asignadas: <strong>{assignedCount}</strong></span>
+                <span className="plaza-stat-occupied"><i />Ocupadas: <strong>{occupiedCount}</strong></span>
                 <span className="plaza-stat-available"><i />Disponibles: <strong>{availableCount}</strong></span>
               </div>
             )}
@@ -449,14 +453,14 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
                 className={`checkout-chip ${orientation === 'HORIZONTAL' ? 'active' : ''}`}
                 onClick={() => setOrientation('HORIZONTAL')}
               >
-                <span className="material-symbols-outlined">swap_horiz</span> Horizontal (las filas van de izquierda a derecha)
+                <span className="material-symbols-outlined">swap_horiz</span> Horizontal
               </button>
               <button
                 type="button"
                 className={`checkout-chip ${orientation === 'VERTICAL' ? 'active' : ''}`}
                 onClick={() => setOrientation('VERTICAL')}
               >
-                <span className="material-symbols-outlined">swap_vert</span> Vertical (las filas van de arriba hacia abajo)
+                <span className="material-symbols-outlined">swap_vert</span> Vertical
               </button>
             </div>
           </div>
@@ -484,12 +488,11 @@ export function ParkingLayoutConfig({ schemaName }: { schemaName?: string }) {
         </div>
         <div className="form-actions">
           <button onClick={handleProvision} disabled={generating || resetting || !schemaName}>
-            <span className="material-symbols-outlined">grid_3x3</span> {generating ? 'Generando...' : spots.length === 0 ? 'Generar plazas' : 'Regenerar layout (conserva plazas existentes)'}
+            <span className="material-symbols-outlined">grid_3x3</span> {generating ? 'Generando...' : 'Regenerar layout'}
           </button>
           <button className="btn-cancel parking-reset-btn" onClick={handleResetLayout} disabled={resetting || generating || !schemaName}>
             <span className="material-symbols-outlined">restart_alt</span> {resetting ? 'Borrando...' : 'Borrar configuración guardada'}
           </button>
-          <small className="text-muted">Al regenerar se conservan las plazas ya existentes (por número) y se agregan las que falten; no se borra nada.</small>
         </div>
       </div>
 

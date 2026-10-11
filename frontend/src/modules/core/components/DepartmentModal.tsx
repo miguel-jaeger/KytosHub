@@ -492,6 +492,7 @@ export function DepartmentModal({
                     <option value="DNI">DNI</option>
                     <option value="CE">CE</option>
                     <option value="PASAPORTE">Pasaporte</option>
+                                      <option value="RUC">RUC</option>
                   </select>
                 </div>
                 <div className="form-group">
@@ -552,6 +553,7 @@ export function DepartmentModal({
                     <option value="DNI">DNI</option>
                     <option value="CE">CE</option>
                     <option value="PASAPORTE">Pasaporte</option>
+                                      <option value="RUC">RUC</option>
                   </select>
                 </div>
                 <div className="form-group">

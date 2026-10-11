@@ -734,7 +734,7 @@ export function VisitorAccess({ schemaName }: { schemaName?: string }) {
                 <div className="form-group"><label>Nombre completo</label><input type="text" value={visitForm.full_name} onChange={e => setVisitForm({ ...visitForm, full_name: e.target.value })} placeholder="Juan Pérez" autoFocus /></div>
                 <div className="form-group"><label>Tipo de documento</label>
                   <select value={visitForm.document_type} onChange={e => setVisitForm({ ...visitForm, document_type: e.target.value })}>
-                    <option value="DNI">DNI</option><option value="CE">CE</option><option value="PASAPORTE">Pasaporte</option>
+                    <option value="DNI">DNI</option><option value="CE">CE</option><option value="PASAPORTE">Pasaporte</option><option value="RUC">RUC</option>
                   </select>
                 </div>
               </div>

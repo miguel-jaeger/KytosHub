@@ -421,7 +421,7 @@ export default async function(req: Request): Promise<Response> {
             }
             if (documentNumber && !documentType) {
               results.failed++;
-              results.errors.push({ email, reason: 'Tipo de documento no válido (use DNI, CE o PASAPORTE)' });
+              results.errors.push({ email, reason: 'Tipo de documento no válido (use DNI, CE, PASAPORTE o RUC)' });
               return;
             }
             const effectiveDocType = documentType || 'DNI';
@@ -978,14 +978,16 @@ function normalizeDocumentType(value: string): string | null {
   if (v === 'dni') return 'DNI';
   if (['ce', 'carnetdeextranjeria', 'carnetdeextranjera', 'extranjeria', 'extranjera', 'carnetextranjeria', 'carnetextranjera'].includes(v)) return 'CE';
   if (['pasaporte', 'passport', 'passeport', 'pasaport'].includes(v)) return 'PASAPORTE';
+  if (['ruc', 'taxid', 'registrounicodecontribuyentes'].includes(v)) return 'RUC';
   return null;
 }
 
-// Normalizes a stored document type (DNI / CE / PASAPORTE) to a canonical value.
+// Normalizes a stored document type (DNI / CE / PASAPORTE / RUC) to a canonical value.
 function canonicalDocumentType(value: string): string {
   const v = value.trim().toUpperCase();
   if (v === 'DNI') return 'DNI';
   if (v === 'CE' || v.includes('EXTRANJER') || v === 'CARNET') return 'CE';
+  if (v === 'RUC' || v.includes('RUC')) return 'RUC';
   return 'PASAPORTE';
 }
 

@@ -41,7 +41,7 @@ export default async function(req: Request): Promise<Response> {
     const isAdmin = await isAdminForSchema(req, client, schemaName);
     const isSecurity = await isSecurityForSchema(req, client, schemaName);
     const isOperator = isAdmin || isSecurity;
-    const uid = await currentUserId(req, client);
+    const uid = await currentUserId(req);
     const myDepartmentId = uid ? await departmentOfUser(req, client, db, uid) : null;
 
     switch (action) {
@@ -276,6 +276,7 @@ export default async function(req: Request): Promise<Response> {
           return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'license_plate es requerido' } }, 400);
         }
         let departmentId = body.department_id as string;
+        const requestedSpotId = body.spot_id ? String(body.spot_id).trim() : null;
         if (!isAdmin) {
           if (!isSecurity && myDepartmentId) {
             // resident registers for their own department only
@@ -283,6 +284,12 @@ export default async function(req: Request): Promise<Response> {
           } else {
             return forbidden();
           }
+        }
+        // The cochera determines the department when it was supplied.
+        if (requestedSpotId) {
+          const { data: spotRow } = await db.from('parking_spots').select('id, department_id').eq('id', requestedSpotId).maybeSingle();
+          if (!spotRow) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'La cochera seleccionada no existe' } }, 400);
+          if (spotRow.department_id) departmentId = String(spotRow.department_id);
         }
         if (!departmentId) {
           return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'department_id es requerido' } }, 400);
@@ -292,15 +299,24 @@ export default async function(req: Request): Promise<Response> {
         if ((registeredVehicles || []).some((vehicle: { license_plate?: string }) => normalizeLicensePlate(vehicle.license_plate) === normalizedPlate)) {
           return json({ success: false, data: null, error: { code: 'DUPLICATE', message: `La placa ${licensePlate} ya está registrada en otra cochera de este condominio` } }, 409);
         }
+        const vehicleType = normalizeVehicleType(body.vehicle_type);
+        // Only the cochera's available active slots start as active; extra
+        // registered vehicles are stored inactive.
+        let isActive = body.is_active !== false;
+        if (isActive && requestedSpotId) {
+          const conflict = await activeCapacityConflict(db, requestedSpotId, vehicleType);
+          if (conflict) isActive = false;
+        }
         const { data, error } = await db.from('vehicles').insert([{
           department_id: departmentId,
+          spot_id: requestedSpotId,
           license_plate: licensePlate,
-          vehicle_type: normalizeVehicleType(body.vehicle_type),
+          vehicle_type: vehicleType,
           driver_name: body.driver_name ? String(body.driver_name).trim() : null,
           brand: body.brand ? String(body.brand) : null,
           model: body.model ? String(body.model) : null,
           color: body.color ? String(body.color) : null,
-          is_active: body.is_active !== false,
+          is_active: isActive,
           created_by_user_id: uid
         }]).select().single();
         if (error) throw error;
@@ -316,7 +332,7 @@ export default async function(req: Request): Promise<Response> {
         }
 
         const [vehicleResult, spotResult, towerResult, floorResult, departmentResult] = await Promise.all([
-          db.from('vehicles').select('license_plate').limit(10000),
+          db.from('vehicles').select('id, license_plate, department_id, spot_id').limit(10000),
           db.from('parking_spots').select('*').limit(10000),
           db.from('towers').select('id, code'),
           db.from('floors').select('id, tower_id, floor_number'),
@@ -328,8 +344,18 @@ export default async function(req: Request): Promise<Response> {
         if (floorResult.error) throw floorResult.error;
         if (departmentResult.error) throw departmentResult.error;
 
-        const registeredPlates = new Set((vehicleResult.data || []).map((vehicle: { license_plate?: string }) => normalizeLicensePlate(vehicle.license_plate)).filter(Boolean));
+        // Existing plates are matched so a re-import can refresh the vehicle in
+        // place, but a plate already linked to a different cochera is rejected.
+        const registeredByPlate = new Map<string, { id: string; department_id: string; spot_id: string }>();
+        for (const vehicle of (vehicleResult.data || []) as Array<{ id: string; license_plate?: string; department_id?: string; spot_id?: string }>) {
+          const key = normalizeLicensePlate(vehicle.license_plate);
+          if (key) registeredByPlate.set(key, { id: String(vehicle.id), department_id: String(vehicle.department_id || ''), spot_id: String(vehicle.spot_id || '') });
+        }
         const parkingSpots = await enrichSpots(db, (spotResult.data || []) as Array<Record<string, unknown>>);
+        const spotNumberById = new Map<string, string>();
+        for (const spot of parkingSpots) {
+          if (spot.id) spotNumberById.set(String(spot.id), String(spot.spot_number || ''));
+        }
         const spotsByNumber = new Map<string, Array<Record<string, unknown>>>();
         for (const spot of parkingSpots) {
           const number = normalizeParkingSpotNumber(spot.spot_number);
@@ -344,12 +370,16 @@ export default async function(req: Request): Promise<Response> {
 
         const importedPlates = new Set<string>();
         const spotPlans = new Map<string, { spot: Record<string, unknown>; departmentId: string; spotType: string; cocheraType: string }>();
-        const validRows: Array<{ line: number; licensePlate: string; plateKey: string; spotId: string; departmentId: string; vehicleType: string }> = [];
+        const limits = await getMultipleVehicleLimits(db);
+        const activeBySpot = await activeCountsBySpot(db);
+        const validRows: Array<{ line: number; licensePlate: string; plateKey: string; driverName: string; spotId: string; departmentId: string; vehicleType: string; isActive: boolean }> = [];
+        const updateRows: Array<{ vehicleId: string; line: number; licensePlate: string; driverName: string; spotId: string; departmentId: string; vehicleType: string }> = [];
         const errors: Array<{ line: number; license_plate: string; reason: string }> = [];
         for (let i = 0; i < items.length; i++) {
           const item = items[i];
           const line = Number(item.line) || i + 2;
           const licensePlate = String(item.license_plate || '').trim().toUpperCase();
+          const driverName = String(item.driver_name || '').trim();
           const plateKey = normalizeLicensePlate(licensePlate);
           const spotNumber = normalizeParkingSpotNumber(item.spot_number);
           const towerCode = String(item.tower_code || '').trim();
@@ -357,8 +387,10 @@ export default async function(req: Request): Promise<Response> {
           const spotType = parseImportedSpotType(item.spot_type);
           const cocheraType = parseImportedCocheraType(item.cochera_type);
           const fail = (reason: string) => errors.push({ line, license_plate: licensePlate, reason });
-          if (!plateKey || !spotNumber || !towerCode || !departmentNumber) {
-            fail(!plateKey ? 'La placa no es válida.' : !spotNumber ? 'La cochera debe ser un número entre 001 y 999.' : 'Falta la torre o el departamento.');
+          // The plate is optional: a row without a plate still assigns the
+          // cochera to its department, it just creates no vehicle.
+          if (!spotNumber || !towerCode || !departmentNumber) {
+            fail(!spotNumber ? 'La cochera debe ser un número entre 001 y 999.' : 'Falta la torre o el departamento.');
             continue;
           }
           if (!spotType || !cocheraType) {
@@ -369,12 +401,8 @@ export default async function(req: Request): Promise<Response> {
             fail(`El departamento ${departmentNumber} debe ser un número de al menos 3 cifras.`);
             continue;
           }
-          if (importedPlates.has(plateKey)) {
+          if (plateKey && importedPlates.has(plateKey)) {
             fail(`La placa ${licensePlate} está repetida en el archivo.`);
-            continue;
-          }
-          if (registeredPlates.has(plateKey)) {
-            fail(`La placa ${licensePlate} ya está registrada en otra cochera de este condominio.`);
             continue;
           }
           const matchingTowers = towers.filter(tower => tower.code.trim().toLowerCase() === towerCode.toLowerCase());
@@ -417,16 +445,52 @@ export default async function(req: Request): Promise<Response> {
             continue;
           }
 
-          importedPlates.add(plateKey);
-          registeredPlates.add(plateKey);
+          // A plate already linked to a different cochera cannot be reassigned by
+          // import; the existing assignment must be cleared first.
+          const existing = plateKey ? registeredByPlate.get(plateKey) : undefined;
+          if (existing?.spot_id && existing.spot_id !== String(spot.id)) {
+            const currentSpot = spotNumberById.get(existing.spot_id) || existing.spot_id;
+            fail(`La placa ${licensePlate} ya está asignada a la cochera ${currentSpot}. Quita esa asignación antes de reasignarla.`);
+            continue;
+          }
+
           spotPlans.set(String(spot.id), { spot, departmentId, spotType, cocheraType });
-          validRows.push({ line, licensePlate, plateKey, spotId: String(spot.id), departmentId, vehicleType: normalizeVehicleType(item.vehicle_type) });
+          if (plateKey) {
+            importedPlates.add(plateKey);
+            if (existing) {
+              updateRows.push({ vehicleId: existing.id, line, licensePlate, driverName, spotId: String(spot.id), departmentId, vehicleType: normalizeVehicleType(item.vehicle_type) });
+            } else {
+              const type = normalizeVehicleType(item.vehicle_type);
+              const spotKey = String(spot.id);
+              const cur = activeBySpot.get(spotKey) || { autos: 0, motos: 0 };
+              const allowActive = capacityAllows(cocheraType, limits, cur, type);
+              if (allowActive) {
+                if (type === 'AUTO') cur.autos++; else cur.motos++;
+                activeBySpot.set(spotKey, cur);
+              }
+              validRows.push({ line, licensePlate, plateKey, driverName, spotId: spotKey, departmentId, vehicleType: type, isActive: allowActive });
+            }
+          }
         }
 
-        const plannedSpots = await enrichSpots(db, Array.from(spotPlans.values()).map(plan => ({ ...plan.spot, department_id: plan.departmentId })));
-        const plannedSpotById = new Map(plannedSpots.map(spot => [String(spot.id), spot]));
+        const ownerDepartmentIds = [...new Set([...validRows, ...updateRows].filter(row => !row.driverName).map(row => row.departmentId))];
+        const ownerResults = await Promise.all(ownerDepartmentIds.map(async departmentId => [departmentId, await resolveDepartmentOwner(db, departmentId)] as const));
+        const ownerByDepartment = new Map(ownerResults);
+        // The department owner is the default driver, but a missing owner does
+        // not block the import: the vehicle is created without a driver.
+        const withDriver = (rows: Array<{ line: number; licensePlate: string; driverName: string; departmentId: string }>) => rows.map(row => {
+          if (!row.driverName) row.driverName = ownerByDepartment.get(row.departmentId) || '';
+          return row;
+        });
+        const rowsWithDriver = withDriver(validRows);
+        const updatesWithDriver = withDriver(updateRows);
+
+        // Every validated cochera is assigned to its department, even when the
+        // row carries no plate (and therefore creates no vehicle).
+        const configuredSpotIds = new Set(spotPlans.keys());
         const updateGroups = new Map<string, { departmentId: string; spotType: string; cocheraType: string; ids: string[] }>();
         for (const [spotId, plan] of spotPlans) {
+          if (!configuredSpotIds.has(spotId)) continue;
           if (plan.spot.department_id === plan.departmentId && plan.spot.type === plan.spotType && plan.spot.cochera_type === plan.cocheraType) continue;
           const key = `${plan.departmentId}:${plan.spotType}:${plan.cocheraType}`;
           const group = updateGroups.get(key) || { departmentId: plan.departmentId, spotType: plan.spotType, cocheraType: plan.cocheraType, ids: [] };
@@ -444,30 +508,42 @@ export default async function(req: Request): Promise<Response> {
           if (failed?.error) throw failed.error;
         }
 
-        const toInsert = validRows.map(row => ({
+        const toInsert = rowsWithDriver.map(row => ({
           department_id: row.departmentId,
+          spot_id: row.spotId,
           license_plate: row.licensePlate,
           vehicle_type: row.vehicleType,
-          driver_name: String((plannedSpotById.get(row.spotId)?.departments as { owner_name?: string } | undefined)?.owner_name || '').trim() || null,
+          driver_name: row.driverName || null,
           brand: null,
           model: null,
           color: null,
-          is_active: true,
+          is_active: row.isActive,
           created_by_user_id: uid
         }));
         let created: Array<Record<string, unknown>> = [];
-        if (validRows.length > 0) {
+        if (rowsWithDriver.length > 0) {
           const { data, error: insertError } = await db.from('vehicles').insert(toInsert).select();
           if (insertError) throw insertError;
           created = await enrichVehicles(db, (data || []) as Array<Record<string, unknown>>);
         }
-        return json({ success: true, data: { created: created.length, spots_configured: spotPlans.size, errors }, error: null }, 200);
+        let updated = 0;
+        for (const row of updatesWithDriver) {
+          const { error: updateError } = await db.from('vehicles').update({
+            department_id: row.departmentId,
+            spot_id: row.spotId,
+            vehicle_type: row.vehicleType,
+            driver_name: row.driverName || null
+          }).eq('id', row.vehicleId);
+          if (updateError) throw updateError;
+          updated++;
+        }
+        return json({ success: true, data: { created: created.length, updated, spots_configured: configuredSpotIds.size, errors }, error: null }, 200);
       }
 
       case 'update-vehicle': {
         const id = body.id as string;
         if (!id) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'id es requerido' } }, 400);
-        const { data: current } = await db.from('vehicles').select('department_id, created_by_user_id').eq('id', id).single();
+        const { data: current } = await db.from('vehicles').select('department_id, created_by_user_id, spot_id, vehicle_type, is_active').eq('id', id).single();
         if (!current) return json({ success: false, data: null, error: { code: 'NOT_FOUND', message: 'Vehículo no encontrado' } }, 404);
         if (!isAdmin) {
           if (isSecurity || current.department_id !== myDepartmentId) return forbidden();
@@ -491,7 +567,45 @@ export default async function(req: Request): Promise<Response> {
         if (body.model !== undefined) updates.model = body.model ? String(body.model) : null;
         if (body.color !== undefined) updates.color = body.color ? String(body.color) : null;
         if (body.is_active !== undefined) updates.is_active = body.is_active === true;
+        if (body.spot_id !== undefined) {
+          const spotId = body.spot_id ? String(body.spot_id).trim() : null;
+          if (spotId) {
+            const { data: spotRow } = await db.from('parking_spots').select('id, department_id').eq('id', spotId).maybeSingle();
+            if (!spotRow) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'La cochera seleccionada no existe' } }, 400);
+            if (spotRow.department_id) updates.department_id = spotRow.department_id;
+          }
+          updates.spot_id = spotId;
+        }
+
+        // Activating a vehicle must respect the cochera's active capacity.
+        const finalActive = updates.is_active !== undefined ? updates.is_active === true : Boolean(current.is_active);
+        const effectiveSpotId = (updates.spot_id !== undefined ? updates.spot_id : current.spot_id) as string | null;
+        const effectiveType = (updates.vehicle_type !== undefined ? updates.vehicle_type : current.vehicle_type) as string;
+        if (finalActive && effectiveSpotId) {
+          const conflict = await activeCapacityConflict(db, String(effectiveSpotId), String(effectiveType), id);
+          if (conflict) return json({ success: false, data: null, error: { code: 'CAPACITY', message: conflict } }, 409);
+        }
+
         const { data, error } = await db.from('vehicles').update(updates).eq('id', id).select().single();
+        if (error) throw error;
+        const enriched = (await enrichVehicles(db, [data]))[0];
+        return json({ success: true, data: enriched, error: null }, 200);
+      }
+
+      case 'set-vehicle-active': {
+        const id = body.id as string;
+        if (!id) return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'id es requerido' } }, 400);
+        const { data: current } = await db.from('vehicles').select('department_id, spot_id, vehicle_type').eq('id', id).single();
+        if (!current) return json({ success: false, data: null, error: { code: 'NOT_FOUND', message: 'Vehículo no encontrado' } }, 404);
+        if (!isAdmin) {
+          if (isSecurity || current.department_id !== myDepartmentId) return forbidden();
+        }
+        const wantActive = body.is_active === true;
+        if (wantActive && current.spot_id) {
+          const conflict = await activeCapacityConflict(db, String(current.spot_id), String(current.vehicle_type), id);
+          if (conflict) return json({ success: false, data: null, error: { code: 'CAPACITY', message: conflict } }, 409);
+        }
+        const { data, error } = await db.from('vehicles').update({ is_active: wantActive }).eq('id', id).select().single();
         if (error) throw error;
         const enriched = (await enrichVehicles(db, [data]))[0];
         return json({ success: true, data: enriched, error: null }, 200);
@@ -509,28 +623,34 @@ export default async function(req: Request): Promise<Response> {
         // Release any parking spot still occupied by this vehicle: close its open
         // access log (system exit) and free the affected spot(s).
         if (current.license_plate) {
-          const { data: openLogs } = await db.from('parking_access_logs')
-            .select('id, spot_id')
-            .eq('license_plate', String(current.license_plate))
-            .is('exit_time', null);
-          const affectedSpotIds = new Set<string>();
-          const systemExit = new Date().toISOString();
-          for (const l of (openLogs || []) as Array<{ id: string; spot_id: string | null }>) {
-            if (l.spot_id) affectedSpotIds.add(l.spot_id);
-            await db.from('parking_access_logs').update({ exit_time: systemExit }).eq('id', l.id);
-          }
-          for (const spotId of affectedSpotIds) {
-            const { count } = await db.from('parking_access_logs')
-              .select('*', { count: 'exact', head: true })
-              .eq('spot_id', spotId)
-              .is('exit_time', null);
-            await db.from('parking_spots').update({ status: (count || 0) > 0 ? 'OCUPADO' : 'DISPONIBLE' }).eq('id', spotId);
-          }
+          await closeOpenVehicleLogs(db, [String(current.license_plate)]);
         }
 
         const { error } = await db.from('vehicles').delete().eq('id', id);
         if (error) throw error;
         return json({ success: true, data: null, error: null }, 200);
+      }
+
+      case 'delete-vehicles': {
+        if (!isAdmin) return forbidden();
+        const ids = [...new Set((Array.isArray(body.ids) ? body.ids : []).map(id => String(id).trim()).filter(Boolean))];
+        if (ids.length === 0) {
+          return json({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Selecciona al menos un vehículo' } }, 400);
+        }
+        let deleted = 0;
+        for (let offset = 0; offset < ids.length; offset += 40) {
+          const batchIds = ids.slice(offset, offset + 40);
+          const { data: selected, error: listError } = await db.from('vehicles').select('id, license_plate').in('id', batchIds);
+          if (listError) throw listError;
+          if (!selected?.length) continue;
+
+          const plates = [...new Set(selected.map((vehicle: { license_plate?: string }) => String(vehicle.license_plate || '').trim()).filter(Boolean))];
+          await closeOpenVehicleLogs(db, plates);
+          const { error } = await db.from('vehicles').delete().in('id', selected.map((vehicle: { id: string }) => vehicle.id));
+          if (error) throw error;
+          deleted += selected.length;
+        }
+        return json({ success: true, data: { deleted }, error: null }, 200);
       }
 
       // ---------- LOANS (owner lends parking spot) ----------
@@ -1001,6 +1121,16 @@ async function resolvePlateEntry(
     if (explicit?.type === 'ALQUILADO') {
       return { spot: null, reason: 'ALQUILER', message: 'La plaza alquilada solo admite la placa asociada a un alquiler activo y vigente.' };
     }
+    if (explicit?.type === 'PROPIO') {
+      // A PROPIO spot belongs to a department: the guard cannot park an
+      // unrelated car there. Only the department's own vehicle or an active,
+      // in-range loan (handled above) may use it.
+      const { data: spotRow } = await db.from('parking_spots').select('department_id').eq('id', overrideSpotId).maybeSingle();
+      const isOwn = Boolean(vehicle && spotRow?.department_id && vehicle.department_id === spotRow.department_id);
+      if (!isOwn) {
+        return { spot: null, reason: 'ASIGNADA', message: 'Ese estacionamiento pertenece a un departamento; solo lo puede usar el vehículo del departamento o un préstamo vigente dentro de su rango de fechas.' };
+      }
+    }
     if (explicit) {
       const allowed = await needsHost(overrideSpotId);
       if (allowed.ok) return { spot: { id: explicit.id, spot_number: explicit.spot_number, type: explicit.type }, reason: 'ASIGNADA', message: 'Estacionamiento asignado por el guardia' };
@@ -1132,7 +1262,7 @@ async function resolveGateForOperator(
   }
 
   // 2) Guard's active session gate (persisted when they authenticated/entered garita)
-  const uid = await currentUserId(req, client);
+  const uid = await currentUserId(req);
   if (uid) {
     const { data: session } = await db.from('guard_gate_sessions')
       .select('gate_id')
@@ -1159,19 +1289,44 @@ async function resolveGateForOperator(
 // Enrichment helpers
 // ---------------------------------------------------------------------------
 
+async function closeOpenVehicleLogs(db: { from(t: string): any }, plates: string[]): Promise<void> {
+  if (plates.length === 0) return;
+  const openLogs: Array<{ id: string; spot_id: string | null }> = [];
+  for (let i = 0; i < plates.length; i += 40) {
+    const { data, error } = await db.from('parking_access_logs')
+      .select('id, spot_id')
+      .in('license_plate', plates.slice(i, i + 40))
+      .is('exit_time', null);
+    if (error) throw error;
+    if (data) openLogs.push(...(data as Array<{ id: string; spot_id: string | null }>));
+  }
+  if (!openLogs.length) return;
+
+  const logIds = openLogs.map(log => log.id);
+  const affectedSpotIds = [...new Set(openLogs.map(log => log.spot_id).filter(Boolean))] as string[];
+  for (let i = 0; i < logIds.length; i += 40) {
+    const { error: closeError } = await db.from('parking_access_logs').update({ exit_time: new Date().toISOString() }).in('id', logIds.slice(i, i + 40));
+    if (closeError) throw closeError;
+  }
+
+  for (const spotId of affectedSpotIds) {
+    const { count, error } = await db.from('parking_access_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('spot_id', spotId)
+      .is('exit_time', null);
+    if (error) throw error;
+    const { error: updateError } = await db.from('parking_spots').update({ status: (count || 0) > 0 ? 'OCUPADO' : 'DISPONIBLE' }).eq('id', spotId);
+    if (updateError) throw updateError;
+  }
+}
+
 async function enrichSpots(db: { from(t: string): any }, spots: Array<Record<string, unknown>>): Promise<Array<Record<string, unknown>>> {
   const deptIds = [...new Set(spots.map(s => s.department_id as string | null).filter(Boolean))];
-  const deptRows = deptIds.length
-    ? ((await db.from('departments').select('id, department_number, tower_id, floor_id').in('id', deptIds)).data || [])
-    : [];
+  const deptRows = await fetchRowsIn(db, 'departments', 'id, department_number, tower_id, floor_id', 'id', deptIds);
   const towerIds = [...new Set((deptRows as Array<{ tower_id: string }>).map(d => d.tower_id))];
-  const towerRows = towerIds.length
-    ? ((await db.from('towers').select('id, name, code').in('id', towerIds)).data || [])
-    : [];
+  const towerRows = await fetchRowsIn(db, 'towers', 'id, name, code', 'id', towerIds);
   const floorIds = [...new Set((deptRows as Array<{ floor_id: string }>).map(d => d.floor_id).filter(Boolean))];
-  const floorRows = floorIds.length
-    ? ((await db.from('floors').select('id, floor_number').in('id', floorIds)).data || [])
-    : [];
+  const floorRows = await fetchRowsIn(db, 'floors', 'id, floor_number', 'id', floorIds);
   const deptMap = new Map((deptRows as Array<{ id: string; department_number: string; tower_id: string; floor_id: string }>).map(d => [d.id, d]));
   const towerMap = new Map((towerRows as Array<{ id: string; name: string; code: string }>).map(t => [t.id, t]));
   const floorMap = new Map((floorRows as Array<{ id: string; floor_number: number }>).map(f => [f.id, f]));
@@ -1181,9 +1336,9 @@ async function enrichSpots(db: { from(t: string): any }, spots: Array<Record<str
   const ownerMap = new Map<string, string>();
   if (deptIds.length) {
     try {
-      const { data: resRows } = await db.from('residents').select('department_id, full_name, is_primary_contact, relationship_type').in('department_id', deptIds);
+      const resRows = await fetchRowsIn(db, 'residents', 'department_id, full_name, is_primary_contact, relationship_type', 'department_id', deptIds);
       const best = new Map<string, { name: string; score: number }>();
-      for (const r of (resRows || []) as Array<{ department_id: string; full_name: string; is_primary_contact: boolean; relationship_type: string }>) {
+      for (const r of resRows as Array<{ department_id: string; full_name: string; is_primary_contact: boolean; relationship_type: string }>) {
         const deptId = r.department_id;
         let score = 2;
         if (r.relationship_type === 'PROPIETARIO') score--;
@@ -1197,22 +1352,41 @@ async function enrichSpots(db: { from(t: string): any }, spots: Array<Record<str
 
   const spotIds = spots.map(s => s.id as string).filter(Boolean);
   const insideSpotIds = new Set<string>();
-  if (spotIds.length) {
-    const openLogs = await db.from('parking_access_logs').select('spot_id').is('exit_time', null).in('spot_id', spotIds);
-    for (const l of (openLogs.data || []) as Array<{ spot_id: string }>) insideSpotIds.add(l.spot_id);
+  for (let i = 0; i < spotIds.length; i += 40) {
+    const { data: openLogs, error } = await db.from('parking_access_logs').select('spot_id').is('exit_time', null).in('spot_id', spotIds.slice(i, i + 40));
+    if (error) throw error;
+    for (const l of (openLogs || []) as Array<{ spot_id: string }>) insideSpotIds.add(l.spot_id);
   }
+
+  // Cochera con vehículo registrado (aunque no esté físicamente dentro) y las
+  // matrículas de esos vehículos activos, para mostrarlas en el mapa.
+  const vehiclePlatesBySpot = new Map<string, string[]>();
+  try {
+    const { data: vehRows } = await db.from('vehicles').select('spot_id, license_plate').eq('is_active', true).not('spot_id', 'is', null);
+    for (const v of (vehRows || []) as Array<{ spot_id?: string | null; license_plate?: string }>) {
+      if (!v.spot_id) continue;
+      const key = String(v.spot_id);
+      const arr = vehiclePlatesBySpot.get(key) || [];
+      if (v.license_plate) arr.push(String(v.license_plate));
+      vehiclePlatesBySpot.set(key, arr);
+    }
+  } catch {}
 
   return spots.map(s => {
     const dept = s.department_id ? deptMap.get(s.department_id as string) : undefined;
     const tower = dept ? towerMap.get(dept.tower_id) : undefined;
     const floor = dept ? floorMap.get(dept.floor_id) : undefined;
     const inside = Boolean(s.id && insideSpotIds.has(s.id as string));
+    const vehiclePlates = s.id ? (vehiclePlatesBySpot.get(String(s.id)) || []) : [];
+    const hasVehicle = vehiclePlates.length > 0;
     return {
       ...s,
       // Status is derived from the actual occupancy (open access logs) so a
       // stale OCUPADO row never leaves the spot visually occupied.
       status: inside ? 'OCUPADO' : 'DISPONIBLE',
       inside,
+      has_vehicle: hasVehicle,
+      vehicle_plates: vehiclePlates,
       departments: dept ? {
         department_number: dept.department_number,
         owner_name: dept ? ownerMap.get(dept.id) : undefined,
@@ -1225,33 +1399,59 @@ async function enrichSpots(db: { from(t: string): any }, spots: Array<Record<str
   });
 }
 
+// PostgREST rejects very long URLs, so a single `.in()` with hundreds of ids
+// silently fails. Fetch ids in small batches and merge the rows.
+async function fetchRowsIn(
+  db: { from(t: string): any },
+  table: string,
+  columns: string,
+  column: string,
+  ids: Array<string | null | undefined>,
+  chunkSize = 40
+): Promise<Array<Record<string, any>>> {
+  const unique = [...new Set(ids.filter(Boolean))] as string[];
+  const out: Array<Record<string, any>> = [];
+  for (let i = 0; i < unique.length; i += chunkSize) {
+    const { data, error } = await db.from(table).select(columns).in(column, unique.slice(i, i + chunkSize));
+    if (error) throw error;
+    if (data) out.push(...(data as Array<Record<string, any>>));
+  }
+  return out;
+}
+
 async function enrichVehicles(db: { from(t: string): any }, vehicles: Array<Record<string, unknown>>): Promise<Array<Record<string, unknown>>> {
   const deptIds = [...new Set(vehicles.map(v => v.department_id as string).filter(Boolean))];
-  const deptRows = deptIds.length
-    ? ((await db.from('departments').select('id, department_number, tower_id, floor_id').in('id', deptIds)).data || [])
-    : [];
+  const deptRows = await fetchRowsIn(db, 'departments', 'id, department_number, tower_id, floor_id', 'id', deptIds);
   const towerIds = [...new Set((deptRows as Array<{ tower_id: string }>).map(d => d.tower_id))];
-  const towerRows = towerIds.length
-    ? ((await db.from('towers').select('id, name, code').in('id', towerIds)).data || [])
-    : [];
+  const towerRows = await fetchRowsIn(db, 'towers', 'id, name, code', 'id', towerIds);
   const floorIds = [...new Set((deptRows as Array<{ floor_id: string }>).map(d => d.floor_id).filter(Boolean))];
-  const floorRows = floorIds.length
-    ? ((await db.from('floors').select('id, floor_number').in('id', floorIds)).data || [])
-    : [];
+  const floorRows = await fetchRowsIn(db, 'floors', 'id, floor_number', 'id', floorIds);
   const deptMap = new Map((deptRows as Array<{ id: string; department_number: string; tower_id: string; floor_id: string }>).map(d => [d.id, d]));
   const towerMap = new Map((towerRows as Array<{ id: string; name: string; code: string }>).map(t => [t.id, t]));
   const floorMap = new Map((floorRows as Array<{ id: string; floor_number: number }>).map(f => [f.id, f]));
 
   // Parking spots (cocheras) assigned to each department, so the vehicles list
-  // can show which plaza the vehicle is assigned to.
+  // can show which plaza the vehicle is assigned to. The vehicle's explicit
+  // spot_id wins over the department fallback.
   const spotByDept = new Map<string, string[]>();
-  if (deptIds.length) {
+  const spotById = new Map<string, { spot_number: string; department_id: string | null }>();
+  const explicitSpotIds = [...new Set(vehicles.map(v => v.spot_id as string | null).filter(Boolean))] as string[];
+  if (deptIds.length || explicitSpotIds.length) {
     try {
-      const { data: spotRows } = await db.from('parking_spots').select('department_id, spot_number').in('department_id', deptIds);
-      for (const sp of (spotRows || []) as Array<{ department_id: string; spot_number: string }>) {
-        const arr = spotByDept.get(sp.department_id) || [];
-        arr.push(sp.spot_number);
-        spotByDept.set(sp.department_id, arr);
+      const spotRowsById = new Map<string, { id: string; department_id: string | null; spot_number: string }>();
+      for (const sp of await fetchRowsIn(db, 'parking_spots', 'id, department_id, spot_number', 'department_id', deptIds)) {
+        spotRowsById.set(sp.id, sp as { id: string; department_id: string | null; spot_number: string });
+      }
+      for (const sp of await fetchRowsIn(db, 'parking_spots', 'id, department_id, spot_number', 'id', explicitSpotIds)) {
+        spotRowsById.set(sp.id, sp as { id: string; department_id: string | null; spot_number: string });
+      }
+      for (const sp of spotRowsById.values()) {
+        spotById.set(sp.id, { spot_number: sp.spot_number, department_id: sp.department_id });
+        if (sp.department_id) {
+          const arr = spotByDept.get(sp.department_id) || [];
+          arr.push(sp.spot_number);
+          spotByDept.set(sp.department_id, arr);
+        }
       }
     } catch {}
   }
@@ -1261,14 +1461,11 @@ async function enrichVehicles(db: { from(t: string): any }, vehicles: Array<Reco
   const plates = vehicles.map(v => String(v.license_plate || '').toUpperCase()).filter(Boolean);
   if (plates.length) {
     try {
-      const { data: openLogs } = await db.from('parking_access_logs').select('license_plate, spot_id').is('exit_time', null).in('license_plate', plates);
-      const logSpotIds = [...new Set(((openLogs || []) as Array<{ spot_id?: string | null }>).map(log => log.spot_id).filter(Boolean))];
-      const logSpotMap = new Map<string, string>();
-      if (logSpotIds.length) {
-        const { data: logSpots } = await db.from('parking_spots').select('id, spot_number').in('id', logSpotIds);
-        for (const sp of (logSpots || []) as Array<{ id: string; spot_number: string }>) logSpotMap.set(sp.id, sp.spot_number);
-      }
-      for (const l of (openLogs || []) as Array<{ license_plate: string; spot_id?: string }>) {
+      const openLogs = await fetchRowsIn(db, 'parking_access_logs', 'license_plate, spot_id', 'license_plate', plates);
+      const logSpotIds = [...new Set(openLogs.map(log => log.spot_id).filter(Boolean))];
+      const logSpots = await fetchRowsIn(db, 'parking_spots', 'id, spot_number', 'id', logSpotIds);
+      const logSpotMap = new Map((logSpots as Array<{ id: string; spot_number: string }>).map(sp => [sp.id, sp.spot_number]));
+      for (const l of openLogs as Array<{ license_plate: string; spot_id?: string }>) {
         const num = l.spot_id ? logSpotMap.get(l.spot_id) : undefined;
         if (num) occupiedByPlate.set(String(l.license_plate).toUpperCase(), num);
       }
@@ -1276,19 +1473,27 @@ async function enrichVehicles(db: { from(t: string): any }, vehicles: Array<Reco
   }
 
   return vehicles.map(v => {
-    const dept = deptMap.get(v.department_id as string);
+    const linkedSpot = v.spot_id ? spotById.get(v.spot_id as string) : undefined;
+    const effectiveDeptId = linkedSpot?.department_id || (v.department_id as string | null);
+    const dept = effectiveDeptId ? deptMap.get(effectiveDeptId) : undefined;
     const tower = dept ? towerMap.get(dept.tower_id) : undefined;
     const floor = dept ? floorMap.get(dept.floor_id) : undefined;
     const plateKey = String(v.license_plate || '').toUpperCase();
+    const departmentSpots = dept ? (spotByDept.get(dept.id) || []).slice().sort() : [];
+    const assignedSpots = linkedSpot ? [linkedSpot.spot_number] : departmentSpots;
+    const towerCode = tower?.code ? (String(tower.code).startsWith('T') ? tower.code : `T${tower.code}`) : '';
     return {
       ...v,
       occupied_spot: plateKey && occupiedByPlate.has(plateKey) ? (occupiedByPlate.get(plateKey) || null) : null,
+      assigned_spot: linkedSpot ? linkedSpot.spot_number : null,
+      department_label: dept ? `${towerCode ? `${towerCode}-` : ''}${dept.department_number}` : null,
+      parking_spots: assignedSpots,
       departments: dept
         ? {
             department_number: dept.department_number,
             floor_number: floor?.floor_number ?? null,
             towers: tower ? { id: tower.id, name: tower.name, code: tower.code } : undefined,
-            spots: (spotByDept.get(dept.id) || []).slice().sort()
+            spots: assignedSpots
           }
         : undefined
     };
@@ -1425,6 +1630,57 @@ async function getMultipleVehicleLimits(db: { from(t: string): any }): Promise<M
   return { max_autos: maxAutos, max_motos: maxMotos };
 }
 
+// Active registered vehicles per cochera: a spot can hold several vehicles but
+// only a limited number of them active at the same time.
+async function activeCountsBySpot(db: { from(t: string): any }): Promise<Map<string, { autos: number; motos: number }>> {
+  const { data, error } = await db.from('vehicles').select('spot_id, vehicle_type').eq('is_active', true).not('spot_id', 'is', null);
+  if (error) throw error;
+  const map = new Map<string, { autos: number; motos: number }>();
+  for (const v of (data || []) as Array<{ spot_id?: string | null; vehicle_type?: string }>) {
+    if (!v.spot_id) continue;
+    const cur = map.get(String(v.spot_id)) || { autos: 0, motos: 0 };
+    if (normalizeVehicleType(v.vehicle_type) === 'AUTO') cur.autos++; else cur.motos++;
+    map.set(String(v.spot_id), cur);
+  }
+  return map;
+}
+
+function capacityAllows(
+  cocheraType: unknown,
+  limits: MultipleVehicleLimits,
+  current: { autos: number; motos: number },
+  vehicleType: unknown
+): boolean {
+  if (String(cocheraType || 'MULTIPLE').trim().toUpperCase() === 'INDIVIDUAL') {
+    return current.autos + current.motos < 1;
+  }
+  return normalizeVehicleType(vehicleType) === 'AUTO' ? current.autos < limits.max_autos : current.motos < limits.max_motos;
+}
+
+// Returns an explanatory message when activating one more vehicle on a cochera
+// would exceed its active capacity; null when there is room.
+async function activeCapacityConflict(
+  db: { from(t: string): any },
+  spotId: string,
+  vehicleType: unknown,
+  excludeId?: string
+): Promise<string | null> {
+  const limits = await getMultipleVehicleLimits(db);
+  const { data: spotRow } = await db.from('parking_spots').select('cochera_type').eq('id', spotId).maybeSingle();
+  const { data: actives, error } = await db.from('vehicles').select('id, vehicle_type').eq('spot_id', spotId).eq('is_active', true);
+  if (error) throw error;
+  const current = { autos: 0, motos: 0 };
+  for (const v of (actives || []) as Array<{ id: string; vehicle_type?: string }>) {
+    if (excludeId && v.id === excludeId) continue;
+    if (normalizeVehicleType(v.vehicle_type) === 'AUTO') current.autos++; else current.motos++;
+  }
+  if (capacityAllows(spotRow?.cochera_type, limits, current, vehicleType)) return null;
+  const individual = String(spotRow?.cochera_type || 'MULTIPLE').trim().toUpperCase() === 'INDIVIDUAL';
+  return individual
+    ? 'La cochera es individual y ya tiene un vehículo activo. Desactiva el actual antes de activar otro.'
+    : `La cochera ya alcanzó el máximo de vehículos activos (${limits.max_autos} auto(s), ${limits.max_motos} moto(s)). Desactiva uno antes de activar otro.`;
+}
+
 function normalizeOrientation(v: unknown): 'HORIZONTAL' | 'VERTICAL' {
   return String(v || '').trim().toUpperCase() === 'VERTICAL' ? 'VERTICAL' : 'HORIZONTAL';
 }
@@ -1435,19 +1691,17 @@ async function departmentOfUser(
   db: { from(t: string): any },
   userId: string
 ): Promise<string | null> {
-  // 1) Direct link: resident.user_id
-  const { data: byUser } = await db.from('residents').select('department_id').eq('user_id', userId).limit(1).maybeSingle();
+  const authUser = await authenticatedIdentity(req);
+  const profile = authUser ? await globalProfileForAuthUser(client, authUser) : null;
+  const userIds = [...new Set([userId, profile?.id].filter(Boolean))];
+  // Older resident links may use the global profile id instead of auth.uid().
+  const { data: byUser } = await db.from('residents').select('department_id').in('user_id', userIds).limit(1).maybeSingle();
   if (byUser?.department_id) return String(byUser.department_id);
 
   // 2) Match by global user profile (email/document) so owners registered by
   //    document/email without a user link still resolve their department.
-  let email = '';
-  let documentNumber: string | null = null;
-  try {
-    const { data: ug } = await client.database.from('users_global').select('email, document_number').eq('id', userId).single();
-    email = String((ug as { email?: string } | null)?.email || '').toLowerCase();
-    documentNumber = (ug as { document_number?: string | null } | null)?.document_number || null;
-  } catch {}
+  const email = String(profile?.email || authUser?.email || '').toLowerCase();
+  const documentNumber = profile?.document_number || null;
 
   if (email) {
     const { data: byEmail } = await db.from('residents').select('department_id').eq('email', email).limit(1).maybeSingle();
@@ -1514,52 +1768,71 @@ function normalizeVehicleType(v: unknown): string {
 }
 
 async function isAdminForSchema(req: Request, client: ReturnType<typeof createAdminClient>, schemaName: string): Promise<boolean> {
-  const auth = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
-  if (!auth) return false;
   try {
-    const userClient = createClient({ baseUrl: Deno.env.get('INSFORGE_BASE_URL'), accessToken: auth });
-    const { data } = await userClient.auth.getCurrentUser();
-    const uid = data?.user?.id;
-    if (!uid) return false;
+    const authUser = await authenticatedIdentity(req);
+    if (!authUser) return false;
+    const profile = await globalProfileForAuthUser(client, authUser);
 
-    const { data: ug } = await client.database.from('users_global').select('is_superadmin').eq('id', uid).single();
-    if (ug && (ug as { is_superadmin: boolean }).is_superadmin) return true;
+    if (profile?.is_superadmin) return true;
 
     const { data: t } = await client.database.from('tenants').select('id').eq('schema_name', schemaName).single();
     const tenantId = t?.id;
     if (!tenantId) return false;
 
-    const { data: tu } = await client.database.from('tenant_users').select('id').eq('user_id', uid).eq('tenant_id', tenantId).eq('status', 'ACTIVE').in('role', ['SUPER_ADMIN', 'ADMIN']).single();
+    const userIds = [...new Set([authUser.id, profile?.id].filter(Boolean))];
+    const { data: tu } = await client.database.from('tenant_users').select('id').in('user_id', userIds).eq('tenant_id', tenantId).eq('status', 'ACTIVE').in('role', ['SUPER_ADMIN', 'ADMIN']).limit(1).maybeSingle();
     return Boolean(tu);
   } catch { return false; }
 }
 
 async function isSecurityForSchema(req: Request, client: ReturnType<typeof createAdminClient>, schemaName: string): Promise<boolean> {
-  const auth = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
-  if (!auth) return false;
   try {
-    const userClient = createClient({ baseUrl: Deno.env.get('INSFORGE_BASE_URL'), accessToken: auth });
-    const { data } = await userClient.auth.getCurrentUser();
-    const uid = data?.user?.id;
-    if (!uid) return false;
+    const authUser = await authenticatedIdentity(req);
+    if (!authUser) return false;
+    const profile = await globalProfileForAuthUser(client, authUser);
 
     const { data: t } = await client.database.from('tenants').select('id').eq('schema_name', schemaName).single();
     const tenantId = t?.id;
     if (!tenantId) return false;
 
-    const { data: tu } = await client.database.from('tenant_users').select('id').eq('user_id', uid).eq('tenant_id', tenantId).eq('status', 'ACTIVE').in('role', ['SECURITY_AGENT', 'SUPERVISOR']).single();
+    const userIds = [...new Set([authUser.id, profile?.id].filter(Boolean))];
+    const { data: tu } = await client.database.from('tenant_users').select('id').in('user_id', userIds).eq('tenant_id', tenantId).eq('status', 'ACTIVE').in('role', ['SECURITY_AGENT', 'SUPERVISOR']).limit(1).maybeSingle();
     return Boolean(tu);
   } catch { return false; }
 }
 
-async function currentUserId(req: Request, client: ReturnType<typeof createAdminClient>): Promise<string | null> {
+async function currentUserId(req: Request): Promise<string | null> {
+  const authUser = await authenticatedIdentity(req);
+  return authUser?.id || null;
+}
+
+async function authenticatedIdentity(req: Request): Promise<{ id: string; email?: string } | null> {
   const auth = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
   if (!auth) return null;
   try {
     const userClient = createClient({ baseUrl: Deno.env.get('INSFORGE_BASE_URL'), accessToken: auth });
     const { data } = await userClient.auth.getCurrentUser();
-    return data?.user?.id || null;
+    const user = data?.user;
+    return user?.id ? { id: user.id, email: user.email || undefined } : null;
   } catch { return null; }
+}
+
+async function globalProfileForAuthUser(
+  client: ReturnType<typeof createAdminClient>,
+  authUser: { id: string; email?: string }
+): Promise<{ id: string; email?: string; document_number?: string | null; is_superadmin?: boolean } | null> {
+  const { data: byId } = await client.database.from('users_global')
+    .select('id, email, document_number, is_superadmin')
+    .eq('id', authUser.id)
+    .maybeSingle();
+  if (byId) return byId as { id: string; email?: string; document_number?: string | null; is_superadmin?: boolean };
+  if (!authUser.email) return null;
+  const { data: byEmail } = await client.database.from('users_global')
+    .select('id, email, document_number, is_superadmin')
+    .ilike('email', authUser.email)
+    .limit(1)
+    .maybeSingle();
+  return byEmail as { id: string; email?: string; document_number?: string | null; is_superadmin?: boolean } | null;
 }
 
 function forbidden(): Response {

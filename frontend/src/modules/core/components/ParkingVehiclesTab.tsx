@@ -11,6 +11,7 @@ interface VehicleImportRow {
   line: number;
   spotNumber: string;
   licensePlate: string;
+  driverName: string;
   spotType: ParkingSpotType;
   cocheraType: CocheraType;
   towerCode: string;
@@ -25,7 +26,7 @@ interface VehicleImportRow {
 interface VehicleImportTower {
   id: string;
   code: string;
-  floors: Array<{ floor_number: number; departments: Array<{ id: string; department_number: string }> }>;
+  floors: Array<{ floor_number: number; departments: Array<{ id: string; department_number: string; owner_name?: string | null }> }>;
 }
 
 interface VehicleImportError {
@@ -40,6 +41,18 @@ function parseVehicleCsv(text: string): string[][] {
   let field = '';
   let inQuotes = false;
   const input = text.replace(/^\uFEFF/, '');
+  const firstLine = input.split(/\r?\n/).find(line => line.trim()) || '';
+  const delimiterCounts = new Map([[',', 0], [';', 0], ['\t', 0]]);
+  for (let i = 0; i < firstLine.length; i++) {
+    if (firstLine[i] === '"') {
+      if (inQuotes && firstLine[i + 1] === '"') i++;
+      else inQuotes = !inQuotes;
+    } else if (!inQuotes && delimiterCounts.has(firstLine[i])) {
+      delimiterCounts.set(firstLine[i], (delimiterCounts.get(firstLine[i]) || 0) + 1);
+    }
+  }
+  const delimiter = [...delimiterCounts].sort((a, b) => b[1] - a[1])[0][0];
+  inQuotes = false;
   for (let i = 0; i < input.length; i++) {
     const ch = input[i];
     if (inQuotes) {
@@ -48,7 +61,7 @@ function parseVehicleCsv(text: string): string[][] {
         else inQuotes = false;
       } else field += ch;
     } else if (ch === '"') inQuotes = true;
-    else if (ch === ',') { row.push(field); field = ''; }
+    else if (ch === delimiter) { row.push(field); field = ''; }
     else if (ch === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
     else if (ch !== '\r') field += ch;
   }
@@ -88,7 +101,7 @@ function deptLabelV(departments?: { department_number?: string; towers?: { code?
 }
 
 export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
-  const { listVehicles, createVehicle, updateVehicle, deleteVehicle, listSpots } = useParking();
+  const { listVehicles, createVehicle, updateVehicle, deleteVehicle, deleteVehicles, setVehicleActive, listSpots } = useParking();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [spots, setSpots] = useState<ParkingSpot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,6 +110,9 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
 
   const [vehicleForm, setVehicleForm] = useState(emptyVehicleForm);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+  const [selectedVehicleIds, setSelectedVehicleIds] = useState<Set<string>>(new Set());
+  const [deletingSelected, setDeletingSelected] = useState(false);
+  const [togglingVehicleIds, setTogglingVehicleIds] = useState<Set<string>>(new Set());
   const [showVehicleForm, setShowVehicleForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showVehicleImport, setShowVehicleImport] = useState(false);
@@ -105,7 +121,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
   const [vehicleImportError, setVehicleImportError] = useState<string | null>(null);
   const [validatingVehicleImport, setValidatingVehicleImport] = useState(false);
   const [importingVehicles, setImportingVehicles] = useState(false);
-  const [vehicleImportSummary, setVehicleImportSummary] = useState<{ created: number; spots_configured: number; errors: VehicleImportError[] } | null>(null);
+  const [vehicleImportSummary, setVehicleImportSummary] = useState<{ created: number; updated?: number; spots_configured: number; errors: VehicleImportError[] } | null>(null);
   const vehicleImportInputRef = useRef<HTMLInputElement>(null);
 
   const [spotId, setSpotId] = useState('');
@@ -131,6 +147,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
 
   const [plateFilter, setPlateFilter] = useState('');
   const [driverFilter, setDriverFilter] = useState('');
+  const [onlyIncomplete, setOnlyIncomplete] = useState(false);
   const [filterTowerId, setFilterTowerId] = useState('');
   const [filterFloorId, setFilterFloorId] = useState('');
   const [filterDeptId, setFilterDeptId] = useState('');
@@ -154,7 +171,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { setVehPage(1); }, [vehicles.length]);
-  useEffect(() => { setVehPage(1); }, [plateFilter, driverFilter, filterTowerId, filterFloorId, filterDeptId]);
+  useEffect(() => { setVehPage(1); }, [plateFilter, driverFilter, onlyIncomplete, filterTowerId, filterFloorId, filterDeptId]);
 
   const loadTowers = useCallback(async () => {
     if (!schemaName) return;
@@ -233,6 +250,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
   const clearFilters = () => {
     setPlateFilter('');
     setDriverFilter('');
+    setOnlyIncomplete(false);
     setFilterTowerId('');
     setFilterFloorId('');
     setFilterDeptId('');
@@ -256,10 +274,10 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
         color: vehicleForm.color.trim() || null
       };
       if (editingVehicle) {
-        await updateVehicle(schemaName, editingVehicle.id, payload);
+        await updateVehicle(schemaName, editingVehicle.id, { ...payload, spot_id: spotId || null });
         setMessage('Vehículo actualizado');
       } else {
-        await createVehicle(schemaName, { ...payload, department_id: deptId });
+        await createVehicle(schemaName, { ...payload, department_id: deptId, spot_id: spotId || null });
         setMessage('Vehículo registrado a la cochera seleccionada');
       }
       setVehicleForm(emptyVehicleForm);
@@ -279,8 +297,8 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
   const startVehicleEdit = (v: Vehicle) => {
     setEditingVehicle(v);
     setVehicleForm({ license_plate: v.license_plate, vehicle_type: v.vehicle_type || 'AUTO', driver_name: v.driver_name || '', brand: v.brand || '', model: v.model || '', color: v.color || '' });
-    setSpotId('');
-    setSpotSearch('');
+    setSpotId(v.spot_id || '');
+    setSpotSearch(v.assigned_spot ? `Cochera ${v.assigned_spot}` : '');
     setDeptId('');
     setShowVehicleForm(true);
   };
@@ -294,15 +312,54 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
     setDeptId('');
   };
 
+  const handleToggleVehicleActive = async (v: Vehicle) => {
+    if (!schemaName || togglingVehicleIds.has(v.id)) return;
+    setError(null);
+    setTogglingVehicleIds(prev => new Set(prev).add(v.id));
+    try {
+      const updated = await setVehicleActive(schemaName, v.id, !v.is_active);
+      if (updated) setVehicles(prev => prev.map(x => (x.id === v.id ? updated : x)));
+      setMessage(v.is_active ? 'Vehículo desactivado' : `Vehículo ${v.license_plate} activado`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo cambiar el estado');
+    } finally {
+      setTogglingVehicleIds(prev => { const next = new Set(prev); next.delete(v.id); return next; });
+    }
+  };
+
   const handleVehicleDelete = async (v: Vehicle) => {
     if (!schemaName) return;
     if (!confirm(`¿Eliminar el vehículo ${v.license_plate}?`)) return;
     try {
       await deleteVehicle(schemaName, v.id);
+      setSelectedVehicleIds(current => {
+        const next = new Set(current);
+        next.delete(v.id);
+        return next;
+      });
       setMessage('Vehículo eliminado');
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error');
+    }
+  };
+
+  const handleDeleteSelectedVehicles = async () => {
+    if (!schemaName || selectedVehicleIds.size === 0) return;
+    const selected = vehicles.filter(vehicle => selectedVehicleIds.has(vehicle.id));
+    if (selected.length === 0) return;
+    if (!confirm(`¿Eliminar ${selected.length} vehículo(s) seleccionado(s)? Se conservarán los historiales de acceso. Esta acción no se puede deshacer.`)) return;
+    setDeletingSelected(true);
+    setError(null);
+    try {
+      const deleted = await deleteVehicles(schemaName, selected.map(vehicle => vehicle.id));
+      setSelectedVehicleIds(new Set());
+      setMessage(`${deleted} vehículo(s) eliminado(s); se conservaron los historiales de acceso.`);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudieron eliminar los vehículos seleccionados.');
+    } finally {
+      setDeletingSelected(false);
     }
   };
 
@@ -334,18 +391,38 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
       if (csvRows.length < 2) throw new Error('El CSV debe incluir encabezados y al menos una fila de datos.');
 
       const normalizeHeader = (value: string) => value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      const indexes: { spot?: number; plate?: number; spotType?: number; cocheraType?: number; tower?: number; department?: number } = {};
-      csvRows[0].forEach((header, index) => {
-        const key = normalizeHeader(header);
-        if (['cochera', 'estacionamiento', 'plaza', 'spot'].includes(key)) indexes.spot = index;
-        else if (['placa', 'matricula', 'patente', 'license plate', 'license_plate'].includes(key)) indexes.plate = index;
-        else if (['tipo-plaza', 'tipo de plaza', 'tipo plaza'].includes(key)) indexes.spotType = index;
-        else if (['tipo-cochera', 'tipo de cochera', 'tipo cochera'].includes(key)) indexes.cocheraType = index;
-        else if (['torre', 'codigo de torre', 'nombre corto'].includes(key)) indexes.tower = index;
-        else if (['departamento', 'dpto', 'depto', 'numero de departamento'].includes(key)) indexes.department = index;
-      });
+      type HeaderIndexes = { spot?: number; plate?: number; driver?: number; spotType?: number; cocheraType?: number; tower?: number; department?: number };
+      const indexesFor = (headers: string[]): HeaderIndexes => {
+        const indexes: HeaderIndexes = {};
+        headers.forEach((header, index) => {
+          const key = normalizeHeader(header);
+          const compactKey = key.replace(/[^a-z0-9]/g, '');
+          if (['cochera', 'estacionamiento', 'plaza', 'spot', 'numerocochera', 'nrocochera', 'nocochera', 'numeroplaza', 'nroplaza', 'plazaestacionamiento'].includes(compactKey)) indexes.spot = index;
+          else if (['placa', 'matricula', 'patente', 'license plate', 'license_plate'].includes(key) || ['placaauto', 'placavehicular', 'placadelvehiculo', 'licenseplate'].includes(compactKey)) indexes.plate = index;
+          else if (['conductor', 'chofer', 'responsable', 'driver', 'nombreconductor', 'nombredelconductor', 'conductornombre'].includes(compactKey) || compactKey.startsWith('conductor')) indexes.driver = index;
+          else if (['tipo-plaza', 'tipo de plaza', 'tipo plaza'].includes(key)) indexes.spotType = index;
+          else if (['tipo-cochera', 'tipo de cochera', 'tipo cochera'].includes(key)) indexes.cocheraType = index;
+          else if (['torre', 'codigo de torre', 'nombre corto'].includes(key) || ['codigotorre', 'torrecodigo', 'torreedificio'].includes(compactKey) || compactKey.startsWith('torre')) indexes.tower = index;
+          else if (['departamento', 'dpto', 'depto', 'numero de departamento'].includes(key) || ['departamento', 'departamentodestino', 'numerodepartamento', 'numerodpto', 'dpto', 'depto', 'unidad'].includes(compactKey) || compactKey.startsWith('departamento')) indexes.department = index;
+        });
+        return indexes;
+      };
+      let headerRowIndex = 0;
+      let indexes: HeaderIndexes = {};
+      let bestHeaderScore = -1;
+      for (let index = 0; index < Math.min(csvRows.length, 6); index++) {
+        const candidate = indexesFor(csvRows[index]);
+        const score = [candidate.spot, candidate.plate, candidate.tower, candidate.department].filter(value => value !== undefined).length;
+        if (score > bestHeaderScore) {
+          headerRowIndex = index;
+          indexes = candidate;
+          bestHeaderScore = score;
+        }
+        if (score === 4) break;
+      }
       if (indexes.spot === undefined || indexes.plate === undefined || indexes.tower === undefined || indexes.department === undefined) {
-        throw new Error('No se encontraron las columnas Cochera, Placa, Torre y Departamento.');
+        const headers = csvRows[headerRowIndex].join(' | ');
+        throw new Error(`No se encontraron las columnas Cochera, Placa, Torre y Departamento. Encabezados detectados: ${headers}`);
       }
 
       if (!schemaName) throw new Error('No hay un condominio activo.');
@@ -358,27 +435,28 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
       if (!structure?.success || !structure.data) throw new Error(structure?.error?.message || 'No se pudo cargar la estructura del condominio.');
       const importTowers = structure.data;
 
-      const parsedRows: VehicleImportRow[] = csvRows.slice(1).map((cells, index) => {
+      const parsedRows: VehicleImportRow[] = csvRows.slice(headerRowIndex + 1).map((cells, index) => {
         const valueAt = (column?: number) => column === undefined ? '' : (cells[column] || '').trim();
         const rawSpotNumber = valueAt(indexes.spot);
         const spotNumber = normalizeSpotNumber(rawSpotNumber);
         const licensePlate = valueAt(indexes.plate).toUpperCase();
+        const driverName = valueAt(indexes.driver);
         const rawSpotType = valueAt(indexes.spotType);
         const rawCocheraType = valueAt(indexes.cocheraType);
         const spotType = rawSpotType ? normalizeImportedSpotType(rawSpotType) : 'PROPIO';
         const cocheraType = rawCocheraType ? normalizeImportedCocheraType(rawCocheraType) : 'MULTIPLE';
         const towerCode = valueAt(indexes.tower);
         const departmentNumber = valueAt(indexes.department).replace(/\s/g, '');
-        const entry: VehicleImportRow = { line: index + 2, spotNumber, licensePlate, spotType: spotType || 'PROPIO', cocheraType: cocheraType || 'MULTIPLE', towerCode, departmentNumber };
-        if (!rawSpotNumber || !licensePlate || !towerCode || !departmentNumber) {
-          entry.error = 'Falta la cochera, placa, torre o departamento.';
+        const entry: VehicleImportRow = { line: index + headerRowIndex + 2, spotNumber, licensePlate, driverName, spotType: spotType || 'PROPIO', cocheraType: cocheraType || 'MULTIPLE', towerCode, departmentNumber };
+        if (!rawSpotNumber || !towerCode || !departmentNumber) {
+          entry.error = 'Falta la cochera, torre o departamento.';
           return entry;
         }
         if (!spotNumber) {
           entry.error = 'La cochera debe ser un número entre 1 y 999.';
           return entry;
         }
-        if (!normalizePlate(licensePlate)) {
+        if (licensePlate && !normalizePlate(licensePlate)) {
           entry.error = 'La placa no contiene letras o números válidos.';
           return entry;
         }
@@ -422,6 +500,10 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
         }
         entry.departmentId = departments[0].id;
         entry.departmentLabel = `${/^T/i.test(towerCode) ? towerCode : `T${towerCode}`}-${departments[0].department_number}`;
+        if (entry.licensePlate && !entry.driverName) {
+          // Conductor por defecto: el propietario del departamento (puede quedar vacío).
+          entry.driverName = departments[0].owner_name?.trim() || '';
+        }
 
         const spotMatches = spots.filter(candidate => normalizeSpotNumber(candidate.spot_number) === spotNumber);
         if (spotMatches.length !== 1) {
@@ -451,9 +533,11 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
           continue;
         }
         spotConfigurations.set(row.spot!.id, spotConfig);
+        if (!row.licensePlate) continue;
         const key = normalizePlate(row.licensePlate);
-        if (vehicles.some(vehicle => normalizePlate(vehicle.license_plate) === key)) {
-          row.error = `La placa ${row.licensePlate} ya está registrada en otra cochera.`;
+        const existingVehicle = vehicles.find(vehicle => normalizePlate(vehicle.license_plate) === key);
+        if (existingVehicle?.spot_id && existingVehicle.spot_id !== row.spot!.id) {
+          row.error = `La placa ${row.licensePlate} ya está asignada a la cochera ${existingVehicle.assigned_spot || 'otra'}. Quita esa asignación antes de reasignarla.`;
           continue;
         }
         if (seenPlates.has(key)) {
@@ -483,7 +567,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
     try {
       const { data, error: functionError } = await invokeFunction<{
         success: boolean;
-        data: { created: number; spots_configured: number; errors: VehicleImportError[] } | null;
+        data: { created: number; updated?: number; spots_configured: number; errors: VehicleImportError[] } | null;
         error: { message: string } | null;
       }>('parking-control', {
         method: 'POST',
@@ -493,7 +577,9 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
           items: readyRows.map(row => ({
             line: row.line,
             spot_number: row.spotNumber,
+            spot_id: row.spot?.id,
             license_plate: row.licensePlate,
+            driver_name: row.driverName,
             spot_type: row.spotType,
             cochera_type: row.cocheraType,
             tower_code: row.towerCode,
@@ -522,6 +608,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
   const filteredVehicles = vehicles.filter(v => {
     if (qPlate && !v.license_plate.toLowerCase().includes(qPlate)) return false;
     if (qDriver && !(v.driver_name || '').toLowerCase().includes(qDriver)) return false;
+    if (onlyIncomplete && Boolean(v.driver_name?.trim()) && Boolean(v.departments?.department_number) && Boolean(v.occupied_spot || v.departments?.spots?.length)) return false;
     if (filterTowerId && v.departments?.towers?.id !== filterTowerId) return false;
     if (filterFloorId && v.departments?.floor_number != null && v.departments.floor_number !== filterFloorNumber) return false;
     if (filterDeptId && v.department_id !== filterDeptId) return false;
@@ -550,6 +637,31 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
       {message && <div className="success-message" onClick={() => setMessage(null)}>{message} — clic para cerrar</div>}
       {error && <div className="error-message" onClick={() => setError(null)}>{error} — clic para cerrar</div>}
 
+      {filteredVehicles.length > 0 && (
+        <div className="parking-vehicle-selection">
+          <label className="checkbox-row">
+            <input
+              type="checkbox"
+              checked={filteredVehicles.every(vehicle => selectedVehicleIds.has(vehicle.id))}
+              onChange={event => setSelectedVehicleIds(current => {
+                const next = new Set(current);
+                if (event.target.checked) filteredVehicles.forEach(vehicle => next.add(vehicle.id));
+                else filteredVehicles.forEach(vehicle => next.delete(vehicle.id));
+                return next;
+              })}
+            />
+            <span>Seleccionar todos los resultados ({filteredVehicles.length})</span>
+          </label>
+          <div className="history-tools-actions">
+            {selectedVehicleIds.size > 0 && <span>{selectedVehicleIds.size} seleccionado(s)</span>}
+            <button className="btn-cancel users-bulk-delete" onClick={() => void handleDeleteSelectedVehicles()} disabled={deletingSelected || selectedVehicleIds.size === 0}>
+              {deletingSelected ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">delete</span>}
+              {deletingSelected ? 'Eliminando...' : 'Eliminar seleccionados'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {showVehicleImport && (
         <div className="modal-overlay" onClick={() => !importingVehicles && !validatingVehicleImport && setShowVehicleImport(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -572,7 +684,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
                   disabled={validatingVehicleImport || importingVehicles}
                   onChange={e => void handleVehicleImportFile(e.target.files?.[0] || null)}
                 />
-                <small>Columnas requeridas: Cochera, Placa, Torre y Departamento. Tipo-Plaza (Propio) y Tipo-Cochera (Multiple) son opcionales y usan esos valores por defecto. La placa debe ser única en el condominio.</small>
+                <small>Columnas requeridas: Cochera, Tipo-Plaza, Tipo-Cochera, Torre y Departamento. La Placa es opcional: si falta, solo se asigna la cochera al departamento. El conductor se obtiene del propietario del departamento. Se aceptan CSV separados por coma o punto y coma.</small>
                 <button type="button" className="btn-cancel" style={{ display: 'inline-flex', gap: '0.3rem', marginTop: '0.5rem' }} onClick={downloadVehicleTemplate}>
                   <span className="material-symbols-outlined">download</span> Descargar plantilla
                 </button>
@@ -612,7 +724,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
               {vehicleImportRows.some(row => !row.error && row.spot) && (
                 <div className="import-preview">
                   <table>
-                    <thead><tr><th>Fila</th><th>Cochera</th><th>Tipo plaza</th><th>Tipo cochera</th><th>Departamento destino</th><th>Placa</th></tr></thead>
+                    <thead><tr><th>Fila</th><th>Cochera</th><th>Tipo plaza</th><th>Tipo cochera</th><th>Departamento destino</th><th>Placa</th><th>Conductor</th></tr></thead>
                     <tbody>
                       {vehicleImportRows.filter(row => !row.error && row.spot).slice(0, 10).map(row => (
                         <tr key={row.line}>
@@ -621,7 +733,8 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
                           <td>{row.spotType}</td>
                           <td>{row.cocheraType}</td>
                           <td>{row.departmentLabel || '-'}</td>
-                          <td>{row.licensePlate}</td>
+                          <td>{row.licensePlate || 'Sin placa'}</td>
+                          <td>{row.driverName || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -634,6 +747,7 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
                 <div className="import-result">
                   <div className="import-result-summary">
                     <div className="import-result-count"><span className="material-symbols-outlined">check_circle</span><span><strong>{vehicleImportSummary.created}</strong> vehículo(s) importado(s)</span></div>
+                    {Boolean(vehicleImportSummary.updated) && <div className="import-result-count"><span className="material-symbols-outlined">sync</span><span><strong>{vehicleImportSummary.updated}</strong> vehículo(s) actualizado(s)</span></div>}
                     <div className="import-result-count"><span className="material-symbols-outlined">local_parking</span><span><strong>{vehicleImportSummary.spots_configured}</strong> cochera(s) configurada(s)</span></div>
                     {vehicleImportSummary.errors.length > 0 && <div className="import-result-count"><span className="material-symbols-outlined">error</span><span><strong>{vehicleImportSummary.errors.length}</strong> fila(s) omitida(s)</span></div>}
                   </div>
@@ -668,53 +782,51 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
             </div>
             <div className="modal-body">
 
-          {editingVehicle ? (
-            <p className="cart-checkout-hint">Vehículo de : {deptLabelV(editingVehicle.departments)} — solo editas los datos del vehículo.</p>
-          ) : (
-            <>
-              <p className="cart-checkout-hint">Busca y selecciona la cochera del vehículo. El departamento se toma de la cochera y el nombre del conductor se rellena por defecto con el propietario de la cochera (puedes cambiarlo).</p>
+          <p className="cart-checkout-hint">
+            {editingVehicle
+              ? `Vehículo de ${deptLabelV(editingVehicle.departments)}. Puedes cambiar la cochera asignada; el departamento se toma de la cochera.`
+              : 'Busca y selecciona la cochera del vehículo. El departamento se toma de la cochera y el nombre del conductor se rellena por defecto con el propietario de la cochera (puedes cambiarlo).'}
+          </p>
 
-              <div className="form-group">
-                <label>Cochera del vehículo</label>
-                <div className="search-bar condo-picker" ref={spotPickerRef}>
-                  <input
-                    type="text"
-                    value={spotSearch}
-                    placeholder="Buscar cochera (ej. 01, 3)..."
-                    autoFocus
-                    onFocus={() => setSpotDropdownOpen(true)}
-                    onChange={e => { setSpotSearch(e.target.value); setSpotDropdownOpen(true); }}
-                  />
-                  {spotDropdownOpen && !(spotQuery === '' && filteredSpots.length === 0) && (
-                    <div className="condo-picker-dropdown">
-                      {filteredSpots.length === 0 ? (
-                        <div className="condo-picker-empty">Sin resultados</div>
-                      ) : (
-                        filteredSpots.map(s => (
-                          <button key={s.id} type="button" className={`condo-picker-item ${spotId === s.id ? 'selected' : ''}`} onClick={() => selectSpot(s.id)}>
-                            <span className="material-symbols-outlined">local_parking</span>
-                            <span>Cochera {s.spot_number}</span>
-                          </button>
-                        ))
-                      )}
-                    </div>
+          <div className="form-group">
+            <label>Cochera del vehículo</label>
+            <div className="search-bar condo-picker" ref={spotPickerRef}>
+              <input
+                type="text"
+                value={spotSearch}
+                placeholder="Buscar cochera (ej. 01, 3)..."
+                autoFocus
+                onFocus={() => setSpotDropdownOpen(true)}
+                onChange={e => { setSpotSearch(e.target.value); setSpotDropdownOpen(true); }}
+              />
+              {spotDropdownOpen && !(spotQuery === '' && filteredSpots.length === 0) && (
+                <div className="condo-picker-dropdown">
+                  {filteredSpots.length === 0 ? (
+                    <div className="condo-picker-empty">Sin resultados</div>
+                  ) : (
+                    filteredSpots.map(s => (
+                      <button key={s.id} type="button" className={`condo-picker-item ${spotId === s.id ? 'selected' : ''}`} onClick={() => selectSpot(s.id)}>
+                        <span className="material-symbols-outlined">local_parking</span>
+                        <span>Cochera {s.spot_number}</span>
+                      </button>
+                    ))
                   )}
                 </div>
-                {assignedSpots.length === 0 && (
-                  <small className="text-muted">No hay cocheras asignadas a departamentos. Primero asigna la cochera a un departamento en la configuración del estacionamiento.</small>
-                )}
-              </div>
+              )}
+            </div>
+            {assignedSpots.length === 0 && (
+              <small className="text-muted">No hay cocheras asignadas a departamentos. Primero asigna la cochera a un departamento en la configuración del estacionamiento.</small>
+            )}
+          </div>
 
-              {spotId && (() => {
-                const sp = spots.find(s => s.id === spotId);
-                return sp?.department_id ? (
-                  <span className="checkout-hint-inline">Cochera {sp.spot_number} seleccionada.</span>
-                ) : (
-                  <span className="checkout-hint-inline">Cochera sin departamento asignado.</span>
-                );
-              })()}
-            </>
-          )}
+          {spotId && (() => {
+            const sp = spots.find(s => s.id === spotId);
+            return sp?.department_id ? (
+              <span className="checkout-hint-inline">Cochera {sp.spot_number} seleccionada.</span>
+            ) : (
+              <span className="checkout-hint-inline">Cochera sin departamento asignado.</span>
+            );
+          })()}
 
           <div className="form-group">
               <label>Tipo de vehículo</label>
@@ -793,6 +905,15 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
         <div className="filter-actions">
           <button className="btn-cancel" onClick={clearFilters}>Limpiar</button>
         </div>
+        <label className="checkbox-row">
+          <input type="checkbox" checked={onlyIncomplete} onChange={event => setOnlyIncomplete(event.target.checked)} />
+          <span>Solo registros incompletos</span>
+        </label>
+      </div>
+
+      <div className="parking-vehicles-count">
+        Mostrando <strong>{vehPageItems.length}</strong> de <strong>{vehicles.length}</strong> vehículo(s)
+        {filteredVehicles.length !== vehicles.length && <> · filtrados: <strong>{filteredVehicles.length}</strong></>}
       </div>
 
       {vehicles.length === 0 ? (
@@ -800,9 +921,12 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
       ) : filteredVehicles.length === 0 ? (
         <div className="empty-state"><p>No hay vehículos que coincidan con los filtros.</p></div>
       ) : (
+        <>
+        <div className="parking-vehicles-table-wrap">
         <table className="residents-table residents-desktop parking-vehicles-table">
           <thead>
             <tr>
+              <th aria-label="Seleccionar"></th>
               <th>Placa</th>
               <th>Vehículo</th>
               <th>Conductor</th>
@@ -815,14 +939,21 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
           <tbody>
             {vehPageItems.map(v => (
               <tr key={v.id}>
+                <td><input type="checkbox" aria-label={`Seleccionar ${v.license_plate}`} checked={selectedVehicleIds.has(v.id)} onChange={event => setSelectedVehicleIds(current => {
+                  const next = new Set(current);
+                  if (event.target.checked) next.add(v.id);
+                  else next.delete(v.id);
+                  return next;
+                })} /></td>
                 <td className="vehicle-license-plate"><strong>{v.license_plate}</strong></td>
                 <td>{(VEHICLE_TYPE_LABELS[v.vehicle_type] || v.vehicle_type)}{(v.model || v.brand) ? ` · ${v.model || v.brand}` : ''}</td>
                 <td>{v.driver_name || <span className="text-muted">Sin conductor</span>}</td>
-                <td>{deptLabelV(v.departments)}</td>
-                <td>{v.occupied_spot ? v.occupied_spot : (v.departments?.spots?.length ? v.departments.spots.join(', ') : '-')}</td>
+                <td>{v.department_label || deptLabelV(v.departments)}</td>
+                <td>{v.assigned_spot || v.occupied_spot || v.parking_spots?.join(', ') || v.departments?.spots?.join(', ') || '-'}</td>
                 <td><span className={`status-badge ${v.is_active ? 'status-occupied' : 'status-vacant'}`}>{v.is_active ? 'Activo' : 'Inactivo'}</span></td>
                 <td>
                   <div className="resident-row-actions">
+                    <button className="icon-btn" onClick={() => handleToggleVehicleActive(v)} disabled={togglingVehicleIds.has(v.id)} title={v.is_active ? 'Desactivar' : 'Activar'}>{togglingVehicleIds.has(v.id) ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">{v.is_active ? 'toggle_on' : 'toggle_off'}</span>}</button>
                     <button className="icon-btn" onClick={() => startVehicleEdit(v)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
                     <button className="icon-btn danger" onClick={() => handleVehicleDelete(v)} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
                   </div>
@@ -831,6 +962,37 @@ export function ParkingVehiclesTab({ schemaName }: { schemaName?: string }) {
             ))}
           </tbody>
         </table>
+        </div>
+        <div className="residents-mobile-grid">
+          {vehPageItems.map(v => (
+            <div key={v.id} className="resident-grid-card">
+              <div className="resident-grid-main">
+                <label className="checkbox-row">
+                  <input type="checkbox" aria-label={`Seleccionar ${v.license_plate}`} checked={selectedVehicleIds.has(v.id)} onChange={event => setSelectedVehicleIds(current => {
+                    const next = new Set(current);
+                    if (event.target.checked) next.add(v.id);
+                    else next.delete(v.id);
+                    return next;
+                  })} />
+                  <span className="resident-grid-name">{v.license_plate}</span>
+                </label>
+                <span className="resident-grid-meta">{VEHICLE_TYPE_LABELS[v.vehicle_type] || v.vehicle_type}{(v.model || v.brand) ? ` · ${v.model || v.brand}` : ''}</span>
+              </div>
+              <div className="resident-grid-fields">
+                <div className="resident-grid-line"><span className="resident-grid-label">Conductor</span><span>{v.driver_name || '-'}</span></div>
+                <div className="resident-grid-line"><span className="resident-grid-label">Departamento</span><span>{v.department_label || deptLabelV(v.departments)}</span></div>
+                <div className="resident-grid-line"><span className="resident-grid-label">Plaza</span><span>{v.assigned_spot || v.occupied_spot || v.parking_spots?.join(', ') || v.departments?.spots?.join(', ') || '-'}</span></div>
+                <div className="resident-grid-line"><span className="resident-grid-label">Estado</span><span>{v.is_active ? 'Activo' : 'Inactivo'}</span></div>
+              </div>
+              <div className="resident-row-actions">
+                <button className="icon-btn" onClick={() => handleToggleVehicleActive(v)} disabled={togglingVehicleIds.has(v.id)} title={v.is_active ? 'Desactivar' : 'Activar'}>{togglingVehicleIds.has(v.id) ? <span className="spinner spinner-inline" /> : <span className="material-symbols-outlined">{v.is_active ? 'toggle_on' : 'toggle_off'}</span>}</button>
+                    <button className="icon-btn" onClick={() => startVehicleEdit(v)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
+                <button className="icon-btn danger" onClick={() => handleVehicleDelete(v)} title="Eliminar"><span className="material-symbols-outlined">delete</span></button>
+              </div>
+            </div>
+          ))}
+        </div>
+        </>
       )}
       <PaginationBar total={filteredVehicles.length} page={vehPage} perPage={vehPerPage} onPageChange={setVehPage} onPerPageChange={(n) => { setVehPerPage(n); setVehPage(1); }} itemLabel="vehículo" />
     </div>

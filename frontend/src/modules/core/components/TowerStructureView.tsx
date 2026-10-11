@@ -167,7 +167,7 @@ function DepartmentModal({
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     full_name: '',
-    document_type: 'DNI' as Resident['relationship_type'] extends 'PROPIETARIO' | 'FAMILIAR' | 'INQUILINO' ? 'DNI' | 'CE' | 'PASAPORTE' : 'DNI',
+    document_type: 'DNI' as Resident['relationship_type'] extends 'PROPIETARIO' | 'FAMILIAR' | 'INQUILINO' ? 'DNI' | 'CE' | 'PASAPORTE' | 'RUC' : 'DNI',
     document_number: '',
     relationship_type: 'PROPIETARIO' as Resident['relationship_type'],
     is_primary_contact: false,
@@ -262,11 +262,12 @@ function DepartmentModal({
                   <label>Tipo de documento</label>
                   <select
                     value={formData.document_type}
-                    onChange={(e) => setFormData({ ...formData, document_type: e.target.value as 'DNI' | 'CE' | 'PASAPORTE' })}
+                    onChange={(e) => setFormData({ ...formData, document_type: e.target.value as 'DNI' | 'CE' | 'PASAPORTE' | 'RUC' })}
                   >
                     <option value="DNI">DNI</option>
                     <option value="CE">CE</option>
                     <option value="PASAPORTE">Pasaporte</option>
+                    <option value="RUC">RUC</option>
                   </select>
                 </div>
 

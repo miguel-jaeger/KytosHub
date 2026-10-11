@@ -234,7 +234,7 @@ export function StructureManager() {
 
         for (const row of rowsToResolve) {
           const matches = candidates.filter(candidate =>
-            candidate.document_type !== 'CE' && candidate.document_type !== 'PASAPORTE' &&
+            candidate.document_type !== 'CE' && candidate.document_type !== 'PASAPORTE' && candidate.document_type !== 'RUC' &&
             normalizeDni(candidate.document_number || '') === row.documentNumber
           );
           if (matches.some(candidate => candidate.department_id === row.departmentId)) {

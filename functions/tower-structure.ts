@@ -52,19 +52,27 @@ export default async function(req: Request): Promise<Response> {
 
     if (deptsError) throw deptsError;
 
-    let residents: { id: string; department_id: string }[] = [];
+    let residents: Array<{ id: string; department_id: string; full_name?: string; relationship_type?: string; is_primary_contact?: boolean }> = [];
     try {
       const res = await db
         .from('residents')
-        .select('id, department_id');
+        .select('id, department_id, full_name, relationship_type, is_primary_contact');
       if (!res.error) residents = res.data || [];
     } catch {
       residents = [];
     }
 
     const residentCountByDept = new Map<string, number>();
+    const ownerByDepartment = new Map<string, { name: string; score: number }>();
     for (const r of residents || []) {
       residentCountByDept.set(r.department_id, (residentCountByDept.get(r.department_id) || 0) + 1);
+      if (r.full_name?.trim()) {
+        let score = 2;
+        if (r.relationship_type === 'PROPIETARIO') score--;
+        if (r.is_primary_contact) score--;
+        const current = ownerByDepartment.get(r.department_id);
+        if (!current || score < current.score) ownerByDepartment.set(r.department_id, { name: r.full_name.trim(), score });
+      }
     }
 
     const structure = (towers || []).map((tower) => ({
@@ -80,7 +88,8 @@ export default async function(req: Request): Promise<Response> {
               id: dept.id,
               department_number: dept.department_number,
               status: dept.status,
-              residents_count: residentCountByDept.get(dept.id) || 0
+              residents_count: residentCountByDept.get(dept.id) || 0,
+              owner_name: ownerByDepartment.get(dept.id)?.name || null
             }))
         }))
     }));
