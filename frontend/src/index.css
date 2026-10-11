@@ -229,7 +229,7 @@ header h1 {
   flex-wrap: wrap;
 }
 .billing-manager .header-actions {
-  margin: 0.5rem 0;
+  margin: 0.5rem 0 0.5rem auto;
 }
 .billing-manager .header-actions button,
 .billing-manager .header-actions .btn-cancel {
@@ -1853,8 +1853,14 @@ html.dark .theme-switch input:checked + .theme-switch-track { background: #006c4
   font-size: 0.9rem;
 }
 .header-actions {
-  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 10px auto;
 }
+.header-actions > button { width: fit-content; flex: 0 0 auto; margin: 0; white-space: nowrap; }
 .panel-header {
   display: flex;
   align-items: flex-start;
@@ -1863,7 +1869,7 @@ html.dark .theme-switch input:checked + .theme-switch-track { background: #006c4
   flex-wrap: wrap;
   margin-bottom: 0.85rem;
 }
-.parking-vehicle-header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; }
+.parking-vehicle-header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; margin-left: auto; }
 .panel-header h3, .panel-header h4 { margin: 0 0 0.25rem; color: #0b1c30; }
 .panel-header small { color: #76777d; }
 .panel-header > button {
