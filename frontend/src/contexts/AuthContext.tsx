@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef, ty
 import { insforge, invokeFunction } from '../lib/insforge';
 import { saveAuth, loadAuth, clearAuth, clearStoredCondominium, isTokenExpired } from '../lib/auth-storage';
 import { translateAuthError } from '../lib/errors';
+import { TURNSTILE_ENABLED } from '../lib/turnstile';
 
 interface AuthUser {
   id: string;
@@ -13,8 +14,8 @@ interface AuthUser {
 interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
-  signInWithPassword: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string, name: string) => Promise<{ error: string | null; requireVerification: boolean }>;
+  signInWithPassword: (email: string, password: string, turnstileToken: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, name: string, turnstileToken: string) => Promise<{ error: string | null; requireVerification: boolean }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   updateAvatar: (url: string) => void;
@@ -22,6 +23,12 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+interface TurnstileVerifyResponse {
+  success: boolean;
+  data?: { hostname?: string | null; challengeTs?: string | null } | null;
+  error?: { code?: string; message?: string } | null;
+}
 
 function mapUser(raw: Record<string, unknown>): AuthUser {
   const profile = raw.profile as Record<string, unknown> | undefined;
@@ -200,7 +207,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [applyUser, persistSession]);
 
-  const signInWithPassword = useCallback(async (email: string, password: string) => {
+  const verifyTurnstileToken = useCallback(async (token: string): Promise<string | null> => {
+    if (!TURNSTILE_ENABLED) {
+      // Sin sitekey en desarrollo se permite continuar; en producción se falla
+      // cerrado para evitar desplegar el login sin captcha por error.
+      return import.meta.env.PROD
+        ? 'La verificación de seguridad no está configurada. Contacta al administrador.'
+        : null;
+    }
+    if (!token) return 'Completa la verificación de seguridad.';
+
+    const { data, error } = await invokeFunction<TurnstileVerifyResponse>('verify-turnstile', {
+      method: 'POST',
+      body: { token }
+    });
+
+    if (error) return translateAuthError(error.message);
+    if (!data?.success) return 'No se pudo validar la verificación de seguridad. Inténtalo de nuevo.';
+    return null;
+  }, []);
+
+  const signInWithPassword = useCallback(async (email: string, password: string, turnstileToken: string) => {
+    const turnstileError = await verifyTurnstileToken(turnstileToken);
+    if (turnstileError) return { error: turnstileError };
+
     const { data, error } = await insforge.auth.signInWithPassword({ email, password });
     if (error) {
       return { error: translateAuthError(error.message) };
@@ -212,9 +242,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (sessionData.accessToken) saveAuth(sessionData.accessToken, u);
     }
     return { error: null };
-  }, [applyUser]);
+  }, [applyUser, verifyTurnstileToken]);
 
-  const signUp = useCallback(async (email: string, password: string, name: string) => {
+  const signUp = useCallback(async (email: string, password: string, name: string, turnstileToken: string) => {
+    const turnstileError = await verifyTurnstileToken(turnstileToken);
+    if (turnstileError) return { error: turnstileError, requireVerification: false };
+
     const { data, error } = await insforge.auth.signUp({
       email,
       password,
@@ -236,7 +269,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return { error: null, requireVerification: Boolean(data?.requireEmailVerification) };
-  }, [applyUser, persistSession]);
+  }, [applyUser, persistSession, verifyTurnstileToken]);
 
   const signInWithGoogle = useCallback(async () => {
     // Drop any previous account stored locally so the OAuth callback can not

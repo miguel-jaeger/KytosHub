@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { TurnstileWidget } from '../components/TurnstileWidget';
+import { TURNSTILE_ENABLED } from '../lib/turnstile';
 
 interface LoginPageProps {
   onSuccess?: () => void;
@@ -15,24 +17,41 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
   const [verificationPending, setVerificationPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileKey, setTurnstileKey] = useState(0);
+
+  // Un token de Turnstile es de un solo uso: tras cualquier intento fallido se
+  // remonta el widget para obtener uno nuevo.
+  const resetTurnstile = () => {
+    setTurnstileToken(null);
+    setTurnstileKey(key => key + 1);
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (TURNSTILE_ENABLED && !turnstileToken) {
+      setError('Completa la verificación de seguridad antes de continuar.');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
       if (mode === 'login') {
-        const { error: signInError } = await signInWithPassword(email, password);
+        const { error: signInError } = await signInWithPassword(email, password, turnstileToken ?? '');
         if (signInError) {
           setError(signInError);
+          resetTurnstile();
         } else {
           onSuccess?.();
         }
       } else {
-        const { error: signUpError, requireVerification } = await signUp(email, password, name);
+        const { error: signUpError, requireVerification } = await signUp(email, password, name, turnstileToken ?? '');
         if (signUpError) {
           setError(signUpError);
+          resetTurnstile();
         } else if (requireVerification) {
           setVerificationPending(true);
         } else {
@@ -41,6 +60,7 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error en la autenticación');
+      resetTurnstile();
     } finally {
       setSubmitting(false);
     }
@@ -58,6 +78,7 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
     setMode(mode === 'login' ? 'register' : 'login');
     setError(null);
     setVerificationPending(false);
+    resetTurnstile();
   };
 
   if (verificationPending) {
@@ -162,6 +183,12 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
               </div>
             )}
           </div>
+
+          {TURNSTILE_ENABLED && (
+            <div className="flex justify-center min-h-[65px]">
+              <TurnstileWidget key={turnstileKey} onToken={setTurnstileToken} />
+            </div>
+          )}
 
           {error && (
             <div className="bg-error-container text-on-error-container p-md rounded-lg font-body-sm text-body-sm" role="alert">
