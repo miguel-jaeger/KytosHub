@@ -60,7 +60,10 @@ export function loadTurnstile(): Promise<TurnstileApi> {
         reject(new Error('Turnstile no se inicializó correctamente'));
         return;
       }
-      window.turnstile.ready(() => resolve(window.turnstile as TurnstileApi));
+      // El evento `load` ya garantiza que la API está lista. No usar
+      // turnstile.ready() aquí: Cloudflare lo rechaza si el script se cargó
+      // con los atributos async/defer.
+      resolve(window.turnstile);
     };
 
     const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
@@ -80,8 +83,8 @@ export function loadTurnstile(): Promise<TurnstileApi> {
     const script = document.createElement('script');
     script.id = SCRIPT_ID;
     script.src = SCRIPT_SRC;
-    script.async = true;
-    script.defer = true;
+    // Sin async/defer: un script insertado dinámicamente ya es asíncrono, y
+    // esos atributos rompen turnstile.ready().
     script.addEventListener('load', () => {
       script.dataset.loaded = 'true';
       resolveApi();
