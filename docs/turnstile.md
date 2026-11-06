@@ -71,8 +71,9 @@ Notas:
 Desde la raíz del repo:
 
 ```bash
-# Guardar el secret key como secret del backend
+# Guardar el secret key y los hostnames permitidos del frontend
 npx -y @insforge/cli secrets add TURNSTILE_SECRET_KEY 0x4AAAAAAA_TU_SECRET_KEY
+npx -y @insforge/cli secrets add TURNSTILE_HOSTNAMES kytos-hub.vercel.app
 
 # Desplegar (o actualizar) la función de validación
 npx -y @insforge/cli functions deploy verify-turnstile --file functions/verify-turnstile.ts
@@ -81,14 +82,19 @@ npx -y @insforge/cli functions deploy verify-turnstile --file functions/verify-t
 npx -y @insforge/cli functions list
 ```
 
-La función es pública (se invoca antes de tener sesión) y responde:
+La función es pública (se invoca antes de tener sesión). Además de
+`success === true`, exige que la `action` (`login` o `signup`) y el `hostname`
+devuelto por Cloudflare coincidan con los esperados. Responde:
 
 ```json
-{ "success": true, "data": { "hostname": "kytos-hub.vercel.app", "challengeTs": "..." }, "error": null }
+{ "success": true, "data": { "action": "login", "hostname": "kytos-hub.vercel.app", "challengeTs": "..." }, "error": null }
 ```
 
 En fallo responde `success: false` con `error.code` (`TURNSTILE_FAILED`,
-`TURNSTILE_UNAVAILABLE`, `INVALID_TOKEN`, `CONFIG_ERROR`, ...).
+`TURNSTILE_UNAVAILABLE`, `INVALID_TOKEN`, `INVALID_ACTION`, `CONFIG_ERROR`, ...).
+
+`TURNSTILE_HOSTNAMES` es una lista separada por comas. En producción debe
+contener **solo** el hostname del frontend, nunca `localhost`.
 
 Si se rota el secret en Cloudflare, actualizarlo con:
 
@@ -105,8 +111,11 @@ npx -y @insforge/cli secrets update TURNSTILE_SECRET_KEY --value 0x4AAAAAAA_NUEV
    ```
 
 2. Tener `localhost` en los hostnames del widget en Cloudflare.
-3. `npm run dev`. El widget funciona igual porque la función desplegada usa el
-   secret real.
+3. `npm run dev`. El widget se renderiza, pero el backend de producción rechaza
+   tokens con `hostname=localhost` (la allowlist solo tiene el dominio de
+   Vercel). Para probar el login local de punta a punta usa una rama de backend
+   con `TURNSTILE_HOSTNAMES=kytos-hub.vercel.app,localhost`; no agregues
+   `localhost` a la allowlist de producción.
 
 Si no se define `VITE_TURNSTILE_SITE_KEY`, en desarrollo el login continúa sin
 captcha y en producción se bloquea con un mensaje de configuración. Esto evita
@@ -141,8 +150,8 @@ o desplegar una rama de backend separada.
 | --- | --- |
 | El widget no aparece | Falta `VITE_TURNSTILE_SITE_KEY` o no se redeployó Vercel |
 | `Error 300030` / hostname no autorizado | El hostname actual no está en Cloudflare |
-| `La verificación falló o expiró` | Token vencido (>5 min) o reutilizado; se remonta el widget |
-| `La verificación de seguridad no está configurada` | Falta `TURNSTILE_SECRET_KEY` en InsForge |
+| `La verificación falló o expiró` | Token vencido (>5 min), reutilizado, `action` distinta o hostname no permitido |
+| `La verificación de seguridad no está configurada` | Faltan `TURNSTILE_SECRET_KEY` o `TURNSTILE_HOSTNAMES` en InsForge |
 | Funciona en local pero no en producción | Se agregó la variable en Vercel pero falta el Redeploy |
 
 ## 8. Límite de seguridad importante

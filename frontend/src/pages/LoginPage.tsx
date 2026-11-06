@@ -186,7 +186,11 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
 
           {TURNSTILE_ENABLED && (
             <div className="flex justify-center min-h-[65px]">
-              <TurnstileWidget key={turnstileKey} onToken={setTurnstileToken} />
+              <TurnstileWidget
+                key={turnstileKey}
+                onToken={setTurnstileToken}
+                action={mode === 'login' ? 'login' : 'signup'}
+              />
             </div>
           )}
 

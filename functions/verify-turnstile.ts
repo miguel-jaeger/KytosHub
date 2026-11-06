@@ -3,11 +3,13 @@
 // El secret key vive en los secrets de InsForge (TURNSTILE_SECRET_KEY) y nunca
 // se expone al navegador. El login/registro del frontend llama a esta función
 // antes de autenticar, de modo que un token inválido, expirado o reutilizado
-// no permite continuar.
+// no permite continuar. Además de `success`, se exige que la acción y el
+// hostname devueltos por Cloudflare coincidan con los esperados.
 
 const SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const MAX_TOKEN_LENGTH = 2048;
 const REQUEST_TIMEOUT_MS = 8000;
+const ACTION_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -56,8 +58,17 @@ export default async function (req: Request): Promise<Response> {
   }
 
   const secret = Deno.env.get('TURNSTILE_SECRET_KEY')?.trim();
-  if (!secret) {
-    console.error('TURNSTILE_SECRET_KEY no está configurado en los secrets de InsForge');
+  const expectedHostnames = new Set(
+    (Deno.env.get('TURNSTILE_HOSTNAMES') ?? '')
+      .split(',')
+      .map(hostname => hostname.trim().toLowerCase())
+      .filter(Boolean)
+  );
+
+  if (!secret || expectedHostnames.size === 0) {
+    console.error(
+      'Configuración incompleta: faltan TURNSTILE_SECRET_KEY o TURNSTILE_HOSTNAMES en los secrets de InsForge'
+    );
     return json(
       { success: false, data: null, error: { code: 'CONFIG_ERROR', message: 'La verificación de seguridad no está configurada.' } },
       500
@@ -65,9 +76,11 @@ export default async function (req: Request): Promise<Response> {
   }
 
   let token = '';
+  let action = '';
   try {
     const body = (await req.json()) as Record<string, unknown>;
     token = typeof body.token === 'string' ? body.token.trim() : '';
+    action = typeof body.action === 'string' ? body.action.trim() : '';
   } catch {
     return json(
       { success: false, data: null, error: { code: 'INVALID_BODY', message: 'Cuerpo de la solicitud inválido.' } },
@@ -78,6 +91,13 @@ export default async function (req: Request): Promise<Response> {
   if (!token || token.length > MAX_TOKEN_LENGTH) {
     return json(
       { success: false, data: null, error: { code: 'INVALID_TOKEN', message: 'Completa la verificación de seguridad.' } },
+      400
+    );
+  }
+
+  if (!ACTION_PATTERN.test(action)) {
+    return json(
+      { success: false, data: null, error: { code: 'INVALID_ACTION', message: 'Acción de verificación inválida.' } },
       400
     );
   }
@@ -121,10 +141,20 @@ export default async function (req: Request): Promise<Response> {
       );
     }
 
+    const hostname = (result.hostname ?? '').toLowerCase();
+    if (result.action !== action || !expectedHostnames.has(hostname)) {
+      console.warn('Turnstile action/hostname inválido:', { action: result.action, hostname });
+      return json(
+        { success: false, data: null, error: { code: 'TURNSTILE_FAILED', message: 'La verificación de seguridad falló o expiró. Inténtalo de nuevo.' } },
+        400
+      );
+    }
+
     return json(
       {
         success: true,
         data: {
+          action: result.action,
           hostname: result.hostname ?? null,
           challengeTs: result.challenge_ts ?? null
         },

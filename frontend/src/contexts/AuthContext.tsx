@@ -26,7 +26,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 interface TurnstileVerifyResponse {
   success: boolean;
-  data?: { hostname?: string | null; challengeTs?: string | null } | null;
+  data?: { action?: string | null; hostname?: string | null; challengeTs?: string | null } | null;
   error?: { code?: string; message?: string } | null;
 }
 
@@ -207,7 +207,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [applyUser, persistSession]);
 
-  const verifyTurnstileToken = useCallback(async (token: string): Promise<string | null> => {
+  const verifyTurnstileToken = useCallback(async (
+    token: string,
+    action: 'login' | 'signup'
+  ): Promise<string | null> => {
     if (!TURNSTILE_ENABLED) {
       // Sin sitekey en desarrollo se permite continuar; en producción se falla
       // cerrado para evitar desplegar el login sin captcha por error.
@@ -219,7 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data, error } = await invokeFunction<TurnstileVerifyResponse>('verify-turnstile', {
       method: 'POST',
-      body: { token }
+      body: { token, action }
     });
 
     if (error) return translateAuthError(error.message);
@@ -228,7 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithPassword = useCallback(async (email: string, password: string, turnstileToken: string) => {
-    const turnstileError = await verifyTurnstileToken(turnstileToken);
+    const turnstileError = await verifyTurnstileToken(turnstileToken, 'login');
     if (turnstileError) return { error: turnstileError };
 
     const { data, error } = await insforge.auth.signInWithPassword({ email, password });
@@ -245,7 +248,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applyUser, verifyTurnstileToken]);
 
   const signUp = useCallback(async (email: string, password: string, name: string, turnstileToken: string) => {
-    const turnstileError = await verifyTurnstileToken(turnstileToken);
+    const turnstileError = await verifyTurnstileToken(turnstileToken, 'signup');
     if (turnstileError) return { error: turnstileError, requireVerification: false };
 
     const { data, error } = await insforge.auth.signUp({
