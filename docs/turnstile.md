@@ -26,11 +26,14 @@ Dashboard → **Turnstile** → **Add widget**.
 | --- | --- |
 | Widget name | `KytosHub Auth` |
 | Widget Mode | `Managed` |
-| Hostnames | `kytos-hub.vercel.app`<br>`5vvsyy6z.insforge.site`<br>`localhost` |
+| Hostnames | `kytos-hub.vercel.app`<br>`localhost` |
 | Pre-clearance | Desactivado |
 
 Notas:
 
+- Solo se autorizan hostnames del **frontend**. El backend de InsForge
+  (`5vvsyy6z.us-east.insforge.app`) no necesita estar en la lista: el widget se
+  renderiza únicamente en el navegador del usuario.
 - Los hostnames **no admiten comodines**. Agregar un hostname autoriza también
   sus subdominios, pero no el dominio padre ni dominios hermanos.
 - Si se usa un dominio propio (por ejemplo `app.kytoshub.com`), agregarlo a la
@@ -57,9 +60,8 @@ Notas:
   backend de InsForge.
 - Vite inyecta las variables en tiempo de **build**: después de agregarla hay
   que hacer **Redeploy** para que aparezca en el sitio.
-- Si también se publica el frontend en InsForge (`5vvsyy6z.insforge.site`), hay
-  que definir la misma variable en las env vars de ese deployment con
-  `npx -y @insforge/cli deployments ...` o desde el dashboard.
+- `5vvsyy6z.insforge.site` es el backend; no requiere esta variable ni un
+  hostname en Turnstile. El widget solo se renderiza en el frontend.
 
 `vercel.json` no requiere cambios: no hay CSP propia que bloquee
 `https://challenges.cloudflare.com`.
