@@ -1,0 +1,67 @@
+name: InsForge Keep-Alive
+
+# InsForge pausa los proyectos gratuitos tras 7 días sin actividad.
+# Este workflow hace ping al backend cada 3 días para mantenerlo despierto.
+#
+# Nota: GitHub desactiva automáticamente los workflows programados tras
+# 60 días sin actividad en el repositorio (commits, PRs, issues). Si eso
+# ocurre, basta con hacer un commit o reactivarlo desde la pestaña Actions.
+
+on:
+  schedule:
+    # Cada 3 días a las 09:00 UTC (margen de 4 días antes del límite de 7).
+    - cron: "0 9 */3 * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: insforge-keepalive
+  cancel-in-progress: false
+
+env:
+  # Puedes sobreescribir la URL desde Settings > Variables > Actions.
+  INSFORGE_HEALTH_URL: ${{ vars.INSFORGE_HEALTH_URL || 'https://5vvsyy6z.us-east.insforge.app/api/health' }}
+
+jobs:
+  ping:
+    name: Ping InsForge
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Despertar backend
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Ping a: $INSFORGE_HEALTH_URL"
+          echo "Fecha: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
+          # --retry con --retry-all-errors cubre arranques en frío y errores 5xx.
+          response=$(curl -fsS \
+            --max-time 60 \
+            --retry 5 \
+            --retry-delay 20 \
+            --retry-all-errors \
+            -w '\n%{http_code}' \
+            "$INSFORGE_HEALTH_URL")
+
+          status=$(tail -n1 <<< "$response")
+          body=$(sed '$d' <<< "$response")
+
+          echo "HTTP $status"
+          echo "$body"
+
+          if [ "$status" != "200" ]; then
+            echo "::error::InsForge respondió con HTTP $status"
+            exit 1
+          fi
+
+          {
+            echo "### InsForge Keep-Alive ✅"
+            echo ""
+            echo "- **Endpoint:** \`$INSFORGE_HEALTH_URL\`"
+            echo "- **HTTP:** \`$status\`"
+            echo "- **Respuesta:** \`$body\`"
+            echo "- **Ejecutado:** $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          } >> "$GITHUB_STEP_SUMMARY"
