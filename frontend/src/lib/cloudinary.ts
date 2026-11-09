@@ -1,5 +1,7 @@
-const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
-const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '';
+// Valores públicos que ya viajan en el bundle. Se dejan como fallback para
+// que el build funcione aunque no exista frontend/.env (p. ej. en Vercel).
+const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dhecags26';
+const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'condominios';
 
 const buildFolder = (shortName: string) => `condominios/${shortName}`;
 
