@@ -18,6 +18,9 @@ on:
     # Se evita el minuto 0 porque GitHub retrasa/descarta más los crons que
     # coinciden con el inicio de la hora.
     - cron: "17 9 */3 * *"
+    # Respaldo cada 5 días a las 14:47 UTC, en un horario distinto para no
+    # depender de una sola ejecución si GitHub retrasa o pierde la principal.
+    - cron: "47 14 */5 * *"
   workflow_dispatch:
 
 permissions: {}
