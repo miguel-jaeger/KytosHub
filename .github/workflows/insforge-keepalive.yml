@@ -1,7 +1,12 @@
 name: InsForge Keep-Alive
 
 # InsForge pausa los proyectos gratuitos tras 7 días sin actividad.
-# Este workflow hace ping al backend cada 3 días para mantenerlo despierto.
+#
+# Importante: /api/health puede responder 200 sin marcar el proyecto como
+# activo, porque los health checks no se consideran tráfico de producto.
+# Por eso, además del health check, hacemos una consulta real a la base de
+# datos (lectura autenticada). Esa petición sí reinicia el contador de
+# inactividad de 7 días.
 #
 # Nota: GitHub desactiva automáticamente los workflows programados tras
 # 60 días sin actividad en el repositorio (commits, PRs, issues). Si eso
@@ -9,8 +14,10 @@ name: InsForge Keep-Alive
 
 on:
   schedule:
-    # Cada 3 días a las 09:00 UTC (margen de 4 días antes del límite de 7).
-    - cron: "0 9 */3 * *"
+    # Cada 3 días a las 09:17 UTC (margen de 4 días antes del límite de 7).
+    # Se evita el minuto 0 porque GitHub retrasa/descarta más los crons que
+    # coinciden con el inicio de la hora.
+    - cron: "17 9 */3 * *"
   workflow_dispatch:
 
 permissions: {}
@@ -19,32 +26,36 @@ concurrency:
   group: insforge-keepalive
   cancel-in-progress: false
 
-env:
-  # Puedes sobreescribir la URL desde Settings > Variables > Actions.
-  INSFORGE_HEALTH_URL: ${{ vars.INSFORGE_HEALTH_URL || 'https://5vvsyy6z.us-east.insforge.app/api/health' }}
-
 jobs:
   ping:
-    name: Ping InsForge
+    name: Mantener InsForge activo
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      # Puedes sobreescribir la URL desde Settings > Variables > Actions.
+      INSFORGE_URL: ${{ vars.INSFORGE_URL || 'https://5vvsyy6z.us-east.insforge.app' }}
+      # La anon key es pública por diseño (viaja al navegador). Se puede
+      # sobreescribir con el secret/variable INSFORGE_ANON_KEY.
+      INSFORGE_ANON_KEY: ${{ secrets.INSFORGE_ANON_KEY || vars.INSFORGE_ANON_KEY || 'anon_5f9299a95b22ec28e9448096df4bf583846acc6706e489d739c8b0a6c8b0bc14' }}
+      # Tabla pública de solo lectura usada para generar actividad real.
+      INSFORGE_KEEPALIVE_TABLE: ${{ vars.INSFORGE_KEEPALIVE_TABLE || 'tenants' }}
     steps:
-      - name: Despertar backend
+      - name: Comprobar salud del backend
         shell: bash
         run: |
           set -euo pipefail
 
-          echo "Ping a: $INSFORGE_HEALTH_URL"
+          health_url="$INSFORGE_URL/api/health"
+          echo "Health check: $health_url"
           echo "Fecha: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
-          # --retry con --retry-all-errors cubre arranques en frío y errores 5xx.
           response=$(curl -fsS \
             --max-time 60 \
             --retry 5 \
             --retry-delay 20 \
             --retry-all-errors \
             -w '\n%{http_code}' \
-            "$INSFORGE_HEALTH_URL")
+            "$health_url")
 
           status=$(tail -n1 <<< "$response")
           body=$(sed '$d' <<< "$response")
@@ -53,14 +64,53 @@ jobs:
           echo "$body"
 
           if [ "$status" != "200" ]; then
-            echo "::error::InsForge respondió con HTTP $status"
+            echo "::error::InsForge respondió al health check con HTTP $status"
             exit 1
           fi
 
           {
-            echo "### InsForge Keep-Alive ✅"
+            echo "### InsForge Keep-Alive"
             echo ""
-            echo "- **Endpoint:** \`$INSFORGE_HEALTH_URL\`"
+            echo "- **Health check:** \`$health_url\`"
+            echo "- **HTTP:** \`$status\`"
+            echo "- **Respuesta:** \`$body\`"
+            echo "- **Ejecutado:** $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Generar actividad real en la base de datos
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          activity_url="$INSFORGE_URL/api/database/records/$INSFORGE_KEEPALIVE_TABLE?select=id&limit=1"
+          echo "Actividad real: $activity_url"
+
+          response=$(curl -sS \
+            --max-time 60 \
+            --retry 5 \
+            --retry-delay 20 \
+            --retry-all-errors \
+            -H "Authorization: Bearer $INSFORGE_ANON_KEY" \
+            -H "Accept: application/json" \
+            -w '\n%{http_code}' \
+            "$activity_url")
+
+          status=$(tail -n1 <<< "$response")
+          body=$(sed '$d' <<< "$response")
+
+          echo "HTTP $status"
+          echo "$body"
+
+          if [ "$status" != "200" ]; then
+            echo "::error::La consulta de actividad respondió con HTTP $status (se esperaba 200)"
+            exit 1
+          fi
+
+          {
+            echo ""
+            echo "### Actividad de base de datos"
+            echo ""
+            echo "- **Endpoint:** \`$activity_url\`"
             echo "- **HTTP:** \`$status\`"
             echo "- **Respuesta:** \`$body\`"
             echo "- **Ejecutado:** $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
