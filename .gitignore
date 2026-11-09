@@ -15,6 +15,9 @@ dist/
 .env.*
 !.env.example
 
+# Configuración local del CLI de InsForge (contiene la API key del proyecto)
+.insforge/project.json
+
 # Logs y archivos del sistema
 *.log
 .DS_Store
