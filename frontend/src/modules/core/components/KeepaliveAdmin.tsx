@@ -56,13 +56,6 @@ function StatusBadge({ status }: { status: string }) {
   return <span className="status-badge status-late">Con error</span>;
 }
 
-function detailLabel(details: Record<string, unknown> | null): string {
-  if (!details) return '—';
-  const method = typeof details.method === 'string' ? details.method : '';
-  const path = typeof details.path === 'string' ? details.path : '';
-  return [method, path].filter(Boolean).join(' ') || '—';
-}
-
 function SummaryCard({ icon, label, value, hint }: { icon: string; label: string; value: string; hint?: string }) {
   return (
     <div className="module-card">
@@ -84,29 +77,21 @@ function RunsTable({ runs }: { runs: KeepaliveRun[] }) {
       <table>
         <thead>
           <tr>
+            <th>Fecha</th>
             <th>Origen</th>
             <th>Estado</th>
-            <th>HTTP</th>
-            <th>Ejecutado</th>
-            <th>Hace</th>
-            <th>Duración</th>
-            <th>IP</th>
-            <th>User-Agent</th>
             <th>Detalle</th>
+            <th>Duración</th>
           </tr>
         </thead>
         <tbody>
           {runs.map(run => (
             <tr key={run.id}>
+              <td>{formatDateTime(run.executed_at)}</td>
               <td>{sourceLabel(run.source)}</td>
               <td><StatusBadge status={run.status} /></td>
-              <td>{run.http_status}</td>
-              <td>{formatDateTime(run.executed_at)}</td>
-              <td>{timeAgo(run.executed_at)}</td>
+              <td><code>HTTP {run.http_status}</code></td>
               <td>{run.duration_ms != null ? `${run.duration_ms} ms` : '—'}</td>
-              <td>{run.client_ip || '—'}</td>
-              <td title={run.user_agent || ''}>{run.user_agent ? `${run.user_agent.slice(0, 60)}${run.user_agent.length > 60 ? '…' : ''}` : '—'}</td>
-              <td><code>{detailLabel(run.details)}</code></td>
             </tr>
           ))}
         </tbody>
