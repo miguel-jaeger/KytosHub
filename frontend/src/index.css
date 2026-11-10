@@ -4071,3 +4071,31 @@ html.dark .receipt-sedapal-fields { border-top-color: #444; }
   .receipt-print { max-width: none; padding: 4mm 6mm; box-shadow: none; }
 }
 @page { size: A4; margin: 10mm; }
+
+/* Filtros de la página Estado del Cron: selects legibles en modo claro/oscuro */
+.keepalive-filter-select {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #c6c6cd;
+  border-radius: 8px;
+  background: #f8f9ff;
+  color: #0b1c30;
+  font-size: 0.9rem;
+  color-scheme: light;
+}
+
+.keepalive-filter-select option {
+  background: #ffffff;
+  color: #0b1c30;
+}
+
+html.dark .keepalive-filter-select {
+  background: #333d48;
+  border-color: #444;
+  color: #e5e7eb;
+  color-scheme: dark;
+}
+
+html.dark .keepalive-filter-select option {
+  background: #27313c;
+  color: #e5e7eb;
+}
