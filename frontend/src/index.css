@@ -4099,3 +4099,85 @@ html.dark .keepalive-filter-select option {
   background: #27313c;
   color: #e5e7eb;
 }
+
+/* Tabla de ejecuciones del cron: columnas con anchos equilibrados */
+.keepalive-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dashboard .keepalive-runs-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.dashboard .keepalive-runs-table th,
+.dashboard .keepalive-runs-table td {
+  padding: 0.65rem 0.75rem;
+  vertical-align: middle;
+  font-size: 0.82rem;
+}
+
+.dashboard .keepalive-runs-table th:nth-child(1),
+.dashboard .keepalive-runs-table td:nth-child(1) {
+  width: 26%;
+  white-space: nowrap;
+}
+
+.dashboard .keepalive-runs-table th:nth-child(2),
+.dashboard .keepalive-runs-table td:nth-child(2) {
+  width: 18%;
+}
+
+.dashboard .keepalive-runs-table th:nth-child(3),
+.dashboard .keepalive-runs-table td:nth-child(3) {
+  width: 16%;
+}
+
+.dashboard .keepalive-runs-table th:nth-child(4),
+.dashboard .keepalive-runs-table td:nth-child(4) {
+  width: 20%;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.dashboard .keepalive-runs-table th:nth-child(5),
+.dashboard .keepalive-runs-table td:nth-child(5) {
+  width: 20%;
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .dashboard .keepalive-runs-table th,
+  .dashboard .keepalive-runs-table td {
+    padding: 0.5rem 0.45rem;
+    font-size: 0.75rem;
+  }
+
+  .dashboard .keepalive-runs-table th:nth-child(1),
+  .dashboard .keepalive-runs-table td:nth-child(1) {
+    width: 32%;
+    white-space: normal;
+  }
+
+  .dashboard .keepalive-runs-table th:nth-child(2),
+  .dashboard .keepalive-runs-table td:nth-child(2) {
+    width: 20%;
+  }
+
+  .dashboard .keepalive-runs-table th:nth-child(3),
+  .dashboard .keepalive-runs-table td:nth-child(3) {
+    width: 16%;
+  }
+
+  .dashboard .keepalive-runs-table th:nth-child(4),
+  .dashboard .keepalive-runs-table td:nth-child(4) {
+    width: 16%;
+  }
+
+  .dashboard .keepalive-runs-table th:nth-child(5),
+  .dashboard .keepalive-runs-table td:nth-child(5) {
+    width: 16%;
+  }
+}
