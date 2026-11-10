@@ -73,8 +73,8 @@ function SummaryCard({ icon, label, value, hint }: { icon: string; label: string
 
 function RunsTable({ runs }: { runs: KeepaliveRun[] }) {
   return (
-    <div className="users-table-wrap">
-      <table>
+    <div className="users-table-wrap keepalive-table-wrap">
+      <table className="keepalive-runs-table">
         <thead>
           <tr>
             <th>Fecha</th>
