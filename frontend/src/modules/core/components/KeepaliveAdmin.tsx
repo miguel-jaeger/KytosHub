@@ -159,7 +159,7 @@ export function KeepaliveAdmin() {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-end', marginBottom: '1rem' }}>
             <label style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
               <small className="text-muted">Estado</small>
-              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as StatusFilter)}>
+              <select className="keepalive-filter-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value as StatusFilter)}>
                 <option value="all">Todos</option>
                 <option value="success">Correctas</option>
                 <option value="failure">Con error</option>
@@ -168,7 +168,7 @@ export function KeepaliveAdmin() {
 
             <label style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
               <small className="text-muted">Origen</small>
-              <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}>
+              <select className="keepalive-filter-select" value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}>
                 <option value="all">Todos</option>
                 {sources.map(source => (
                   <option key={source} value={source}>{sourceLabel(source)}</option>
