@@ -1,5 +1,7 @@
+import { useEffect, useMemo, useState } from 'react';
 import { useKeepaliveStatus } from '../hooks/useKeepaliveStatus';
-import type { KeepaliveRun, KeepaliveStatusRow } from '../hooks/useKeepaliveStatus';
+import type { KeepaliveRun } from '../hooks/useKeepaliveStatus';
+import { PaginationBar, paginate } from '../../../components/Pagination';
 
 const SOURCE_LABELS: Record<string, string> = {
   github: 'GitHub Actions',
@@ -8,8 +10,18 @@ const SOURCE_LABELS: Record<string, string> = {
   unknown: 'Desconocido'
 };
 
+const SOURCE_ORDER = ['github', 'external', 'manual', 'unknown'];
+
+type StatusFilter = 'all' | 'success' | 'failure';
+type SourceFilter = 'all' | string;
+
 function sourceLabel(source: string): string {
   return SOURCE_LABELS[source] || source;
+}
+
+function sourceRank(source: string): number {
+  const index = SOURCE_ORDER.indexOf(source);
+  return index === -1 ? SOURCE_ORDER.length : index;
 }
 
 function formatDateTime(value: string | null): string {
@@ -39,10 +51,9 @@ function timeAgo(value: string | null): string {
   return `hace ${days} d ${hours % 24} h`;
 }
 
-function StatusBadge({ status, stale }: { status: string; stale?: boolean }) {
-  if (stale) return <span className="status-badge status-warn">Sin ejecución reciente</span>;
-  if (status === 'success') return <span className="status-badge status-occupied">OK</span>;
-  return <span className="status-badge status-late">Fallo</span>;
+function StatusBadge({ status }: { status: string }) {
+  if (status === 'success') return <span className="status-badge status-occupied">Correcta</span>;
+  return <span className="status-badge status-late">Con error</span>;
 }
 
 function detailLabel(details: Record<string, unknown> | null): string {
@@ -52,34 +63,17 @@ function detailLabel(details: Record<string, unknown> | null): string {
   return [method, path].filter(Boolean).join(' ') || '—';
 }
 
-function StatusCard({ row }: { row: KeepaliveStatusRow }) {
+function SummaryCard({ icon, label, value, hint }: { icon: string; label: string; value: string; hint?: string }) {
   return (
     <div className="module-card">
       <div className="module-card-head">
         <div>
-          <h4>{sourceLabel(row.source)}</h4>
-          <p>Última ejecución: {formatDateTime(row.last_run_at)}</p>
+          <h4>{label}</h4>
+          <p>{hint || '\u00A0'}</p>
         </div>
-        <StatusBadge status={row.last_status} stale={row.is_stale} />
+        <span className="material-symbols-outlined">{icon}</span>
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem', marginTop: '0.75rem' }}>
-        <div>
-          <small className="text-muted">HTTP</small>
-          <div>{row.last_http_status ?? '—'}</div>
-        </div>
-        <div>
-          <small className="text-muted">Duración</small>
-          <div>{row.last_duration_ms != null ? `${row.last_duration_ms} ms` : '—'}</div>
-        </div>
-        <div>
-          <small className="text-muted">Hace</small>
-          <div>{timeAgo(row.last_run_at)}</div>
-        </div>
-        <div>
-          <small className="text-muted">IP</small>
-          <div>{row.last_client_ip || '—'}</div>
-        </div>
-      </div>
+      <div style={{ marginTop: '0.5rem', fontSize: '1.35rem', fontWeight: 600, lineHeight: 1.2 }}>{value}</div>
     </div>
   );
 }
@@ -123,6 +117,40 @@ function RunsTable({ runs }: { runs: KeepaliveRun[] }) {
 
 export function KeepaliveAdmin() {
   const { status, runs, generatedAt, loading, refreshing, error, refresh } = useKeepaliveStatus();
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState<number | 'all'>(10);
+
+  const sources = useMemo(() => {
+    const all = new Set<string>();
+    status.forEach(row => all.add(row.source));
+    runs.forEach(run => all.add(run.source));
+    return Array.from(all).sort((a, b) => sourceRank(a) - sourceRank(b) || a.localeCompare(b));
+  }, [status, runs]);
+
+  const filteredRuns = useMemo(() => {
+    return runs.filter(run => {
+      if (statusFilter !== 'all' && run.status !== statusFilter) return false;
+      if (sourceFilter !== 'all' && run.source !== sourceFilter) return false;
+      return true;
+    });
+  }, [runs, statusFilter, sourceFilter]);
+
+  const lastRun = filteredRuns[0] || null;
+  const total = filteredRuns.length;
+  const successCount = filteredRuns.filter(run => run.status === 'success').length;
+  const errorCount = total - successCount;
+
+  useEffect(() => { setPage(1); }, [statusFilter, sourceFilter, perPage]);
+
+  const pageSize = perPage === 'all' ? Math.max(1, total) : perPage;
+  const { slice: pagedRuns } = paginate(filteredRuns, page, pageSize);
+
+  const resetFilters = () => {
+    setStatusFilter('all');
+    setSourceFilter('all');
+  };
 
   return (
     <div className="dashboard">
@@ -143,27 +171,66 @@ export function KeepaliveAdmin() {
         <div className="error-message">{error}</div>
       ) : (
         <>
-          {status.length === 0 ? (
-            <div className="empty-state"><p>Todavía no hay ejecuciones registradas.</p></div>
-          ) : (
-            <div className="modules-grid" style={{ marginBottom: '1.25rem' }}>
-              {status.map(row => <StatusCard key={row.source} row={row} />)}
-            </div>
-          )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-end', marginBottom: '1rem' }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              <small className="text-muted">Estado</small>
+              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as StatusFilter)}>
+                <option value="all">Todos</option>
+                <option value="success">Correctas</option>
+                <option value="failure">Con error</option>
+              </select>
+            </label>
+
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              <small className="text-muted">Origen</small>
+              <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}>
+                <option value="all">Todos</option>
+                {sources.map(source => (
+                  <option key={source} value={source}>{sourceLabel(source)}</option>
+                ))}
+              </select>
+            </label>
+
+            <button type="button" onClick={resetFilters} disabled={statusFilter === 'all' && sourceFilter === 'all'}>
+              Limpiar filtros
+            </button>
+          </div>
+
+          <div className="modules-grid" style={{ marginBottom: '1.25rem' }}>
+            <SummaryCard
+              icon="schedule"
+              label="Última ejecución"
+              value={lastRun ? formatDateTime(lastRun.executed_at) : '—'}
+              hint={lastRun ? timeAgo(lastRun.executed_at) : 'Sin ejecuciones para los filtros'}
+            />
+            <SummaryCard icon="list_alt" label="Ejecuciones" value={String(total)} hint="Según los filtros" />
+            <SummaryCard icon="check_circle" label="Correctas" value={String(successCount)} />
+            <SummaryCard icon="error" label="Con error" value={String(errorCount)} />
+          </div>
 
           <div className="header" style={{ marginTop: '0.5rem' }}>
             <div>
-              <h3>Últimas ejecuciones</h3>
+              <h3>Detalle de ejecuciones</h3>
               <small className="text-muted">
                 {generatedAt ? `Actualizado: ${formatDateTime(generatedAt)}` : 'Sin datos de actualización'}
               </small>
             </div>
           </div>
 
-          {runs.length === 0 ? (
-            <div className="empty-state"><p>No hay ejecuciones para mostrar.</p></div>
+          {total === 0 ? (
+            <div className="empty-state"><p>No hay ejecuciones que coincidan con los filtros.</p></div>
           ) : (
-            <RunsTable runs={runs} />
+            <>
+              <RunsTable runs={pagedRuns} />
+              <PaginationBar
+                total={total}
+                page={page}
+                perPage={perPage}
+                onPageChange={setPage}
+                onPerPageChange={setPerPage}
+                itemLabel="ejecución"
+              />
+            </>
           )}
         </>
       )}

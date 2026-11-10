@@ -50,7 +50,7 @@ export function useKeepaliveStatus() {
     try {
       const { data, error: fnError } = await invokeFunction<KeepaliveResponse>('keepalive-admin', {
         method: 'POST',
-        body: { action: 'get', limit: 50 }
+        body: { action: 'get', limit: 200 }
       });
       if (fnError) throw fnError;
       if (!data?.success || !data.data) {
