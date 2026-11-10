@@ -15,6 +15,7 @@ import { VisitorPage } from './pages/VisitorPage';
 import { SetupWizard } from './modules/core/components/SetupWizard';
 import { SuperAdminDashboard } from './modules/core/components/SuperAdminDashboard';
 import { CondominioAdminDashboard } from './modules/core/components/CondominioAdminDashboard';
+import { KeepaliveAdmin } from './modules/core/components/KeepaliveAdmin';
 import { ResidentBillingView } from './modules/core/components/ResidentBillingView';
 import { invokeFunction } from './lib/insforge';
 import { TEXT_SCALES, getTextScale, setTextScale, applyTextScale, initTextScale } from './lib/text-size';
@@ -79,6 +80,7 @@ function AppShell() {
           <Route path="/visitor" element={<VisitorPage />} />
           <Route path="/billing" element={<BillingRoute />} />
           <Route path="/admin/condominiums" element={<SuperAdminDashboard />} />
+          <Route path="/admin/keepalive" element={<SuperAdminRoute><KeepaliveAdmin /></SuperAdminRoute>} />
           <Route path="/admin/users" element={<AdminUsersRoute><CondominioAdminDashboard /></AdminUsersRoute>} />
           <Route path="/setup" element={<SetupWizard />} />
         </Routes>
@@ -228,7 +230,8 @@ function Dashboard() {
     modulesByAccess.push(
       { to: '/admin/condominiums', title: 'Administrar Condominios', desc: 'Ver, registrar y gestionar condominios', icon: 'apartment' },
       { onClick: () => void openMyCondominium(), title: 'Mi Condominio', desc: 'Estructura, puertas, módulos activos, carritos y estacionamiento', icon: 'home_work' },
-      { to: '/admin/users', title: 'Gestionar Usuarios', desc: 'Administrar roles y accesos del condominio', icon: 'group' }
+      { to: '/admin/users', title: 'Gestionar Usuarios', desc: 'Administrar roles y accesos del condominio', icon: 'group' },
+      { to: '/admin/keepalive', title: 'Estado del Cron', desc: 'Ejecuciones del keepalive de InsForge y estado de la última actividad', icon: 'monitoring' }
     );
   } else if (role === 'admin') {
     modulesByAccess.push(
@@ -310,6 +313,13 @@ function Dashboard() {
       )}
     </div>
   );
+}
+
+function SuperAdminRoute({ children }: { children: React.ReactNode }) {
+  const role = useUserRole();
+  if (role === 'loading') return <div className="loading-message">Cargando...</div>;
+  if (role !== 'super') return <Navigate to="/" replace />;
+  return <>{children}</>;
 }
 
 function AdminUsersRoute({ children }: { children: React.ReactNode }) {

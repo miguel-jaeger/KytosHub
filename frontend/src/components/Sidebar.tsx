@@ -132,6 +132,13 @@ export function Sidebar() {
           </Link>
         )}
 
+        {isSuperAdmin && (
+          <Link to="/admin/keepalive" className={`mobile-nav-link ${location.pathname === '/admin/keepalive' ? 'active' : ''}`}>
+            <span className="material-symbols-outlined">monitoring</span>
+            {!collapsed && <span className="mobile-nav-label">Cron</span>}
+          </Link>
+        )}
+
         {canManageCondo && (
           <button onClick={openMyCondominium} className={`mobile-nav-link ${location.pathname === '/setup' ? 'active' : ''}`}>
             <span className="material-symbols-outlined">home_work</span>
@@ -206,6 +213,13 @@ export function Sidebar() {
           <Link to="/admin/condominiums" className={linkClass('/admin/condominiums')} title={collapsed ? 'Condominios' : undefined}>
             <span className="material-symbols-outlined">apartment</span>
             {!collapsed && <span className="sidebar-label">Condominios</span>}
+          </Link>
+        )}
+
+        {isSuperAdmin && (
+          <Link to="/admin/keepalive" className={linkClass('/admin/keepalive')} title={collapsed ? 'Estado del Cron' : undefined}>
+            <span className="material-symbols-outlined">monitoring</span>
+            {!collapsed && <span className="sidebar-label">Estado del Cron</span>}
           </Link>
         )}
 
