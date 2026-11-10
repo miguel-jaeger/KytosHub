@@ -13,6 +13,7 @@ const routes = [
   '/profile',
   '/setup',
   '/admin/condominiums',
+  '/admin/keepalive',
   '/admin/users'
 ];
 
