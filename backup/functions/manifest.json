@@ -1,0 +1,302 @@
+{
+  "generatedAt": "2026-11-24T16:04:53.074Z",
+  "project": {
+    "projectId": "f7949f63-4031-43fb-8220-8840c08b0522",
+    "name": "KytosHub",
+    "region": "us-east",
+    "url": "https://5vvsyy6z.us-east.insforge.app",
+    "appkey": "5vvsyy6z"
+  },
+  "deploymentUrl": "https://5vvsyy6z.function2.insforge.app",
+  "runtime": {
+    "status": "running"
+  },
+  "functions": [
+    {
+      "slug": "keepalive-admin",
+      "id": "e91adbeb-3175-4d84-b83e-8437a7718b5f",
+      "status": "active",
+      "deployedAt": "2026-11-10T15:49:35.175Z",
+      "updatedAt": "2026-11-10T15:49:35.175Z",
+      "bytes": 3655,
+      "sha256": "82f7348540095afcd614653bea9ad1be0715efdcf5d875564190570eb797f5d5",
+      "repoFile": "functions/keepalive-admin.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "keepalive",
+      "id": "ba63445d-7aea-4e7b-af2b-b4298f04da39",
+      "status": "active",
+      "deployedAt": "2026-11-09T19:49:05.746Z",
+      "updatedAt": "2026-11-10T15:32:30.547Z",
+      "bytes": 2708,
+      "sha256": "1fc3a913f90ba0af66bf17a958349a05696c31ba260948c2a6d4f98c6c77d190",
+      "repoFile": "functions/keepalive.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "verify-turnstile",
+      "id": "8d22618d-796b-4cf0-b39f-c884f4ede28a",
+      "status": "active",
+      "deployedAt": "2026-11-06T20:28:12.424Z",
+      "updatedAt": "2026-11-06T20:31:00.493Z",
+      "bytes": 5527,
+      "sha256": "ed6e25252bfd7081d7e496643d78b2dd8db14bd85700d2d57db373eeffd8ea15",
+      "repoFile": "functions/verify-turnstile.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "billing-maintenance",
+      "id": "97876160-b1b2-400f-9260-6f421eaf4b36",
+      "status": "active",
+      "deployedAt": "2026-09-22T22:46:25.520Z",
+      "updatedAt": "2026-09-30T19:16:25.469Z",
+      "bytes": 41403,
+      "sha256": "884031c2bb25f9b2b9a6b478e83339a452fae550fd19b52208d4e841807dadbc",
+      "repoFile": "functions/billing-maintenance.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "general-boards",
+      "id": "69709d5f-e0d3-48e5-8aac-15e65ad2df53",
+      "status": "active",
+      "deployedAt": "2026-09-22T21:19:55.940Z",
+      "updatedAt": "2026-09-30T19:18:19.529Z",
+      "bytes": 15789,
+      "sha256": "1fb76ab066a60d75ea4b8d4ce7abd2d73143a2781a305994c5513c3654ab3114",
+      "repoFile": "functions/general-boards.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "tower-boards",
+      "id": "fb6c10a1-0ba1-476f-b41e-198a2e4bf4c1",
+      "status": "active",
+      "deployedAt": "2026-09-22T21:19:55.463Z",
+      "updatedAt": "2026-09-30T19:22:25.567Z",
+      "bytes": 11611,
+      "sha256": "c99c103fdba00b6ebacf3c177bd0cdf115a72048331d2d74557c38a3ef05f331",
+      "repoFile": "functions/tower-boards.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "visitor-access",
+      "id": "dfad28fb-0919-47b0-8a25-14bcb84fdb24",
+      "status": "active",
+      "deployedAt": "2026-09-18T15:56:30.060Z",
+      "updatedAt": "2026-10-01T03:43:23.035Z",
+      "bytes": 20314,
+      "sha256": "2681e7e91c7deb6ae9bd7544dd05d823dc01c39390a59cf3625fcebe2e834a50",
+      "repoFile": "functions/visitor-access.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "condo-stats",
+      "id": "c8023ce1-e38c-4a96-9214-3ff1b5a3102c",
+      "status": "active",
+      "deployedAt": "2026-09-17T21:00:05.132Z",
+      "updatedAt": "2026-09-30T22:07:48.769Z",
+      "bytes": 8626,
+      "sha256": "bee3b99460b22c5b9bca11a6bf8860c744daec4f9207ded3a90fa5aa3766e9b6",
+      "repoFile": "functions/condo-stats.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "plate-ocr",
+      "id": "9e5f09d5-19a2-473e-ad67-051e5d03f4d2",
+      "status": "active",
+      "deployedAt": "2026-09-17T03:14:52.442Z",
+      "updatedAt": "2026-09-30T19:19:36.077Z",
+      "bytes": 4335,
+      "sha256": "17609185146fa5e80e1e1b980b1dd8c4c920f1e9b5c500a6638ee6e59d357180",
+      "repoFile": "functions/plate-ocr.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "parking-control",
+      "id": "85af816b-1aef-4efa-a720-0f81a385911a",
+      "status": "active",
+      "deployedAt": "2026-09-16T23:51:48.417Z",
+      "updatedAt": "2026-10-11T16:29:51.995Z",
+      "bytes": 101969,
+      "sha256": "4899237838c7eec361477c1f07a7713c40584d046d37d4a76b1ca44a7a43ac93",
+      "repoFile": "functions/parking-control.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "guard-gate",
+      "id": "8882938f-e90a-4942-a66f-583834626057",
+      "status": "active",
+      "deployedAt": "2026-09-16T23:51:32.521Z",
+      "updatedAt": "2026-09-30T19:18:38.582Z",
+      "bytes": 6067,
+      "sha256": "b244e74ca99f72acf90b25ed53535d8d502448c08c538c3321e1376b3c61539d",
+      "repoFile": "functions/guard-gate.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "condo-gates",
+      "id": "53537533-264a-4677-9287-d55fd0e39c4d",
+      "status": "active",
+      "deployedAt": "2026-09-09T03:34:42.886Z",
+      "updatedAt": "2026-09-30T19:17:15.347Z",
+      "bytes": 8284,
+      "sha256": "746c6810e0aae3cf80f6349b57c4ebd4a7ec509834d72d66ee23b28da9615288",
+      "repoFile": "functions/condo-gates.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "cart-lending",
+      "id": "0446ef93-836a-4dc3-ab0e-5a732be0af98",
+      "status": "active",
+      "deployedAt": "2026-09-09T02:00:25.499Z",
+      "updatedAt": "2026-09-30T19:16:56.391Z",
+      "bytes": 23305,
+      "sha256": "4f2090dfe5cf3ba66fae1f6a3ce0bae02c1925b738af08d367f981cb6a13105a",
+      "repoFile": "functions/cart-lending.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "condo-modules",
+      "id": "7b660d26-ea29-4897-9d9d-9186d8e6138c",
+      "status": "active",
+      "deployedAt": "2026-09-09T01:59:59.825Z",
+      "updatedAt": "2026-09-30T19:17:25.163Z",
+      "bytes": 18199,
+      "sha256": "b77789c5de1743c6ec6548d7402d4c2c884cbe0adf181d306001ff7378f51991",
+      "repoFile": "functions/condo-modules.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "resident-account",
+      "id": "23c74244-2171-400c-aaa3-ef379eb29370",
+      "status": "active",
+      "deployedAt": "2026-09-02T15:04:46.910Z",
+      "updatedAt": "2026-10-01T04:30:51.715Z",
+      "bytes": 11694,
+      "sha256": "aad7ddead1b2ebac656864d2cef23db9b06dfb95cd337b9a14ddb7af41431d68",
+      "repoFile": "functions/resident-account.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "floors",
+      "id": "8aff3a8c-4779-486c-a0e2-1f89f9af91fa",
+      "status": "active",
+      "deployedAt": "2026-09-02T14:03:36.942Z",
+      "updatedAt": "2026-09-30T19:18:07.746Z",
+      "bytes": 3713,
+      "sha256": "884c747e95b4e57c1e239b78b4919c8782a9b69075156c85befde89adb1a2b95",
+      "repoFile": "functions/floors.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "list-condominium-users",
+      "id": "5f371978-339b-4164-987e-d4a497034f69",
+      "status": "active",
+      "deployedAt": "2026-09-02T02:13:55.639Z",
+      "updatedAt": "2026-10-11T14:43:55.378Z",
+      "bytes": 49630,
+      "sha256": "72f929998604c81199e203113b07d6a2ca972cf2db704e51ddb0a4f24e2efc63",
+      "repoFile": "functions/list-condominium-users.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "list-condominiums",
+      "id": "83962fe0-b09a-4d56-aed8-56c34b63e679",
+      "status": "active",
+      "deployedAt": "2026-09-02T02:13:55.186Z",
+      "updatedAt": "2026-09-30T19:19:09.714Z",
+      "bytes": 3956,
+      "sha256": "7346b4476618b8b22ddff49ec7e44666783d228d5b9a8d2215cd74dc757eeebc",
+      "repoFile": "functions/list-condominiums.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "add-resident",
+      "id": "2baf1955-b53d-4e5d-90a0-ac8857c540a3",
+      "status": "active",
+      "deployedAt": "2026-09-02T02:13:54.954Z",
+      "updatedAt": "2026-10-11T14:43:41.502Z",
+      "bytes": 6320,
+      "sha256": "bc2af2e23e1b65a82292edb6ac7ea2fa86dc7a31ef49485bf2176f59bd05d15e",
+      "repoFile": "functions/add-resident.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "bootstrap-superadmin",
+      "id": "2df34b75-23c0-4104-b5e6-a36c0884ecd4",
+      "status": "active",
+      "deployedAt": "2026-09-02T00:36:57.730Z",
+      "updatedAt": "2026-09-30T19:16:44.308Z",
+      "bytes": 3804,
+      "sha256": "5f42817df665e4e908f883350ef9a63ed8f2eb7ad236d8e5aa048531330c5c11",
+      "repoFile": "functions/bootstrap-superadmin.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "register-condominium",
+      "id": "f39ecf27-b878-47d4-9e16-0091094cd82b",
+      "status": "active",
+      "deployedAt": "2026-09-02T00:23:57.522Z",
+      "updatedAt": "2026-09-30T19:21:42.928Z",
+      "bytes": 5678,
+      "sha256": "48af0194cc70b88883826943e205487a3de8717c56d998db6566130d3a210d16",
+      "repoFile": "functions/register-condominium.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "tower-structure",
+      "id": "da487529-803d-4c73-a909-b6980b97254b",
+      "status": "active",
+      "deployedAt": "2026-09-01T23:57:56.329Z",
+      "updatedAt": "2026-10-11T13:12:11.523Z",
+      "bytes": 3971,
+      "sha256": "6c737040ceb4fc9d4bb9c2e35f04f81c8ebb31a3275df473fff5ac82f9a0c190",
+      "repoFile": "functions/tower-structure.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "towers",
+      "id": "7364286e-061e-42cd-a473-2941c3599c72",
+      "status": "active",
+      "deployedAt": "2026-09-01T22:37:54.127Z",
+      "updatedAt": "2026-09-30T19:22:47.296Z",
+      "bytes": 5220,
+      "sha256": "5888906bd32643a6971886e9de0675b90955ebfcc739723f9c5db71bfe39c7c7",
+      "repoFile": "functions/towers.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "departments",
+      "id": "f44a6c77-ed58-48f9-a893-0fde87e24967",
+      "status": "active",
+      "deployedAt": "2026-09-01T22:37:54.122Z",
+      "updatedAt": "2026-09-30T19:17:56.239Z",
+      "bytes": 4621,
+      "sha256": "6eac789eb7ddc977522f1fa0c6308b7e4d2b47f76390aaf518745dec17163b59",
+      "repoFile": "functions/departments.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "residents",
+      "id": "cf1f60c5-3e82-4b66-be67-62e95a8c1bee",
+      "status": "active",
+      "deployedAt": "2026-09-01T22:37:54.121Z",
+      "updatedAt": "2026-10-01T14:01:40.844Z",
+      "bytes": 19989,
+      "sha256": "51afe19b1a8b32ca1fd957fb6abc540a2b69b87971593ac2195904309dc037d3",
+      "repoFile": "functions/residents.ts",
+      "matchesRepo": true
+    },
+    {
+      "slug": "provision-tower",
+      "id": "58c8ba60-028c-4079-b1a9-d8b748ba1be9",
+      "status": "active",
+      "deployedAt": "2026-09-01T22:35:33.509Z",
+      "updatedAt": "2026-09-30T19:21:31.330Z",
+      "bytes": 6384,
+      "sha256": "19477c8428d656ab2b1d73acafa2898572d2315be83270bf68c2ba3b5b0fc37f",
+      "repoFile": "functions/provision-tower.ts",
+      "matchesRepo": true
+    }
+  ]
+}

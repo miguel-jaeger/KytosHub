@@ -23,3 +23,9 @@ dist/
 .DS_Store
 Thumbs.db
 cloudflare.key
+
+# Salvas locales de la base (contienen datos personales: nunca subir)
+backup/dumps/*
+backup/cloud/*
+!backup/dumps/.gitkeep
+!backup/cloud/.gitkeep
