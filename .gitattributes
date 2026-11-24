@@ -1,0 +1,5 @@
+# Los snapshots versionados deben conservar bytes exactos (los hashes sha256
+# y la comparación con functions/ del repo dependen de ello).
+backup/functions/*.ts text eol=lf
+backup/schema/*.sql text eol=lf
+backup/scripts/*.mjs text eol=lf

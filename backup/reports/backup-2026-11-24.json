@@ -1,0 +1,165 @@
+{
+  "ranAt": "2026-11-24T15:50:27.905Z",
+  "host": "DESKTOP-D0PTPU8",
+  "project": {
+    "projectId": "f7949f63-4031-43fb-8220-8840c08b0522",
+    "name": "KytosHub",
+    "region": "us-east",
+    "url": "https://5vvsyy6z.us-east.insforge.app",
+    "appkey": "5vvsyy6z"
+  },
+  "cloud": {
+    "savedBefore": {
+      "file": "20261110_023601.sql.gz",
+      "bytes": 2001977,
+      "skipped": true,
+      "copyBlocks": 186,
+      "hasAuthUsers": true,
+      "tenantBlocks": 117
+    },
+    "savedAfter": {
+      "file": "20261124_154922.sql.gz",
+      "bytes": 2033256,
+      "sha256": "f5931a953525150c47d540e60406a0c819f179da6ccdaf6f464f0434e00e1016",
+      "copyBlocks": 187,
+      "hasAuthUsers": true,
+      "tenantBlocks": 117
+    },
+    "created": {
+      "name": "full-2026-11-24"
+    }
+  },
+  "dump": {
+    "file": "backup/dumps/db-2026-11-24_1050.sql",
+    "bytes": 432598,
+    "sha256": "9b8141a95929b9a4c6d1e017964aedb574894c3d10ba62e647a5a0086cd6c754",
+    "tables": 8,
+    "rows": 1293,
+    "functions": 27,
+    "policies": 13,
+    "triggers": 1,
+    "truncatedTables": [],
+    "verification": {
+      "tables": 8,
+      "mismatches": []
+    }
+  },
+  "allSchemas": {
+    "file": "backup/dumps/all-schemas-2026-11-24_1051.sql",
+    "bytes": 1012160,
+    "sha256": "162bd3b1e7624a4ada3fedee692f54dcdba44be97899422daedc80951d8b4167",
+    "schemas": [
+      "auth",
+      "condo_aa",
+      "condo_aaa",
+      "condo_aaaa_aaaaa",
+      "condo_condominio-las-gardenias",
+      "condo_condominio_molles",
+      "condo_mi_casa_bonita",
+      "condo_nuevo",
+      "condo_nuevo_condominio",
+      "condo_test",
+      "condo_tete",
+      "condo_villa-los-molles",
+      "condo_zzzz",
+      "public"
+    ],
+    "tables": 141,
+    "rows": 5080,
+    "bySchema": {
+      "auth": {
+        "tables": 6,
+        "rows": 458
+      },
+      "condo_aa": {
+        "tables": 13,
+        "rows": 256
+      },
+      "condo_aaa": {
+        "tables": 5,
+        "rows": 21
+      },
+      "condo_aaaa_aaaaa": {
+        "tables": 13,
+        "rows": 46
+      },
+      "condo_condominio-las-gardenias": {
+        "tables": 5,
+        "rows": 7
+      },
+      "condo_condominio_molles": {
+        "tables": 25,
+        "rows": 2030
+      },
+      "condo_mi_casa_bonita": {
+        "tables": 13,
+        "rows": 135
+      },
+      "condo_nuevo": {
+        "tables": 13,
+        "rows": 206
+      },
+      "condo_nuevo_condominio": {
+        "tables": 5,
+        "rows": 31
+      },
+      "condo_test": {
+        "tables": 13,
+        "rows": 132
+      },
+      "condo_tete": {
+        "tables": 4,
+        "rows": 188
+      },
+      "condo_villa-los-molles": {
+        "tables": 5,
+        "rows": 166
+      },
+      "condo_zzzz": {
+        "tables": 13,
+        "rows": 111
+      },
+      "public": {
+        "tables": 8,
+        "rows": 1293
+      }
+    },
+    "mismatches": []
+  },
+  "schema": {
+    "file": "backup/schema/schema-latest.sql",
+    "bytes": 75965,
+    "sha256": "a988246b93f8895d38a0a248cbe3c7b7e167a38b8bb717a0d0449e20b7f84c6c",
+    "tables": 8
+  },
+  "functions": {
+    "count": 26,
+    "mismatches": [],
+    "missingRepo": [],
+    "orphanRepo": []
+  },
+  "structure": {
+    "file": "backup/reports/structure-inventory-2026-11-24.json",
+    "counts": {
+      "schemas": 14,
+      "columns": 1181,
+      "indexes": 399,
+      "constraints": 531,
+      "policies": 267,
+      "functions": 205,
+      "triggers": 19,
+      "views": 1
+    }
+  },
+  "warnings": [],
+  "fullSystem": {
+    "file": "backup/dumps/full-system-2026-11-24_1050.sql",
+    "bytes": 11477504,
+    "sha256": "6eca12c27829f2bd625d0b1795c48ed84afa9ba0396511cbb678584d1ecb72a2",
+    "source": "20261124_154922.sql.gz"
+  },
+  "notes": [
+    "El backup cloud checkpoint-2026-09-24 se elimino para liberar la cuota Free (1 backup manual). Su contenido era anterior al snapshot 2026-11-10, que si quedo descargado y validado en backup/cloud/.",
+    "La salva portable all-schemas incluye public, auth y los 12 esquemas condo_*; el dump full-system (pg_dump) incluye ademas los esquemas internos de InsForge."
+  ]
+}

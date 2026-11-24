@@ -1,0 +1,288 @@
+import { createAdminClient, createClient } from 'npm:@insforge/sdk';
+
+const DEFAULT_PASSWORD = '12345678';
+
+export default async function(req: Request): Promise<Response> {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  try {
+    const client = createAdminClient({
+      baseUrl: Deno.env.get('INSFORGE_BASE_URL'),
+      apiKey: Deno.env.get('INSFORGE_API_KEY')
+    });
+
+    let body: Record<string, unknown> = {};
+    try { body = await req.json(); } catch {}
+    const action = body.action as string;
+
+    switch (action) {
+      case 'create': {
+        // Creates an auth account for a proprietor resident
+        const { email, full_name, document_type, document_number, phone, relationship_type } = body as {
+          email?: string;
+          full_name?: string;
+          document_type?: string;
+          document_number?: string;
+          phone?: string;
+          relationship_type?: string;
+        };
+
+        if (!email || !full_name) {
+          return bad(corsHeaders, 'email y full_name son requeridos');
+        }
+
+        let userId: string | null = null;
+
+        const { data: signUpData, error: signUpError } = await client.auth.signUp({
+          email,
+          password: DEFAULT_PASSWORD,
+          name: full_name,
+          redirectTo: 'https://kytos-hub.vercel.app',
+          autoConfirm: true
+        });
+
+        userId = signUpData?.user?.id || null;
+
+        if (!userId) {
+          userId = await resolveUserIdByEmail(email);
+        }
+
+        if (signUpError && !userId) {
+          // User may already exist in auth.users; resolve by email
+          const resolved = await resolveUserIdByEmail(email);
+          if (resolved) {
+            userId = resolved;
+          } else {
+            console.error('signUp error:', signUpError);
+            return new Response(
+              JSON.stringify({ success: false, data: null, error: { code: 'SIGNUP_FAILED', message: signUpError.message } }),
+              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        }
+
+        if (userId) {
+          // Insert into users_global
+          const ugPayload: Record<string, unknown> = {
+            id: userId,
+            email,
+            name: full_name,
+            password_hash: DEFAULT_PASSWORD,
+            is_superadmin: false
+          };
+          if (document_type) ugPayload.document_type = document_type;
+          if (document_number) ugPayload.document_number = document_number;
+          if (phone) ugPayload.phone = phone;
+
+          const { error: ugInsertError } = await client.database.from('users_global').insert([ugPayload]);
+
+          if (ugInsertError && !String(ugInsertError).includes('duplicate')) {
+            console.error('users_global insert error:', ugInsertError);
+          } else if (ugInsertError) {
+            // User already exists: update their profile with the resident data
+            try {
+              const ugUpdate: Record<string, unknown> = { name: full_name };
+              if (document_type) ugUpdate.document_type = document_type;
+              if (document_number) ugUpdate.document_number = document_number;
+              if (phone) ugUpdate.phone = phone;
+              await client.database.from('users_global').update(ugUpdate).eq('id', userId);
+            } catch (e2) { console.error('users_global update fallback error:', e2); }
+          }
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              email,
+              user_id: userId,
+              default_password: DEFAULT_PASSWORD,
+              relationship_type
+            },
+            error: null
+          }),
+          { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'change-password': {
+        // Change the authenticated user's password
+        const authHeader = req.headers.get('Authorization');
+        const userToken = authHeader ? authHeader.replace('Bearer ', '') : null;
+        if (!userToken) return bad(corsHeaders, 'Usuario no autenticado');
+
+        const userClient = createClient({
+          baseUrl: Deno.env.get('INSFORGE_BASE_URL'),
+          anonKey: Deno.env.get('ANON_KEY'),
+          accessToken: userToken
+        });
+
+        const { data: current } = await userClient.auth.getCurrentUser();
+        if (!current?.user) return bad(corsHeaders, 'Usuario no encontrado');
+
+        const { current_password, new_password } = body as { current_password?: string; new_password?: string };
+        if (!current_password || !new_password) {
+          return bad(corsHeaders, 'current_password y new_password son requeridos');
+        }
+        if (new_password.length < 6) {
+          return bad(corsHeaders, 'La nueva contraseña debe tener al menos 6 caracteres');
+        }
+
+        // Verify current password
+        const { error: verifyError } = await userClient.auth.signInWithPassword({
+          email: current.user.email,
+          password: current_password
+        });
+        if (verifyError) {
+          return bad(corsHeaders, 'La contraseña actual es incorrecta');
+        }
+
+        // Update password via admin
+        const { error: updateError } = await client.database
+          .from('auth.users')
+          .update({ password: new_password })
+          .eq('id', current.user.id);
+
+        if (updateError) {
+          console.error('update password error:', updateError);
+          return new Response(
+            JSON.stringify({ success: false, data: null, error: { code: 'PASSWORD_FAILED', message: String(updateError) } }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, data: null, error: null }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'update-profile': {
+        const authHeader = req.headers.get('Authorization');
+        const userToken = authHeader?.replace(/^Bearer\s+/i, '');
+        if (!userToken) return bad(corsHeaders, 'Usuario no autenticado');
+
+        const baseUrl = Deno.env.get('INSFORGE_BASE_URL');
+        const anonKey = Deno.env.get('ANON_KEY');
+        const userClient = createClient({ baseUrl, anonKey, accessToken: userToken });
+        const { data: current, error: authError } = await userClient.auth.getCurrentUser();
+        if (authError || !current?.user?.id || !current.user.email) return bad(corsHeaders, 'Usuario no autenticado');
+
+        const name = String(body.name || '').trim();
+        const email = String(body.email || '').trim().toLowerCase();
+        const currentPassword = String(body.current_password || '');
+        if (!name || name.length > 200) return bad(corsHeaders, 'El nombre es obligatorio y no puede superar 200 caracteres');
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return bad(corsHeaders, 'Ingresa un correo válido');
+
+        const emailChanged = email !== current.user.email.toLowerCase();
+        if (emailChanged) {
+          if (!currentPassword) return bad(corsHeaders, 'Ingresa tu contraseña actual para cambiar el correo');
+          const verifyClient = createClient({ baseUrl, anonKey });
+          const { error: verifyError } = await verifyClient.auth.signInWithPassword({
+            email: current.user.email,
+            password: currentPassword
+          });
+          if (verifyError) return bad(corsHeaders, 'La contraseña actual es incorrecta');
+
+          const { data: authDuplicate, error: authLookupError } = await client.database
+            .from('auth.users')
+            .select('id')
+            .eq('email', email)
+            .neq('id', current.user.id)
+            .maybeSingle();
+          if (authLookupError) throw authLookupError;
+          if (authDuplicate) return bad(corsHeaders, 'Ese correo ya está asociado a otra cuenta');
+
+          const { data: globalDuplicate, error: globalLookupError } = await client.database
+            .from('users_global')
+            .select('id')
+            .eq('email', email)
+            .neq('id', current.user.id)
+            .maybeSingle();
+          if (globalLookupError) throw globalLookupError;
+          if (globalDuplicate) return bad(corsHeaders, 'Ese correo ya está asociado a otra cuenta');
+        }
+
+        const { error: authProfileError } = await userClient.auth.setProfile({ name });
+        if (authProfileError) throw authProfileError;
+
+        const { error: globalUpdateError } = await client.database
+          .from('users_global')
+          .update({ name, email })
+          .eq('id', current.user.id);
+        if (globalUpdateError) throw globalUpdateError;
+
+        if (emailChanged) {
+          const { error: emailSyncError } = await client.database.rpc('sync_auth_email', {
+            p_user_id: current.user.id,
+            p_email: email
+          });
+          if (emailSyncError) {
+            await client.database.from('users_global').update({ email: current.user.email }).eq('id', current.user.id);
+            throw emailSyncError;
+          }
+        }
+
+        const { data: tenants, error: tenantsError } = await client.database.from('tenants').select('schema_name');
+        if (tenantsError) throw tenantsError;
+        for (const tenant of (tenants || []) as Array<{ schema_name?: string }>) {
+          if (!tenant.schema_name) continue;
+          const { error: residentUpdateError } = await client.database.schema(tenant.schema_name)
+            .from('residents')
+            .update({ full_name: name, email })
+            .eq('user_id', current.user.id);
+          if (residentUpdateError) {
+            console.error(`resident profile sync failed for ${tenant.schema_name}:`, residentUpdateError);
+          }
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, data: { name, email }, error: null }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      default:
+        return bad(corsHeaders, `Acción desconocida: ${action}`);
+    }
+  } catch (error) {
+    console.error('Error in resident-account:', error);
+    return new Response(
+      JSON.stringify({ success: false, data: null, error: { code: 'INTERNAL_ERROR', message: String(error) } }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+function bad(cors: Record<string, string>, msg: string): Response {
+  return new Response(
+    JSON.stringify({ success: false, data: null, error: { code: 'BAD_REQUEST', message: msg } }),
+    { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }
+  );
+}
+
+async function resolveUserIdByEmail(email: string): Promise<string | null> {
+  const baseUrl = Deno.env.get('INSFORGE_BASE_URL');
+  const apiKey = Deno.env.get('INSFORGE_API_KEY');
+  if (!baseUrl || !apiKey) return null;
+
+  try {
+    const res = await fetch(`${baseUrl}/api/auth/users?search=${encodeURIComponent(email)}`, {
+      headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' }
+    });
+    if (!res.ok) return null;
+    const json = await res.json() as { data?: { id: string; email: string }[] };
+    const match = (json.data || []).find(u => String(u.email).toLowerCase() === email);
+    return match?.id || null;
+  } catch {
+    return null;
+  }
+}
